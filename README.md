@@ -9,14 +9,14 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
 ## Puesta en marcha (unos 15 minutos, una sola vez)
 
 ### 1. Publicar la web (GitHub Pages)
-1. En GitHub, en el repo `plantdex`: **Settings → Pages**.
+1. En GitHub, en el repo `PlantDex`: **Settings → Pages**.
 2. En *Source* elegí **Deploy from a branch**, la rama `main` y la carpeta `/ (root)`. Guardá.
-3. En un minuto queda en `https://nchiari.github.io/plantdex/`.
+3. En un minuto queda en `https://nchiari.github.io/PlantDex/`.
 
 ### 2. Crear tu nube (Supabase)
 1. Entrá a <https://supabase.com>, creá una cuenta y un proyecto nuevo (plan Free, región Europa).
 2. Andá a **SQL Editor → New query**, pegá todo el contenido de [`supabase/schema.sql`](supabase/schema.sql) y apretá **Run**.
-3. Andá a **Authentication → URL Configuration** y en *Site URL* poné `https://nchiari.github.io/plantdex/` (sumala también en *Redirect URLs*).
+3. Andá a **Authentication → URL Configuration** y en *Site URL* poné `https://nchiari.github.io/PlantDex/` (sumala también en *Redirect URLs*).
 4. Opcional, pero recomendado: en **Authentication → Sign In / Providers → Email**, después de registrarte, desactivá *Allow new users to sign up* para que nadie más pueda crearse una cuenta.
 5. En **Project Settings → API** copiá la **Project URL** y la **anon / publishable key**.
 
