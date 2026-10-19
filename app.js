@@ -191,7 +191,8 @@ Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta for
  "rarity": 1-5 (1 = muy común en esa región, 5 = rarísima allí),
  "confidence": "alta | media | baja, y si es baja, qué foto extra ayudaría"
 }
-Ante la duda sé conservador con la comestibilidad: usá "desconocido".${hint ? `\nPista: ${hint}` : ""}`;
+Ante la duda sé conservador con la comestibilidad: usá "desconocido".
+En description, native_range, edibility_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista: ${hint}` : ""}`;
 
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
@@ -420,6 +421,15 @@ function card(p) {
   </div>`;
 }
 
+// Texto con énfasis: **clave** → negrita, y las advertencias se resaltan solas.
+const WARN_WORDS = /\b(t[óo]xic[oa]s?|toxicidad|venenos[oa]s?|mortal(es)?|letal(es)?|no (se )?(debe|deben)? ?(consumir|comer|ingerir)|no comestibles?|nunca [a-záéíóú]+|precauci[óo]n|peligros[oa]s?|irritante|cianog[ée]nic[oa]s?|alucin[óo]gen[oa]s?)\b/gi;
+function rich(txt) {
+  return esc(txt)
+    .replace(WARN_WORDS, (m) => `<mark class="warn-t">${m}</mark>`)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*\*/g, "");
+}
+
 const RARITY = ["Muy común", "Común", "Poco común", "Rara", "Rarísima"];
 const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
 
@@ -465,7 +475,7 @@ async function renderDetail(id) {
   ];
     // Sección desplegable: se abre/cierra tocando el título.
   const fold = (title, body) => body ? `<details class="fold"><summary><span>${title}</span><svg><use href="#f-chev"/></svg></summary><div class="fold-body">${body}</div></details>` : "";
-  const note = (txt) => (txt ? `<div class="field-note">${esc(txt)}</div>` : "");
+  const note = (txt) => (txt ? `<div class="field-note">${rich(txt)}</div>` : "");
   const hasMonths = p.flower_months?.length || p.fruit_months?.length;
   const idx = plants.findIndex((x) => x.id === id);
   const prev = plants[idx + 1], next = plants[idx - 1];
@@ -484,14 +494,14 @@ async function renderDetail(id) {
     <div class="row fig-actions" id="figact"></div>
     ${typeBadges(p.types)}
     ${factSheet(p)}
-    ${p.description ? `<div class="field-note dropcap lead-desc">${esc(p.description)}</div>` : ""}
+    ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     <div class="folds">
       ${fold("Patria · origen", note(p.native_range))}
       ${fold("Kalendarium", hasMonths ? monthsBar(p.flower_months, p.fruit_months) + legend : "")}
       ${fold("Esculenta · comestibilidad", note(p.edibility_notes))}
       ${fold("Usus · usos", note(p.uses))}
       ${fold("Historia", note(p.history))}
-      ${fold("Curiosa", p.curiosity ? `<div class="curio">“${esc(p.curiosity)}”</div>` : "")}
+      ${fold("Curiosa", p.curiosity ? `<div class="curio">“${rich(p.curiosity)}”</div>` : "")}
       ${fold("Notae · mis notas", note(p.notes))}
     </div>
     ${p.ai_confidence ? `<div class="meta">Confianza de la identificación: ${esc(p.ai_confidence)}</div>` : ""}

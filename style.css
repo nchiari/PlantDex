@@ -376,3 +376,9 @@ body.engrave .ix-ph:not(.illu) { filter: url(#engrave); }
 .fold[open] summary svg { transform: rotate(180deg); }
 .fold-body { padding: 0 2px 18px; }
 .fact.no svg, .fact.no .fv { color: var(--ink-soft); }
+
+/* énfasis en los textos */
+.field-note strong, .curio strong { font-weight: 600; color: var(--ink); background: linear-gradient(transparent 62%, #d5dfba 62%); padding: 0 1px; }
+mark.warn-t { background: none; color: var(--bad); font-weight: 600; font-style: italic; border-bottom: 1px dotted currentColor; }
+.curio strong { background: none; }
+mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wavy var(--gold); text-underline-offset: 3px; text-decoration-thickness: 1.2px; }
