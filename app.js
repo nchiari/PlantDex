@@ -13,7 +13,6 @@ const BUCKET = "plant-photos";
 
 const TYPES = ["comestible", "toxica", "medicinal", "aromatica", "frutal", "flor", "arbol", "arbusto", "hierba", "trepadora", "hongo", "acuatica", "invasora", "ornamental"];
 const TYPE_LABEL = { comestible: "Comestible", toxica: "Tóxica", medicinal: "Medicinal", aromatica: "Aromática", frutal: "Frutal", flor: "Flor", arbol: "Árbol", arbusto: "Arbusto", hierba: "Hierba", trepadora: "Trepadora", hongo: "Hongo", acuatica: "Acuática", invasora: "Invasora", ornamental: "Ornamental" };
-const DOG = { seguro: ["✓", "Inocua para Rufi", "ok"], precaucion: ["⚠", "Con precaución", "warn"], toxico: ["☠", "Venenosa para Rufi", "bad"], desconocido: ["?", "Sin datos", ""] };
 const HUMAN = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "bad"], desconocido: ["Sin datos", ""] };
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const MONTHS_LONG = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -114,8 +113,6 @@ Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta for
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
  "edibility_notes": "qué partes se comen, cómo, en qué época, y confusiones peligrosas con especies parecidas",
- "dog_safety": "seguro | precaucion | toxico | desconocido",
- "dog_notes": "qué le pasa a un perro si la come y qué hacer",
  "description": "cómo reconocerla, 2-3 frases",
  "uses": "usos culinarios, medicinales tradicionales, artesanales u ornamentales",
  "history": "historia, etimología o folklore, 2-4 frases",
@@ -309,7 +306,7 @@ function renderList() {
     ${used.length ? `<div class="chips">${used.map((t) => `<span class="chip ${filter.type === t ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
-      <p class="lead">Salí a pasear con Rufi y tocá el sello verde<br>para asentar tu primera lámina.</p>
+      <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
       <button class="btn red" id="start">Comenzar la Tab. I</button></div>` :
       `<div class="grid">${list.map(card).join("") || `<p class="muted">Ninguna lámina coincide.</p>`}</div>`}
   `;
@@ -321,10 +318,11 @@ function renderList() {
 }
 
 function card(p) {
-  const img = photoOf(p), d = DOG[p.dog_safety || "desconocido"];
+  const img = photoOf(p);
+  const mark = p.types?.includes("toxica") ? ["☠", "Tóxica"] : { si: ["✓", "Comestible"], parcial: ["◐", "En parte comestible"], no: ["✕", "No se come"] }[p.edible_human] || ["?", "Sin datos"];
   return `<div class="card" data-id="${p.id}">
     <div class="ph" style="${img ? `background-image:url('${img}')` : ""}"></div>
-    <span class="dog" title="${d[1]}">${d[0]}</span>
+    <span class="dog" title="${mark[1]}">${mark[0]}</span>
     <span class="num">${tab(p.number)}</span>
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
   </div>`;
@@ -335,7 +333,7 @@ async function renderDetail(id) {
   if (!p) return go("list");
   await signUrls(p.photos || []);
   const urls = (p.photos || []).map((x) => urlCache.get(x)).filter(Boolean);
-  const dog = DOG[p.dog_safety || "desconocido"], hum = HUMAN[p.edible_human || "desconocido"];
+  const hum = HUMAN[p.edible_human || "desconocido"], toxic = p.types?.includes("toxica");
   const sec = (title, txt, cls = "") => txt ? `<h3>${title}</h3><div class="field-note ${cls}">${esc(txt)}</div>` : "";
   const hasMonths = p.flower_months?.length || p.fruit_months?.length;
   const idx = plants.findIndex((x) => x.id === id);
@@ -353,21 +351,20 @@ async function renderDetail(id) {
     ${urls.length > 1 ? `<div class="thumbs">${urls.map((u, i) => `<img src="${u}" data-i="${i}">`).join("")}</div>` : ""}
     ${typeBadges(p.types)}
     <div class="safety">
-      <div><div class="k">PARA VOS</div><div class="v ${hum[1]}">${hum[0]}</div></div>
-      <div><div class="k">PARA RUFI</div><div class="v ${dog[2]}">${dog[0]} ${dog[1]}</div></div>
+      <div><div class="k">PARA COMER</div><div class="v ${hum[1]}">${hum[0]}</div></div>
+      <div><div class="k">TOXICIDAD</div><div class="v ${toxic ? "bad" : ""}">${toxic ? "☠ Tóxica" : "Sin advertencias"}</div></div>
     </div>
     ${sec("Descriptio", p.description, "dropcap")}
     ${sec("Patria · origen", p.native_range)}
     ${hasMonths ? `<h3>Kalendarium</h3>${monthsBar(p.flower_months, p.fruit_months)}${legend}` : ""}
     ${sec("Esculenta · comestibilidad", p.edibility_notes)}
-    ${sec("De canibus · perros", p.dog_notes)}
     ${sec("Usus · usos", p.uses)}
     ${sec("Historia", p.history)}
     ${p.curiosity ? `<h3>Curiosa</h3><div class="curio">“${esc(p.curiosity)}”</div>` : ""}
     ${sec("Notae · mis notas", p.notes)}
     <div class="meta">Hallada en ${esc(p.location_name || "lugar sin nombre")}${p.lat ? ` (<a href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>)` : ""}, el ${esc(p.found_at || "")}.<br>
       Rareza <span class="stars">${stars(p.rarity)}</span>${p.ai_confidence ? `<br>Confianza de la identificación: ${esc(p.ai_confidence)}` : ""}</div>
-    <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, o de dejar que Rufi lo coma, confirmalo con alguien que sepa.</div>
+    <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, confirmalo con alguien que sepa.</div>
     <div class="row" style="margin-top:18px">
       <button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
       <button class="btn ghost" id="del">Arrancar la lámina</button>
@@ -523,12 +520,12 @@ function renderForm(existing) {
     <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
     <label>Tipos</label>
     <div class="chips" id="types">${TYPES.map((t) => `<span class="chip ${d.types?.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>
-    <div class="row"><div><label>¿Comestible para vos?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
-    <div><label>¿Y para Rufi?</label><select id="dog_safety">${opt(DOG, d.dog_safety, 1)}</select></div></div>
+    <div class="row"><div><label>¿Es comestible?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
+</div>
     <label>Floración: tocá los meses</label>${monthsBar(d.flower_months, [], "flm")}
     <label>Fruto o cosecha</label>${monthsBar([], d.fruit_months, "frm")}
     <label>Rareza: <span id="rv" class="stars">${stars(d.rarity || 1)}</span></label><input id="rarity" type="range" min="1" max="5" value="${d.rarity || 1}">
-    ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}${ta("dog_notes", "Perros")}
+    ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
     ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
     <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || new Date().toISOString().slice(0, 10))}"></div></div>
@@ -545,7 +542,7 @@ function renderForm(existing) {
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
     const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, ai_confidence: d.ai_confidence || null, flower_months: d.flower_months, fruit_months: d.fruit_months };
-    for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "dog_safety", "description", "edibility_notes", "dog_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
+    for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.rarity = +v("rarity");
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
@@ -602,14 +599,14 @@ function renderStats() {
   const count = (f) => plants.filter(f).length;
   const families = new Set(plants.map((p) => p.family).filter(Boolean)).size;
   const edible = count((p) => p.edible_human === "si" || p.edible_human === "parcial");
-  const toxicDog = count((p) => p.dog_safety === "toxico");
+  const toxic = count((p) => p.types?.includes("toxica"));
   const rare = count((p) => p.rarity >= 4);
   const badges = [
     ["I", "Primer brote", "Asentá tu primera lámina", n >= 1],
     ["X", "Herborista", "10 láminas", n >= 10],
     ["L", "Hortus conclusus", "50 láminas", n >= 50],
     ["R", "Recolector", "5 comestibles", edible >= 5],
-    ["C", "Custos Rufi", "3 venenosas para perros identificadas", toxicDog >= 3],
+    ["P", "Prudente", "3 plantas tóxicas identificadas", toxic >= 3],
     ["O", "Ojo de lince", "Una rareza de 4 estrellas o más", rare >= 1],
     ["T", "Taxónomo", "10 familias distintas", families >= 10],
     ["M", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
@@ -623,7 +620,7 @@ function renderStats() {
       <div class="stat"><b>${n}</b>láminas</div>
       <div class="stat"><b>${families}</b>familias</div>
       <div class="stat"><b>${edible}</b>comestibles</div>
-      <div class="stat"><b>${toxicDog}</b>a evitar con Rufi</div>
+      <div class="stat"><b>${toxic}</b>tóxicas</div>
     </div>
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
     <h3>Insignias</h3>

@@ -1,6 +1,6 @@
 # 🌿 PlantDex
 
-Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come, si es peligrosa para Rufi, sus usos y su historia, y queda guardada en tu catálogo en la nube.
+Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come o es tóxica, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 
 Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos) y Google Gemini (identificación).
 
@@ -36,7 +36,7 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
   - **Automático**: Gemini completa la ficha (necesita la API key gratis).
   - **Con mi chat**: copiás un prompt, lo pegás en ChatGPT o Claude con las fotos, y pegás la respuesta. Usa tus suscripciones, sin API.
   - **A mano**.
-- Cada planta es una *Tabula* numerada en romano, con tipos, rareza ✦, y qué tan segura es para vos y para Rufi.
+- Cada planta es una *Tabula* numerada en romano, con tipos, rareza ✦, y si es comestible o tóxica.
 - **Kalendarium**: qué florece y qué fruto se puede recolectar cada mes, empezando por el mes actual.
 - **Progressus**: estadísticas, familias más vistas e insignias.
 - En Ajustes podés activar o desactivar el filtro de grabado en las fotos.
@@ -46,4 +46,4 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
 - Las fotos están en un bucket privado y la base tiene Row Level Security: solo tu usuario las ve.
 - Las claves quedan guardadas en el navegador de cada dispositivo y no se suben al repo.
 
-> ⚠ La identificación por foto puede fallar. Nunca comas una planta silvestre ni dejes que Rufi la coma sin confirmarlo con alguien que sepa.
+> ⚠ La identificación por foto puede fallar. Nunca comas una planta silvestre sin confirmarlo con alguien que sepa.
