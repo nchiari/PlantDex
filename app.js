@@ -13,10 +13,10 @@ const BUCKET = "plant-photos";
 
 const TYPES = ["comestible", "toxica", "medicinal", "aromatica", "frutal", "flor", "arbol", "arbusto", "hierba", "trepadora", "hongo", "acuatica", "invasora", "ornamental"];
 const TYPE_LABEL = { comestible: "Comestible", toxica: "Tóxica", medicinal: "Medicinal", aromatica: "Aromática", frutal: "Frutal", flor: "Flor", arbol: "Árbol", arbusto: "Arbusto", hierba: "Hierba", trepadora: "Trepadora", hongo: "Hongo", acuatica: "Acuática", invasora: "Invasora", ornamental: "Ornamental" };
-const DOG = { seguro: ["🐶", "Inocua para Rufi", "ok"], precaucion: ["⚠", "Con precaución", "warn"], toxico: ["☠", "Venenosa para Rufi", "bad"], desconocido: ["?", "Sin datos", ""] };
+const DOG = { seguro: ["✓", "Inocua para Rufi", "ok"], precaucion: ["⚠", "Con precaución", "warn"], toxico: ["☠", "Venenosa para Rufi", "bad"], desconocido: ["?", "Sin datos", ""] };
 const HUMAN = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "bad"], desconocido: ["Sin datos", ""] };
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-const MONTHS_LATIN = ["Ianuarius", "Februarius", "Martius", "Aprilis", "Maius", "Iunius", "Iulius", "Augustus", "September", "October", "November", "December"];
+const MONTHS_LONG = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 // ---------- estado ----------
 let sb = null;
@@ -43,6 +43,7 @@ const tab = (n) => "Tab. " + roman(n);
 async function boot() {
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-settings").onclick = () => go("settings");
+  document.getElementById("btn-home").onclick = () => go("list");
   $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go === "new" ? openSheet() : go(b.dataset.go))));
   window.addEventListener("hashchange", route);
 
@@ -60,6 +61,9 @@ function go(view) { if (location.hash === "#" + view) route(); else location.has
 function route() {
   const [view, arg] = location.hash.slice(1).split("/");
   window.scrollTo(0, 0);
+  document.getElementById("sheet").hidden = true;
+  const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
+  $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
   if (view === "settings" || !sb) return renderSettings();
   if (!user) return renderLogin();
   $nav.hidden = false;
@@ -176,8 +180,27 @@ const stars = (n) => "✦".repeat(n || 1) + "✧".repeat(5 - (n || 1));
 const monthsBar = (fl = [], fr = [], pickId = "") => `<div class="months ${pickId ? "pick" : ""}" ${pickId ? `id="${pickId}"` : ""}>${MONTHS.map((m, i) => {
   const n = i + 1; return `<span data-m="${n}" class="${fl.includes(n) ? "fl" : ""} ${fr.includes(n) ? "fr" : ""} ${n === nowMonth() ? "now" : ""}">${m[0]}</span>`;
 }).join("")}</div>`;
-const legend = `<div class="legend"><i style="background:#e3d9a6"></i>flor <i style="background:#a9c391"></i>fruto <i style="outline:2px solid var(--rubric)"></i>mes actual</div>`;
+const legend = `<div class="legend"><i style="background:var(--gold-soft)"></i>flor <i style="background:var(--leaf-2)"></i>fruto <i style="box-shadow:0 0 0 2px var(--ink)"></i>mes actual</div>`;
 const photoOf = (p) => urlCache.get(p.photos?.[0]);
+
+// Ilustración de lámina grabada (tallo, hojas con nervaduras, flor y raíces)
+const PLANT_ART = `<svg viewBox="0 0 200 260" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M100 236C98 190 104 150 100 70" stroke-width="2"/>
+  <g stroke-width="1.3">
+    <path d="M100 180C80 176 58 160 50 136c22 0 42 14 50 44z"/><path d="M100 180C84 168 68 152 56 140M78 170l-6-14M88 176l-4-12M66 160l-9-8"/>
+    <path d="M101 150c18-6 40-24 46-50-22 4-40 20-46 50z"/><path d="M101 150c14-14 28-30 40-44M118 136l14-2M128 124l12-4M110 144l6-12"/>
+    <path d="M100 116c-14-4-30-18-34-38 18 2 30 14 34 38z"/><path d="M100 116C90 104 80 94 70 84M84 104l-10 0M92 110l-4-10"/>
+  </g>
+  <g stroke-width="1.4">
+    <path d="M100 70c-6-14-4-26 0-34 4 8 6 20 0 34z"/><path d="M100 70c-14-6-22-18-22-28 10 2 18 12 22 28z"/>
+    <path d="M100 70c14-6 22-18 22-28-10 2-18 12-22 28z"/><path d="M100 70c-16 2-28-4-34-12 12-4 24 0 34 12z"/>
+    <path d="M100 70c16 2 28-4 34-12-12-4-24 0-34 12z"/>
+  </g>
+  <circle cx="100" cy="64" r="5" fill="#b39a52" stroke-width="1.2"/>
+  <g stroke-width=".9" opacity=".7"><path d="M100 236c-10 6-22 8-32 6M100 236c8 8 20 12 30 10M100 236c-2 8-8 14-14 16M100 236c4 8 4 14 2 20"/></g>
+  <path d="M40 240h120" stroke-width=".8" opacity=".5"/>
+</svg>`;
+const EMBLEM = `<svg viewBox="0 0 64 64"><use href="#i-emblem"/></svg>`;
 
 // ---------- vistas ----------
 function renderSettings() {
@@ -223,11 +246,11 @@ function renderLogin() {
   $nav.hidden = true;
   $app.innerHTML = `
     <div class="empty">
-      <div class="ornament">❧ ❦ ❧</div>
+      <div class="big">${PLANT_ART}</div>
       <h2>Herbarium Vivum</h2>
-      <p class="muted"><i>Liber plantarum quas vidi</i>: el libro de las plantas que vi.</p>
-      <p>Dejá tu email y te llega un link para entrar.</p>
-      <input id="email" type="email" placeholder="tu@email.com" style="margin:10px 0 20px;text-align:center">
+      <p class="lead"><i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi.</p>
+      <label>Tu email</label>
+      <input id="email" type="email" placeholder="tu@email.com" style="margin:0 0 22px;text-align:center">
       <button class="btn red" id="send" style="width:100%">Enviar el link</button>
     </div>`;
   $app.querySelector("#send").onclick = async () => {
@@ -248,8 +271,8 @@ function renderList() {
     <div class="search"><input id="q" placeholder="Buscar por nombre, latín, familia, lugar…" value="${esc(filter.q)}"></div>
     ${used.length ? `<div class="chips">${used.map((t) => `<span class="chip ${filter.type === t ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>` : ""}
     ${plants.length === 0 ? `
-      <div class="empty"><div class="big">❦</div><h3>Las páginas están en blanco</h3>
-      <p class="muted">Salí a pasear con Rufi y tocá ✚ para dibujar tu primera lámina.</p>
+      <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
+      <p class="lead">Salí a pasear con Rufi y tocá el sello verde<br>para asentar tu primera lámina.</p>
       <button class="btn red" id="start">Comenzar la Tab. I</button></div>` :
       `<div class="grid">${list.map(card).join("") || `<p class="muted">Ninguna lámina coincide.</p>`}</div>`}
   `;
@@ -388,7 +411,7 @@ function renderNew() {
       <button class="btn primary" id="ai" style="width:100%" ${has ? "" : "disabled"}>Identificar</button><div id="status"></div>`;
     box.querySelector("#ai").onclick = async () => {
       const st = box.querySelector("#status");
-      st.innerHTML = `<div class="scanning"><span class="leaf">❦</span><p><i>Consultando los tratados…</i></p></div>`;
+      st.innerHTML = `<div class="scanning"><span class="leaf">${EMBLEM}</span><p><i>Consultando los tratados…</i></p></div>`;
       try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx())) }; renderForm(null); }
       catch (e) { st.innerHTML = `<p class="muted">No pude identificarla: ${esc(e.message)}</p>`; }
     };
@@ -524,14 +547,14 @@ function renderCalendar() {
     const fl = plants.filter((p) => p.flower_months?.includes(m));
     const fr = plants.filter((p) => p.fruit_months?.includes(m));
     if (!fl.length && !fr.length) return "";
-    return `<div class="cal-month"><h3>${MONTHS_LATIN[m - 1]}${m === cur ? " · ahora" : ""}</h3>
+    return `<div class="cal-month"><h3>${MONTHS_LONG[m - 1]}${m === cur ? " · ahora" : ""}</h3>
       <div class="cal-list">${fr.map((p) => item(p, "da fruto")).join("")}${fl.map((p) => item(p, "en flor")).join("")}</div></div>`;
   };
   const html = order.map(block).join("");
   $app.innerHTML = `
     <h2>Kalendarium</h2>
     <p class="muted">Qué florece y qué se puede recolectar cada mes, según tus láminas. Empieza por este mes. Los meses corresponden al lugar donde encontraste cada planta.</p>
-    ${html || `<div class="empty"><div class="big">☾</div><p class="muted">Todavía no hay meses cargados. La identificación automática los completa sola, o los marcás vos al editar una lámina.</p></div>`}`;
+    ${html || `<div class="empty"><div class="big">${PLANT_ART}</div><p class="lead">Todavía no hay meses cargados. La identificación automática los completa sola, o los marcás vos al editar una lámina.</p></div>`}`;
   $app.querySelectorAll(".cal-item").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
 }
 
@@ -544,15 +567,15 @@ function renderStats() {
   const toxicDog = count((p) => p.dog_safety === "toxico");
   const rare = count((p) => p.rarity >= 4);
   const badges = [
-    ["❦", "Primer brote", "Asentá tu primera lámina", n >= 1],
-    ["❧", "Herborista", "10 láminas", n >= 10],
-    ["♣", "Hortus conclusus", "50 láminas", n >= 50],
-    ["⚘", "Recolector", "5 comestibles", edible >= 5],
-    ["🐕", "Custos Rufi", "3 venenosas para perros identificadas", toxicDog >= 3],
-    ["✦", "Ojo de lince", "Una rareza de 4 estrellas o más", rare >= 1],
-    ["⚜", "Taxónomo", "10 familias distintas", families >= 10],
-    ["🍄", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
-    ["☾", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],
+    ["I", "Primer brote", "Asentá tu primera lámina", n >= 1],
+    ["X", "Herborista", "10 láminas", n >= 10],
+    ["L", "Hortus conclusus", "50 láminas", n >= 50],
+    ["R", "Recolector", "5 comestibles", edible >= 5],
+    ["C", "Custos Rufi", "3 venenosas para perros identificadas", toxicDog >= 3],
+    ["O", "Ojo de lince", "Una rareza de 4 estrellas o más", rare >= 1],
+    ["T", "Taxónomo", "10 familias distintas", families >= 10],
+    ["M", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
+    ["IV", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],
   ];
   const fam = Object.entries(plants.reduce((a, p) => (p.family && (a[p.family] = (a[p.family] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
   $app.innerHTML = `
@@ -564,7 +587,7 @@ function renderStats() {
       <div class="stat"><b>${edible}</b>comestibles</div>
       <div class="stat"><b>${toxicDog}</b>a evitar con Rufi</div>
     </div>
-    ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span>${"❦".repeat(Math.min(c, 12))} ${c}</span></div>`).join("")}` : ""}
+    ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
     <h3>Insignias</h3>
     <div class="badge-list">${badges.map(([e, t, d, ok]) => `<div class="badge ${ok ? "" : "locked"}"><div class="e">${e}</div><b>${t}</b><div class="muted" style="font-size:14px">${d}</div></div>`).join("")}</div>`;
 }
