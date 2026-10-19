@@ -2,8 +2,8 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // ---------- configuración local ----------
 const CFG_KEY = "plantdex.cfg";
-// Datos públicos del proyecto Supabase (la clave publishable es segura en el navegador gracias a RLS)
-const defaults = { sbUrl: "https://ssrbytherfljgxfgvhlc.supabase.co", sbKey: "sb_publishable_tCn6CO053IFbwGBDg-mfpQ_uEjpmLbD", provider: "gemini", aiKey: "", model: "", engrave: true, illustrations: true };
+// Cada persona conecta su propio Supabase desde el asistente de primeros pasos.
+const defaults = { sbUrl: "", sbKey: "", provider: "gemini", aiKey: "", model: "", engrave: true, illustrations: true };
 const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; } catch { return { ...defaults }; } };
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
@@ -45,7 +45,7 @@ async function boot() {
   $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go === "new" ? openSheet() : go(b.dataset.go))));
   window.addEventListener("hashchange", route);
 
-  if (!cfg.sbUrl || !cfg.sbKey) return go("settings");
+  if (!cfg.sbUrl || !cfg.sbKey) return renderSetup();
   sb = createClient(cfg.sbUrl, cfg.sbKey);
   const { data } = await sb.auth.getSession();
   user = data.session?.user ?? null;
@@ -63,7 +63,8 @@ function route() {
   document.getElementById("sheet").hidden = true;
   const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
   $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
-  if (view === "settings" || !sb) return renderSettings();
+  if (!sb) return renderSetup();
+  if (view === "settings") return renderSettings();
   if (!user) return renderLogin();
   $nav.hidden = false;
   if (view === "new") return renderNew();
@@ -396,6 +397,52 @@ function renderSettings() {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(plants, null, 2)], { type: "application/json" }));
     a.download = `plantdex-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   });
+}
+
+// ---------- primeros pasos: cada persona crea y conecta su propio Supabase ----------
+const SITE_URL = () => location.origin + location.pathname;
+function renderSetup() {
+  $nav.hidden = true;
+  const copyBtn = (id, label) => `<button class="btn" id="${id}" style="flex:none">${label}</button>`;
+  $app.innerHTML = `
+    <div class="empty" style="padding-bottom:6px"><div class="big">${PLANT_ART}</div>
+      <h2>Primeros pasos</h2>
+      <p class="lead">Tu herbario se guarda en tu propia nube gratuita. Se configura una sola vez y lleva unos 10 minutos.</p></div>
+    <ol class="setup">
+      <li><b>Creá tu nube.</b> Entrá a <a href="https://supabase.com/dashboard" target="_blank">supabase.com</a>, creá una cuenta y un proyecto nuevo (plan gratis, región Europa). No hace falta conectar GitHub.</li>
+      <li><b>Prepará la base.</b> En tu proyecto andá a <i>SQL Editor → New query</i>, pegá el código y tocá <i>Run</i>.
+        <div class="row" style="margin-top:8px">${copyBtn("cpsql", "Copiar código SQL")}</div></li>
+      <li><b>Autorizá esta web.</b> En <i>Authentication → URL Configuration</i> pegá esta dirección en <i>Site URL</i> y también en <i>Redirect URLs</i>:
+        <div class="prompt-box" style="margin-top:8px">${esc(SITE_URL())}</div><div class="row" style="margin-top:8px">${copyBtn("cpurl", "Copiar dirección")}</div></li>
+      <li><b>Conectá la app.</b> En <i>Project Settings → API Keys</i> (o el botón <i>Connect</i>) copiá la <i>Project URL</i> y la <i>publishable key</i>:
+        <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co">
+        <label>Publishable key</label><input id="sbKey" placeholder="sb_publishable_…"></li>
+      <li><b>Opcional: identificación automática.</b> Si querés que Gemini identifique solo, sacá una clave gratis en <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>. Si no, usás ChatGPT o Claude con copiar y pegar.
+        <label>Clave de Gemini (opcional)</label><input id="aiKey" type="password" placeholder="AIza…"></li>
+    </ol>
+    <button class="btn primary" id="connect" style="width:100%;margin-top:6px">Conectar mi herbario</button>
+    <p class="muted" id="setupmsg" style="text-align:center"></p>
+    <p class="muted" style="font-size:15px;text-align:center"><i>Cuando ya hayas entrado con tu email, conviene desactivar en Supabase «Allow new users to sign up» (Authentication → Sign In / Providers → Email) para que nadie más pueda usar tu nube.</i></p>`;
+  const copy = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast("No pude copiar automáticamente"); } };
+  $app.querySelector("#cpurl").onclick = () => copy(SITE_URL(), "Dirección copiada");
+  $app.querySelector("#cpsql").onclick = async () => {
+    try { const r = await fetch("supabase/schema.sql", { cache: "no-store" }); copy(await r.text(), "Código SQL copiado"); }
+    catch { toast("No pude bajar el código SQL"); }
+  };
+  $app.querySelector("#connect").onclick = async (ev) => {
+    const url = v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), key = v("sbKey"), msg = $app.querySelector("#setupmsg");
+    if (!/^https:\/\/.+\.supabase\.co$/.test(url) || !key) return (msg.textContent = "Revisá la Project URL y la key.");
+    ev.currentTarget.disabled = true; msg.textContent = "Probando la conexión…";
+    try {
+      const test = createClient(url, key);
+      const { error } = await test.from("plants").select("id").limit(1);
+      if (error && /relation|does not exist|schema cache/i.test(error.message)) throw new Error("La conexión anda, pero falta el paso 2: correr el código SQL.");
+      if (error && !/permission|JWT|row-level/i.test(error.message)) throw new Error(error.message);
+      cfg = { ...cfg, sbUrl: url, sbKey: key, aiKey: v("aiKey") || cfg.aiKey };
+      saveCfg(cfg);
+      location.replace(SITE_URL());
+    } catch (e) { msg.textContent = e.message; ev.currentTarget.disabled = false; }
+  };
 }
 
 function renderLogin() {

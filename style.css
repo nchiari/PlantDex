@@ -416,3 +416,4 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .iucn-box { background: var(--wash); padding: 2px 14px 14px; margin: 12px 0 8px; }
 .iucn-box h3 { margin-top: 14px; }
 .fill-link { display: inline-block; margin-left: 8px; font: 600 10.5px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; }
+.setup { padding-left: 22px; margin: 4px 0 18px; } .setup > li { margin: 0 0 18px; line-height: 1.5; } .setup > li::marker { font-family: var(--caps); color: var(--leaf); font-weight: 600; }

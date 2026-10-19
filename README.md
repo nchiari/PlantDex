@@ -2,32 +2,24 @@
 
 Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come o es tóxica, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 
-Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos) y Google Gemini (identificación).
+Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos, una por persona) y Google Gemini o tu chat de IA (identificación).
 
 ---
 
-## Puesta en marcha (unos 15 minutos, una sola vez)
+## Cómo empezar a usarla
 
-### 1. Publicar la web (GitHub Pages)
-1. En GitHub, en el repo `PlantDex`: **Settings → Pages**.
-2. En *Source* elegí **Deploy from a branch**, la rama `main` y la carpeta `/ (root)`. Guardá.
-3. En un minuto queda en `https://nchiari.github.io/PlantDex/`.
+Cada persona usa **su propia nube gratuita (Supabase)**: nadie comparte datos ni cupos.
 
-### 2. Crear tu nube (Supabase)
-1. Entrá a <https://supabase.com>, creá una cuenta y un proyecto nuevo (plan Free, región Europa).
-2. Andá a **SQL Editor → New query**, pegá todo el contenido de [`supabase/schema.sql`](supabase/schema.sql) y apretá **Run**.
-3. Andá a **Authentication → URL Configuration** y en *Site URL* poné `https://nchiari.github.io/PlantDex/` (sumala también en *Redirect URLs*).
-4. Opcional, pero recomendado: en **Authentication → Sign In / Providers → Email**, después de registrarte, desactivá *Allow new users to sign up* para que nadie más pueda crearse una cuenta.
-5. En **Project Settings → API** copiá la **Project URL** y la **anon / publishable key**.
-
-### 3. Sacar la API key de Gemini (gratis, opcional)
-1. Entrá a <https://aistudio.google.com/apikey> con tu cuenta de Google.
-2. **Create API key** y copiala. No pide tarjeta.
-
-### 4. Configurar la app
-1. Abrí la web en el celular, tocá ⚙ y pegá las tres cosas.
-2. Poné tu email, abrí el link mágico que te llega, y listo.
-3. Desde el menú del navegador, **Agregar a pantalla de inicio** para usarla como si fuera una app.
+1. Abrí `https://nchiari.github.io/PlantDex/` en el celular.
+2. La primera vez aparece el asistente **Primeros pasos**, que guía todo:
+   - crear un proyecto gratis en [supabase.com](https://supabase.com),
+   - copiar y correr el código SQL (botón incluido),
+   - autorizar la dirección de la web en *Authentication → URL Configuration*,
+   - pegar la *Project URL* y la *publishable key*.
+   La app prueba la conexión antes de seguir.
+3. Entrá con tu email (te llega un link) y, ya adentro, desactivá en Supabase *Allow new users to sign up*.
+4. Opcional: una clave gratis de [Gemini](https://aistudio.google.com/apikey) para la identificación automática. Sin ella, se identifica con ChatGPT o Claude copiando y pegando.
+5. Desde el menú del navegador: **Agregar a pantalla de inicio**.
 
 ---
 
