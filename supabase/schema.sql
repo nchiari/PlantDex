@@ -50,3 +50,6 @@ create policy "own photos" on storage.objects
 alter table public.plants add column if not exists flower_months int[] default '{}';
 alter table public.plants add column if not exists fruit_months  int[] default '{}';
 alter table public.plants add column if not exists other_names   text;
+
+-- v3: origen y distribución (uso global)
+alter table public.plants add column if not exists native_range text;

@@ -96,13 +96,15 @@ async function resizeImage(file, max = 1400) {
 const blobToBase64 = (blob) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(blob); });
 
 // ---------- IA ----------
-const buildPrompt = (hint = "") => `Sos un botánico de campo y naturalista experto en flora silvestre de Europa (vivo en Pamplona, Navarra, España). Identificá la planta, hongo o fruto de las fotos.
+const buildPrompt = (hint = "", place = "") => `Sos un botánico de campo y naturalista experto en la flora silvestre y cultivada de todo el mundo. Identificá la planta, hongo o fruto de las fotos.
+Lugar del hallazgo: ${place || "desconocido (deducilo de las fotos si podés)"}. Usá ese lugar como referencia para la rareza, los meses y si es nativa o introducida.
 Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta forma exacta:
 {
  "common_name": "nombre común en español",
  "other_names": "otros nombres: euskera, catalán, nombres populares",
  "scientific_name": "Género especie",
  "family": "Familia",
+ "native_range": "de dónde es nativa y si en el lugar del hallazgo es nativa, introducida o invasora",
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
@@ -113,9 +115,9 @@ Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta for
  "uses": "usos culinarios, medicinales tradicionales, artesanales u ornamentales",
  "history": "historia, etimología o folklore, 2-4 frases",
  "curiosity": "un dato curioso breve y sorprendente",
- "flower_months": [números de mes 1-12 en que florece en Navarra],
+ "flower_months": [números de mes 1-12 en que florece en el lugar del hallazgo (ojo con el hemisferio)],
  "fruit_months": [números de mes 1-12 en que da fruto o se cosecha],
- "rarity": 1-5 (1 = muy común en Navarra, 5 = rarísima),
+ "rarity": 1-5 (1 = muy común en esa región, 5 = rarísima allí),
  "confidence": "alta | media | baja, y si es baja, qué foto extra ayudaría"
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".${hint ? `\nPista: ${hint}` : ""}`;
@@ -133,10 +135,10 @@ function normalizeAI(raw) {
   return out;
 }
 
-async function identify(blobs, hint = "") {
+async function identify(blobs, hint = "", place = "") {
   if (!cfg.aiKey) throw new Error("Falta la API key en Ajustes. Probá la pestaña «Con mi chat».");
   const imgs = await Promise.all(blobs.map(blobToBase64));
-  const prompt = buildPrompt(hint);
+  const prompt = buildPrompt(hint, place);
   const model = cfg.model || DEFAULT_MODELS[cfg.provider];
   let text;
   if (cfg.provider === "openai") {
@@ -293,6 +295,7 @@ async function renderDetail(id) {
       <div><div class="k">PARA RUFI</div><div class="v ${dog[2]}">${dog[0]} ${dog[1]}</div></div>
     </div>
     ${sec("Descriptio", p.description, "dropcap")}
+    ${sec("Patria · origen", p.native_range)}
     ${hasMonths ? `<h3>Kalendarium</h3>${monthsBar(p.flower_months, p.fruit_months)}${legend}` : ""}
     ${sec("Esculenta · comestibilidad", p.edibility_notes)}
     ${sec("De canibus · perros", p.dog_notes)}
@@ -337,7 +340,8 @@ function renderNew() {
       <div class="row"><button class="btn red" id="cam">Cámara</button><button class="btn" id="gal">Galería</button></div>
       <div class="preview" id="prev"></div>
     </div>
-    <label>Pista (opcional)</label><input id="hint" placeholder="ej: orilla del Arga, huele a anís" value="${esc(draft.hint || "")}">
+    <label>Dónde estás</label><input id="place" placeholder="se detecta solo con el GPS, o escribilo" value="${esc(draft.data.location_name || "")}">
+    <label>Pista (opcional)</label><input id="hint" placeholder="ej: a orillas de un río, huele a anís" value="${esc(draft.hint || "")}">
     <div class="tabs">
       <button data-m="ai" class="${m === "ai" ? "on" : ""}">Automático</button>
       <button data-m="chat" class="${m === "chat" ? "on" : ""}">Con mi chat</button>
@@ -354,6 +358,7 @@ function renderNew() {
   $app.querySelector("#cam").onclick = () => pick(document.getElementById("file-input"));
   $app.querySelector("#gal").onclick = () => pick(document.getElementById("file-input-gallery"));
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
+  $app.querySelector("#place").oninput = (e) => (draft.data.location_name = e.target.value);
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));
 
   const box = $app.querySelector("#mode");
@@ -363,7 +368,7 @@ function renderNew() {
     box.querySelector("#ai").onclick = async () => {
       const st = box.querySelector("#status");
       st.innerHTML = `<div class="scanning"><span class="leaf">❦</span><p><i>Consultando los tratados…</i></p></div>`;
-      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint)) }; renderForm(null); }
+      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx())) }; renderForm(null); }
       catch (e) { st.innerHTML = `<p class="muted">No pude identificarla: ${esc(e.message)}</p>`; }
     };
   } else if (m === "chat") {
@@ -375,11 +380,11 @@ function renderNew() {
       </ol>
       <div class="row"><button class="btn" id="copy">Copiar prompt</button>
         <a class="btn" href="https://chatgpt.com/" target="_blank">ChatGPT</a><a class="btn" href="https://claude.ai/new" target="_blank">Claude</a></div>
-      <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint))}</div></details>
+      <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint, placeCtx()))}</div></details>
       <label>Respuesta del chat</label><textarea id="paste" placeholder='{ "common_name": … }'></textarea>
       <button class="btn primary" id="useit" style="width:100%;margin-top:12px">Completar la ficha</button>`;
     box.querySelector("#copy").onclick = async () => {
-      try { await navigator.clipboard.writeText(buildPrompt(draft.hint)); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
+      try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
     };
     box.querySelector("#useit").onclick = () => {
       try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; renderForm(null); }
@@ -395,7 +400,22 @@ function renderNew() {
 
 function getLocation() {
   if (draft.data.lat || !navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition((pos) => { draft.data.lat = pos.coords.latitude; draft.data.lng = pos.coords.longitude; }, () => {}, { timeout: 8000 });
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const d = draft?.data; if (!d) return;
+    d.lat = pos.coords.latitude; d.lng = pos.coords.longitude;
+    if (d.location_name) return;
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&accept-language=es&lat=${d.lat}&lon=${d.lng}`);
+      const a = (await r.json()).address || {};
+      d.location_name = [a.village || a.town || a.city || a.municipality, a.state || a.region, a.country].filter(Boolean).join(", ");
+      const el = document.getElementById("place"); if (el && !el.value) el.value = d.location_name;
+    } catch {}
+  }, () => {}, { timeout: 8000 });
+}
+
+function placeCtx() {
+  const d = draft?.data || {};
+  return [d.location_name, d.lat ? `(${d.lat.toFixed(3)}, ${d.lng.toFixed(3)})` : ""].filter(Boolean).join(" ");
 }
 
 function renderEdit(id) {
@@ -416,6 +436,7 @@ function renderForm(existing) {
     ${d.ai_confidence ? `<p class="muted"><i>Confianza de la identificación: ${esc(d.ai_confidence)}</i></p>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
     <label>Otros nombres</label><input id="other_names" placeholder="euskera, populares…" value="${esc(d.other_names || "")}">
+    <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
     <div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
     <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
     <label>Tipos</label>
@@ -427,7 +448,7 @@ function renderForm(existing) {
     <label>Rareza: <span id="rv" class="stars">${stars(d.rarity || 1)}</span></label><input id="rarity" type="range" min="1" max="5" value="${d.rarity || 1}">
     ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}${ta("dog_notes", "Perros")}
     ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
-    <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Parque de la Taconera" value="${esc(d.location_name || "")}"></div>
+    <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
     <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || new Date().toISOString().slice(0, 10))}"></div></div>
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
@@ -442,7 +463,7 @@ function renderForm(existing) {
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
     const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, ai_confidence: d.ai_confidence || null, flower_months: d.flower_months, fruit_months: d.fruit_months };
-    for (const k of ["common_name", "other_names", "scientific_name", "family", "edible_human", "dog_safety", "description", "edibility_notes", "dog_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
+    for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "dog_safety", "description", "edibility_notes", "dog_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.rarity = +v("rarity");
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
@@ -488,7 +509,7 @@ function renderCalendar() {
   const html = order.map(block).join("");
   $app.innerHTML = `
     <h2>Kalendarium</h2>
-    <p class="muted">Qué florece y qué se puede recolectar en cada mes, según tus propias láminas. Empieza por este mes.</p>
+    <p class="muted">Qué florece y qué se puede recolectar cada mes, según tus láminas. Empieza por este mes. Los meses corresponden al lugar donde encontraste cada planta.</p>
     ${html || `<div class="empty"><div class="big">☾</div><p class="muted">Todavía no hay meses cargados. La identificación automática los completa sola, o los marcás vos al editar una lámina.</p></div>`}`;
   $app.querySelectorAll(".cal-item").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
 }
