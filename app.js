@@ -897,15 +897,15 @@ function renderStats() {
   const toxic = count((p) => p.types?.includes("toxica"));
   const notable = count((p) => ["VU", "EN", "CR", "EW"].includes(p.iucn));
   const badges = [
-    ["I", "Primer brote", "Asentá tu primera lámina", n >= 1],
-    ["X", "Herborista", "10 láminas", n >= 10],
-    ["L", "Hortus conclusus", "50 láminas", n >= 50],
-    ["R", "Recolector", "5 comestibles", edible >= 5],
-    ["P", "Prudente", "3 plantas tóxicas identificadas", toxic >= 3],
-    ["O", "Hallazgo notable", "Una especie vulnerable o más amenazada", notable >= 1],
-    ["T", "Taxónomo", "10 familias distintas", families >= 10],
-    ["M", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
-    ["IV", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],
+    ["f-herb", "Primer brote", "Asentá tu primera lámina", n >= 1],
+    ["i-book", "Herborista", "10 láminas", n >= 10],
+    ["f-tree", "Hortus conclusus", "50 láminas", n >= 50],
+    ["f-fruit", "Recolector", "5 comestibles", edible >= 5],
+    ["f-skull", "Prudente", "3 plantas tóxicas identificadas", toxic >= 3],
+    ["f-leaf", "Hallazgo notable", "Una especie vulnerable o más amenazada", notable >= 1],
+    ["f-family", "Taxónomo", "10 familias distintas", families >= 10],
+    ["f-mushroom", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
+    ["i-moon", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],
   ];
   const fam = Object.entries(plants.reduce((a, p) => (p.family && (a[p.family] = (a[p.family] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
   $app.innerHTML = `
@@ -919,7 +919,7 @@ function renderStats() {
     </div>
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
     <h3>Insignias</h3>
-    <div class="badge-list">${badges.map(([e, t, d, ok]) => `<div class="badge ${ok ? "" : "locked"}"><div class="e">${e}</div><b>${t}</b><div class="muted" style="font-size:14px">${d}</div></div>`).join("")}</div>`;
+    <div class="badge-list">${badges.map(([e, t, d, ok]) => `<div class="badge ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${e}"/></svg></div><b>${t}</b><div class="muted" style="font-size:14px">${d}</div></div>`).join("")}</div>`;
 }
 
 Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (x ? (draft = x) : clearDraft()) });

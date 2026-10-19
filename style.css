@@ -411,3 +411,5 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .rarity { padding: 4px 14px 4px 8px; }
 .index li { grid-template-columns: 44px 1fr 30px 30px; }
 .card .name { margin-top: 12px; }
+.badge .e svg { width: 30px; height: 30px; color: var(--gold-soft); --leaf-vein: var(--leaf); }
+.badge.locked .e svg { color: var(--ink-faint); --leaf-vein: var(--parchment-3); }
