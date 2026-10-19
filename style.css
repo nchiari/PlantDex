@@ -290,3 +290,11 @@ details summary { cursor: pointer; font: 600 11px var(--caps); letter-spacing: 1
 @keyframes up { from { transform: translateY(100%); } to { transform: none; } }
 .tally { color: var(--gold); letter-spacing: 2px; } .tally b { color: var(--ink); font: 600 16px var(--caps); }
 .bottom[hidden] { display: none; }
+
+/* En el celular el libro ocupa toda la pantalla: sin fondo exterior ni filete cortado */
+@media (max-width: 640px) {
+  html, body { background: var(--parchment-2); background-image: none; }
+  .book { box-shadow: none; }
+  .book::before { display: none; }
+  .bottom { box-shadow: 0 -6px 18px #1f342610; }
+}
