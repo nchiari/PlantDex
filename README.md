@@ -36,7 +36,7 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
   - **Automático**: Gemini completa la ficha (necesita la API key gratis).
   - **Con mi chat**: copiás un prompt, lo pegás en ChatGPT o Claude con las fotos, y pegás la respuesta. Usa tus suscripciones, sin API.
   - **A mano**.
-- Cada planta es una *Tabula* numerada en romano, con tipos, rareza ✦, y si es comestible o tóxica.
+- Cada planta es una lámina ordenada alfabéticamente, con tipos, estado de conservación (UICN) y si es comestible o tóxica.
 - **Kalendarium**: qué florece y qué fruto se puede recolectar cada mes, empezando por el mes actual.
 - **Progressus**: estadísticas, familias más vistas e insignias.
 - En Ajustes podés activar o desactivar el filtro de grabado en las fotos.

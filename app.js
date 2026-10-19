@@ -36,7 +36,6 @@ function roman(n) {
   const map = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
   let out = ""; for (const [k, s] of map) while (n >= k) { out += s; n -= k; } return out;
 }
-const tab = (n) => "Tab. " + roman(n);
 
 // ---------- arranque ----------
 async function boot() {
@@ -76,10 +75,12 @@ function route() {
 }
 
 // ---------- datos ----------
+const byName = new Intl.Collator("es", { sensitivity: "base" });
+const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name || "", b.common_name || ""));
 async function loadPlants() {
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { toast("Error cargando: " + error.message); return; }
-  plants = data;
+  plants = sortPlants(data);
   await signUrls(plants.flatMap((p) => p.photos?.slice(0, 1) || []));
 }
 
@@ -224,8 +225,7 @@ Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta for
  "curiosity": "un dato curioso breve y sorprendente",
  "flower_months": [números de mes 1-12 en que florece en el lugar del hallazgo (ojo con el hemisferio)],
  "fruit_months": [números de mes 1-12 en que da fruto o se cosecha],
- "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)",
- "confidence": "alta | media | baja, y si es baja, qué foto extra ayudaría"
+ "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
 En description, native_range, edibility_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista: ${hint}` : ""}`;
@@ -238,7 +238,7 @@ function normalizeAI(raw) {
   out.types = (out.types || []).map((t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()).filter((t) => TYPES.includes(t));
   out.flower_months = months(out.flower_months);
   out.fruit_months = months(out.fruit_months);
-  out.ai_confidence = out.confidence; delete out.confidence;
+  delete out.confidence;
   out.iucn = normIucn(out.iucn);
   delete out.rarity;
   return out;
@@ -421,7 +421,7 @@ function renderList() {
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
-      <button class="btn red" id="start">Comenzar la Tab. I</button></div>` :
+      <button class="btn red" id="start">Comenzar el herbario</button></div>` :
       !list.length ? `<p class="muted">Ninguna lámina coincide.</p>` :
       cfg.view === "list" ? `<ol class="index">${list.map(row).join("")}</ol>` : `<div class="grid">${list.map(card).join("")}</div>`}
   `;
@@ -460,7 +460,6 @@ function consBadge(code, cls = "cons") {
 function row(p) {
   const img = coverOf(p), ill = !!illuOf(p), mark = markOf(p);
   return `<li data-id="${p.id}">
-    <span class="ix-num">${roman(p.number)}</span>
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
     <span class="ix-txt"><b>${esc(p.common_name)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
     ${consBadge(p.iucn, "cons ix-cons")}${edibleBadge(p, "dog ix-mark")}
@@ -474,7 +473,6 @@ function card(p) {
     <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
     ${consBadge(p.iucn)}
     ${edibleBadge(p)}
-    <span class="num">${tab(p.number)}</span>
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
   </div>`;
 }
@@ -548,11 +546,10 @@ async function renderDetail(id) {
   const note = (txt) => (txt ? `<div class="field-note">${rich(txt)}</div>` : "");
   const hasMonths = p.flower_months?.length || p.fruit_months?.length;
   const idx = plants.findIndex((x) => x.id === id);
-  const prev = plants[idx + 1], next = plants[idx - 1];
+  const prev = plants[idx - 1], next = plants[idx + 1];
   $app.innerHTML = `
     <button class="back" onclick="location.hash='list'">← Herbarium</button>
     <div class="plate-head">
-      <div class="tab">TABULA ${roman(p.number)}</div>
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
@@ -574,15 +571,14 @@ async function renderDetail(id) {
       ${fold("Curiosa", p.curiosity ? `<div class="curio">“${rich(p.curiosity)}”</div>` : "")}
       ${fold("Notae · mis notas", note(p.notes))}
     </div>
-    ${p.ai_confidence ? `<div class="meta">Confianza de la identificación: ${esc(p.ai_confidence)}</div>` : ""}
     <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, confirmalo con alguien que sepa.</div>
     <div class="row" style="margin-top:18px">
       <button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
       <button class="btn ghost" id="del">Arrancar la lámina</button>
     </div>
     <div class="row" style="margin-top:14px">
-      ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${tab(prev.number)}</button>` : "<span></span>"}
-      ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${tab(next.number)} →</button>` : "<span></span>"}
+      ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
+      ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   const showFig = (i) => {
     const f = figs[i]; if (!f) return;
@@ -798,8 +794,7 @@ function renderForm(existing) {
   const ta = (id, label) => `<label>${label}</label><textarea id="${id}">${esc(d[id] || "")}</textarea>`;
   $app.innerHTML = `
     <button class="back" id="bk">← Volver</button>
-    <h2>${existing ? "Corregir " + tab(existing.number) : "Redactar la lámina"}</h2>
-    ${d.ai_confidence ? `<p class="muted"><i>Confianza de la identificación: ${esc(d.ai_confidence)}</i></p>` : ""}
+    <h2>${existing ? "Corregir lámina" : "Redactar la lámina"}</h2>
     ${existing ? `<label>Fotos</label><div class="preview" id="edphotos">${(existing.photos || []).map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("")}</div>
       <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
@@ -836,7 +831,7 @@ function renderForm(existing) {
     })));
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
-    const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, ai_confidence: d.ai_confidence || null, flower_months: d.flower_months, fruit_months: d.fruit_months };
+    const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
     for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
@@ -847,7 +842,7 @@ function renderForm(existing) {
       if (existing) {
         const { data, error } = await sb.from("plants").update(row).eq("id", existing.id).select().single();
         if (error) throw error;
-        plants = plants.map((x) => (x.id === data.id ? data : x));
+        plants = sortPlants(plants.map((x) => (x.id === data.id ? data : x)));
         draft = null; location.hash = "plant/" + data.id;
       } else {
         const paths = [];
@@ -861,8 +856,8 @@ function renderForm(existing) {
         row.number = Math.max(0, ...plants.map((x) => x.number)) + 1;
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
-        plants.unshift(data);
-        clearDraft(); toast(`${data.common_name} asentada como Tabula ${roman(data.number)}`);
+        plants = sortPlants([...plants, data]);
+        clearDraft(); toast(`${data.common_name} asentada en el herbario`);
         location.hash = "plant/" + data.id;
       }
     } catch (e) {
