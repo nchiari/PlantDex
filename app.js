@@ -173,8 +173,8 @@ const buildPrompt = (hint = "", place = "") => `Sos un botánico de campo y natu
 Lugar del hallazgo: ${place || "desconocido (deducilo de las fotos si podés)"}. Usá ese lugar como referencia para la rareza, los meses y si es nativa o introducida.
 Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta forma exacta:
 {
- "common_name": "nombre común en español",
- "other_names": "otros nombres: euskera, catalán, nombres populares",
+ "common_name": "nombre común en español de España",
+ "other_names": "solo en este formato: 'España: … · Latinoamérica: … · Inglés: …'. Poné Latinoamérica únicamente si el nombre cambia (y aclará el país si varía, ej. 'Argentina: …'). NO incluyas euskera, catalán, gallego ni otras lenguas cooficiales o regionales",
  "scientific_name": "Género especie",
  "family": "Familia",
  "native_range": "de dónde es nativa y si en el lugar del hallazgo es nativa, introducida o invasora",
@@ -723,7 +723,7 @@ function renderForm(existing) {
     ${existing ? `<label>Fotos</label><div class="preview" id="edphotos">${(existing.photos || []).map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("")}</div>
       <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
-    <label>Otros nombres</label><input id="other_names" placeholder="euskera, populares…" value="${esc(d.other_names || "")}">
+    <label>Otros nombres</label><input id="other_names" placeholder="España: … · Latinoamérica: … · Inglés: …" value="${esc(d.other_names || "")}">
     <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
     <div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
     <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
