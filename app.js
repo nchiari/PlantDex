@@ -733,7 +733,9 @@ function renderForm(existing) {
 </div>
     <label>Floración: tocá los meses</label>${monthsBar(d.flower_months, [], "flm")}
     <label>Fruto o cosecha</label>${monthsBar([], d.fruit_months, "frm")}
-    <label>Rareza: <span id="rv" class="stars">${stars(d.rarity || 1)}</span></label><input id="rarity" type="range" min="1" max="5" value="${d.rarity || 1}">
+    ${d.ai_confidence
+      ? `<label>Rareza</label><p class="muted" style="margin:4px 0 0"><span class="stars">${stars(d.rarity || 1)}</span> ${RARITY[(d.rarity || 1) - 1]} · <i>calculada por la IA según la zona del hallazgo</i></p>`
+      : `<label>Rareza: <span id="rv" class="stars">${stars(d.rarity || 1)}</span></label><input id="rarity" type="range" min="1" max="5" value="${d.rarity || 1}">`}
     ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
     ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
@@ -745,7 +747,7 @@ function renderForm(existing) {
     $app.querySelector("#addcam").onclick = () => addPhotosTo(existing, "camera");
     $app.querySelector("#addgal").onclick = () => addPhotosTo(existing, "gallery");
   }
-  $app.querySelector("#rarity").oninput = (e) => ($app.querySelector("#rv").textContent = stars(+e.target.value));
+  if ($app.querySelector("#rarity")) $app.querySelector("#rarity").oninput = (e) => ($app.querySelector("#rv").textContent = stars(+e.target.value));
   [["flm", "flower_months", "fl"], ["frm", "fruit_months", "fr"]].forEach(([id, key, cls]) =>
     $app.querySelectorAll(`#${id} span`).forEach((s) => (s.onclick = () => {
       const n = +s.dataset.m, arr = d[key];
@@ -756,7 +758,7 @@ function renderForm(existing) {
     const btn = ev.currentTarget;
     const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, ai_confidence: d.ai_confidence || null, flower_months: d.flower_months, fruit_months: d.fruit_months };
     for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
-    row.rarity = +v("rarity");
+    row.rarity = document.getElementById("rarity") ? +v("rarity") : d.rarity || 1;
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
     if (!existing && !draft.files.length && !confirm("Esta lámina no tiene fotos. ¿La guardo igual? (Después podés agregarlas al editarla.)")) return;
