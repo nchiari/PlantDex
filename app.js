@@ -176,7 +176,7 @@ const stars = (n) => "✦".repeat(n || 1) + "✧".repeat(5 - (n || 1));
 const monthsBar = (fl = [], fr = [], pickId = "") => `<div class="months ${pickId ? "pick" : ""}" ${pickId ? `id="${pickId}"` : ""}>${MONTHS.map((m, i) => {
   const n = i + 1; return `<span data-m="${n}" class="${fl.includes(n) ? "fl" : ""} ${fr.includes(n) ? "fr" : ""} ${n === nowMonth() ? "now" : ""}">${m[0]}</span>`;
 }).join("")}</div>`;
-const legend = `<div class="legend"><i style="background:#c9a1b2"></i>flor <i style="background:#b8c48f"></i>fruto <i style="outline:2px solid var(--rubric)"></i>mes actual</div>`;
+const legend = `<div class="legend"><i style="background:#e3d9a6"></i>flor <i style="background:#a9c391"></i>fruto <i style="outline:2px solid var(--rubric)"></i>mes actual</div>`;
 const photoOf = (p) => urlCache.get(p.photos?.[0]);
 
 // ---------- vistas ----------

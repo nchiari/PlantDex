@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>PlantDex</title>
-  <meta name="theme-color" content="#efe4cc">
+  <meta name="theme-color" content="#f4efdf">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Cormorant+SC:wght@500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="book">
     <header class="top">
       <div class="title">
-        <span class="fraktur">PlantDex</span>
+        <span class="brand">PlantDex</span>
         <span class="sub">Florilegium · Herbarium Vivum</span>
       </div>
       <button id="btn-settings" class="icon-btn" title="Ajustes">❦</button>
@@ -35,8 +35,8 @@
 
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <filter id="engrave">
-      <feColorMatrix type="saturate" values="0.35"/>
-      <feComponentTransfer><feFuncR type="linear" slope="1.05" intercept="0.04"/><feFuncG type="linear" slope="1" intercept="0.02"/><feFuncB type="linear" slope="0.85"/></feComponentTransfer>
+      <feColorMatrix type="saturate" values="0.6"/>
+      <feComponentTransfer><feFuncR type="linear" slope="0.97" intercept="0.03"/><feFuncG type="linear" slope="1.02" intercept="0.03"/><feFuncB type="linear" slope="0.9" intercept="0.02"/></feComponentTransfer>
       <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" result="n"/>
       <feColorMatrix in="n" type="saturate" values="0" result="ng"/>
       <feBlend in="SourceGraphic" in2="ng" mode="multiply"/>
