@@ -101,8 +101,8 @@ h3::after { content: ""; flex: 1; border-top: 1px solid #1f342633; }
 .bottom button svg { width: 24px; height: 24px; }
 .bottom button.on { color: var(--ink); }
 .bottom button.on svg { color: var(--leaf); }
-.bottom .capture { padding: 0; margin-top: -40px; min-width: 0; filter: drop-shadow(0 4px 6px #1f342655); transition: transform .15s; }
-.bottom .capture svg { width: 74px; height: 74px; }
+.bottom .capture { padding: 0; margin: -38px 0 0; min-width: 0; flex: none; width: 76px; height: 76px; align-self: flex-start; filter: drop-shadow(0 3px 4px #1f342666) drop-shadow(0 1px 1px #1f342640); transition: transform .15s; }
+.bottom .capture svg { width: 76px; height: 76px; }
 .bottom .capture:active { transform: scale(.94) rotate(-6deg); }
 
 /* ---------- controles ---------- */
@@ -298,3 +298,8 @@ details summary { cursor: pointer; font: 600 11px var(--caps); letter-spacing: 1
   .book::before { display: none; }
   .bottom { box-shadow: 0 -6px 18px #1f342610; }
 }
+
+/* barra en 5 columnas iguales: el sello siempre queda al centro */
+.bottom { display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: end; padding-left: 2px; padding-right: 2px; }
+.bottom button { min-width: 0; width: 100%; letter-spacing: .6px; font-size: 10px; padding: 4px 0; }
+.bottom .capture { width: 76px; justify-self: center; align-self: start; }
