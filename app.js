@@ -2,7 +2,8 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // ---------- configuración local ----------
 const CFG_KEY = "plantdex.cfg";
-const defaults = { sbUrl: "", sbKey: "", provider: "gemini", aiKey: "", model: "", engrave: true };
+// Datos públicos del proyecto Supabase (la clave publishable es segura en el navegador gracias a RLS)
+const defaults = { sbUrl: "https://ssrbytherfljgxfgvhlc.supabase.co", sbKey: "sb_publishable_tCn6CO053IFbwGBDg-mfpQ_uEjpmLbD", provider: "gemini", aiKey: "", model: "", engrave: true };
 const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; } catch { return { ...defaults }; } };
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
@@ -203,7 +204,7 @@ function renderSettings() {
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { sbUrl: v("sbUrl").replace(/\/$/, ""), sbKey: v("sbKey"), provider: v("provider"), aiKey: v("aiKey"), model: v("model"), engrave: document.getElementById("engrave").checked };
+    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), provider: v("provider"), aiKey: v("aiKey"), model: v("model"), engrave: document.getElementById("engrave").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
