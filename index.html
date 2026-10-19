@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PlantDex</title>
+  <meta name="theme-color" content="#b8322a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="device">
+    <header class="top">
+      <div class="lens"><span></span></div>
+      <div class="leds"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+      <h1>Plant<span>Dex</span></h1>
+      <button id="btn-settings" class="icon-btn" title="Ajustes">⚙</button>
+    </header>
+
+    <main id="app" class="screen"></main>
+
+    <nav class="bottom" id="nav" hidden>
+      <button data-go="list">📖 Catálogo</button>
+      <button data-go="new" class="capture">＋</button>
+      <button data-go="stats">✦ Progreso</button>
+    </nav>
+  </div>
+
+  <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
+  <input type="file" id="file-input-gallery" accept="image/*" multiple hidden>
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
