@@ -8,7 +8,7 @@ const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.g
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
 
-const DEFAULT_MODELS = { gemini: "gemini-2.5-flash", openai: "gpt-4o-mini" };
+const DEFAULT_MODELS = { gemini: "gemini-flash-latest", openai: "gpt-4o-mini" };
 const BUCKET = "plant-photos";
 
 const TYPES = ["comestible", "toxica", "medicinal", "aromatica", "frutal", "flor", "arbol", "arbusto", "hierba", "trepadora", "hongo", "acuatica", "invasora", "ornamental"];
@@ -140,6 +140,21 @@ function normalizeAI(raw) {
   return out;
 }
 
+// Lista los modelos de la cuenta y elige el "flash" de versión más alta que acepte generateContent.
+async function latestGeminiFlash() {
+  try {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": cfg.aiKey } });
+    const j = await res.json();
+    const ver = (n) => (n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] * 1 || 0;
+    const ok = (j.models || [])
+      .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+      .map((m) => m.name.replace(/^models\//, ""))
+      .filter((n) => /^gemini-[\d.]+-flash$|^gemini-[\d.]+-flash-(preview|latest)/.test(n) && !/lite|image|tts|audio|live|thinking/.test(n))
+      .sort((a, b) => ver(b) - ver(a) || a.length - b.length);
+    return ok[0] || "gemini-flash-latest";
+  } catch { return "gemini-flash-latest"; }
+}
+
 async function identify(blobs, hint = "", place = "") {
   if (!cfg.aiKey) throw new Error("Falta la API key en Ajustes. Probá la pestaña «Con mi chat».");
   const imgs = await Promise.all(blobs.map(blobToBase64));
@@ -159,15 +174,22 @@ async function identify(blobs, hint = "", place = "") {
     if (!res.ok) throw new Error(j.error?.message || res.statusText);
     text = j.choices[0].message.content;
   } else {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": cfg.aiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, ...imgs.map((b) => ({ inline_data: { mime_type: "image/jpeg", data: b } }))] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
-      }),
+    const body = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }, ...imgs.map((b) => ({ inline_data: { mime_type: "image/jpeg", data: b } }))] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
     });
-    const j = await res.json();
+    const call = (m) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cfg.aiKey }, body,
+    });
+    let res = await call(model), j = await res.json();
+    // Google retira modelos seguido: si el configurado ya no existe, buscamos el Flash más nuevo y lo recordamos.
+    if (!res.ok && /no longer available|not found|is not supported|deprecated/i.test(j.error?.message || "")) {
+      const fresh = await latestGeminiFlash();
+      if (fresh && fresh !== model) {
+        res = await call(fresh); j = await res.json();
+        if (res.ok) { cfg.model = fresh; saveCfg(cfg); }
+      }
+    }
     if (!res.ok) throw new Error(j.error?.message || res.statusText);
     text = j.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
   }
