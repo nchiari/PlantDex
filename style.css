@@ -331,3 +331,13 @@ body.engrave .ix-ph:not(.illu) { filter: url(#engrave); }
 .ix-mark { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #1f342655; display: grid; place-items: center; font-size: 12px; }
 .resume { display: flex; align-items: center; gap: 12px; justify-content: space-between; background: var(--wash); padding: 10px 12px; margin-top: 14px; }
 .resume .btn { flex: none; padding: 9px 14px; }
+
+/* Láminas antiguas: el papel del escaneo se funde con el pergamino (multiply) y en la ficha se ven enteras */
+.hero img.illu {
+  aspect-ratio: auto; height: auto; max-height: none; object-fit: contain;
+  border: 0; border-radius: 0; background: transparent; mix-blend-mode: multiply;
+}
+.card .ph.illu, .cal-item .ph.illu, .ix-ph.illu { background-color: transparent; mix-blend-mode: multiply; background-size: 92% auto; background-position: center 40%; }
+.thumbs img.illu { background: transparent; mix-blend-mode: multiply; }
+/* aclarar el papel del escaneo hasta blanco para que el multiply lo funda del todo */
+.hero img.illu, .thumbs img.illu, .card .ph.illu, .cal-item .ph.illu, .ix-ph.illu { filter: brightness(1.09) contrast(1.12) saturate(1.05) !important; }
