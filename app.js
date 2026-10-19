@@ -428,7 +428,7 @@ function monthRanges(ms = []) {
   const a = [...new Set(ms)].sort((x, y) => x - y), out = [];
   for (let i = 0; i < a.length; i++) {
     let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
-    out.push(i === j ? MONTHS[a[i] - 1] : `${MONTHS[a[i] - 1]}–${MONTHS[a[j] - 1]}`); i = j;
+    out.push(i === j ? MONTHS[a[i] - 1] : `${MONTHS[a[i] - 1]}\u2060–\u2060${MONTHS[a[j] - 1]}`); i = j;
   }
   return out.join(", ");
 }
@@ -436,7 +436,7 @@ function monthRanges(ms = []) {
 // Ficha técnica: lo esencial de un vistazo, con iconos.
 function factSheet(p) {
   const toxic = p.types?.includes("toxica");
-  const ed = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "bad"] }[p.edible_human] || ["Sin datos", ""];
+  const ed = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "no"] }[p.edible_human] || ["Sin datos", ""];
   const origin = /invasora/i.test(p.native_range || "") ? "Invasora" : /introducid|exótic|naturalizad|cultivad/i.test(p.native_range || "") ? "Introducida" : /nativ|autóctona|endémic/i.test(p.native_range || "") ? "Nativa" : "";
   const kind = (p.kind || "").toLowerCase();
   const kindIcon = KIND_ICON[kind] || (p.types?.includes("arbol") ? "f-tree" : p.types?.includes("arbusto") ? "f-shrub" : p.types?.includes("hongo") ? "f-mushroom" : "f-herb");
