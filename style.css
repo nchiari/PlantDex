@@ -413,3 +413,6 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .card .name { margin-top: 12px; }
 .badge .e svg { width: 30px; height: 30px; color: var(--gold-soft); --leaf-vein: var(--leaf); }
 .badge.locked .e svg { color: var(--ink-faint); --leaf-vein: var(--parchment-3); }
+.iucn-box { background: var(--wash); padding: 2px 14px 14px; margin: 12px 0 8px; }
+.iucn-box h3 { margin-top: 14px; }
+.fill-link { display: inline-block; margin-left: 8px; font: 600 10.5px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; }

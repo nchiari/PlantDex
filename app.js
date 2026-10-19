@@ -100,20 +100,30 @@ async function signUrls(paths) {
 
 // ---------- completar estado de conservación en lote ----------
 const missingIucn = () => plants.filter((p) => !p.iucn && p.scientific_name);
+let iucnAll = false; // true: volver a consultar todas, no solo las que faltan
+const iucnTargets = () => (iucnAll ? plants.filter((p) => p.scientific_name) : missingIucn());
 const iucnBatchPrompt = () => `Para cada especie, decime su estado de conservación GLOBAL en la Lista Roja de la UICN (LC, NT, VU, EN, CR, EW, EX, DD o NE si no fue evaluada; no inventes).
 Respondé SOLO con un JSON así: {"Género especie": "LC", ...}
-${missingIucn().map((p) => "- " + p.scientific_name).join("\n")}`;
+${iucnTargets().map((p) => "- " + p.scientific_name).join("\n")}`;
 function iucnBatchBox() {
+  if (!plants.length) return "";
   const n = missingIucn().length;
-  if (!n) return "";
-  return `<h3>Estado de conservación</h3>
-    <p class="muted">${n === 1 ? "Hay 1 lámina" : `Hay ${n} láminas`} sin estado de conservación. Copiá el prompt, pegalo en ChatGPT o Claude, y pegá acá la respuesta.</p>
-    <div class="row"><button class="btn" id="iucncopy">Copiar prompt</button></div>
-    <details><summary>Ver prompt</summary><div class="prompt-box">${esc(iucnBatchPrompt())}</div></details>
-    <label>Respuesta</label><textarea id="iucnpaste" placeholder='{ "Ilex aquifolium": "LC" }'></textarea>
-    <button class="btn primary" id="iucnapply" style="width:100%;margin-top:12px">Actualizar láminas</button>`;
+  const status = n ? `<b>${n === 1 ? "1 lámina" : n + " láminas"}</b> sin estado de conservación.` : "Todas tus láminas tienen estado de conservación.";
+  const open = n > 0 || iucnAll;
+  return `<div class="iucn-box" id="iucnbox">
+    <h3>Estado de conservación</h3>
+    <p class="muted" style="margin-top:0">${status} ${open ? "Copiá el prompt, pegalo en ChatGPT o Claude, y pegá acá la respuesta." : ""}</p>
+    ${open ? `
+      <div class="row"><button class="btn" id="iucncopy">Copiar prompt</button></div>
+      <details><summary>Ver prompt</summary><div class="prompt-box">${esc(iucnBatchPrompt())}</div></details>
+      <label>Respuesta</label><textarea id="iucnpaste" placeholder='{ "Ilex aquifolium": "LC" }'></textarea>
+      <button class="btn primary" id="iucnapply" style="width:100%;margin-top:12px">Actualizar láminas</button>`
+    : `<button class="btn ghost" id="iucnall">Volver a consultar todas</button>`}
+  </div>`;
 }
 function bindIucnBatch() {
+  $app.querySelector("#iucnall")?.addEventListener("click", () => { iucnAll = true; renderSettings(); });
+  if (location.hash.includes("iucn")) setTimeout(() => document.getElementById("iucnbox")?.scrollIntoView({ block: "start" }), 50);
   $app.querySelector("#iucncopy")?.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(iucnBatchPrompt()); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt»"); }
   });
@@ -121,7 +131,7 @@ function bindIucnBatch() {
     let map;
     try { map = JSON.parse(String(v("iucnpaste")).match(/\{[\s\S]*\}/)[0]); } catch { return toast("No entendí la respuesta"); }
     const norm = Object.fromEntries(Object.entries(map).map(([k, c]) => [illuKey(k), normIucn(c)]));
-    const todo = missingIucn().map((p) => [p, norm[illuKey(p.scientific_name)]]).filter(([, c]) => c);
+    const todo = iucnTargets().map((p) => [p, norm[illuKey(p.scientific_name)]]).filter(([, c]) => c);
     if (!todo.length) return toast("No encontré ninguna de tus especies en la respuesta");
     ev.currentTarget.disabled = true;
     for (const [p, c] of todo) {
@@ -129,6 +139,7 @@ function bindIucnBatch() {
       if (error) { toast(/iucn/i.test(error.message) ? "Falta actualizar la base: corré en Supabase la línea SQL de «iucn»" : error.message); ev.currentTarget.disabled = false; return; }
       p.iucn = c;
     }
+    iucnAll = false;
     toast(todo.length === 1 ? "1 lámina actualizada" : `${todo.length} láminas actualizadas`);
     renderSettings();
   });
@@ -348,7 +359,8 @@ function renderSettings() {
   $nav.hidden = !user;
   $app.innerHTML = `
     <h2>Ajustes</h2>
-    <p class="muted">Se guardan solo en este dispositivo. En el README está cómo sacar cada clave, todas gratis.</p>
+    ${user ? iucnBatchBox() : ""}
+    <p class="muted">Las claves se guardan solo en este dispositivo. En el README está cómo sacar cada una, todas gratis.</p>
     <h3>Supabase · tu nube</h3>
     <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
     <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
@@ -366,7 +378,7 @@ function renderSettings() {
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
-      ${iucnBatchBox()}` : ""}
+` : ""}
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
@@ -553,7 +565,7 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
-      ${iucnPill(p.iucn)}
+      ${iucnPill(p.iucn)}${p.iucn ? "" : ` <a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
