@@ -347,3 +347,31 @@ body.engrave .ix-ph:not(.illu) { filter: url(#engrave); }
   outline: 1px solid #1f342633; outline-offset: -6px;
   filter: brightness(1.12) contrast(1.14) saturate(1.05) !important;
 }
+
+/* ---------- ficha: rareza, ficha técnica y secciones desplegables ---------- */
+.rarity { display: inline-flex; align-items: center; gap: 3px; margin-top: 10px; padding: 5px 12px; border: 1px solid #1f342640; border-radius: 99px; }
+.rarity svg { width: 15px; height: 15px; color: #1f342626; }
+.rarity svg.on { color: var(--gold); }
+.rarity span { font: 600 10.5px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-soft); margin-left: 6px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 18px 0 6px; }
+.fact { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  padding: 10px 12px; background: var(--parchment-2); border: 1px solid #1f342640; }
+.fact svg { grid-row: span 2; width: 30px; height: 30px; color: var(--leaf); }
+.fk { font: 600 9.5px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-soft); }
+.fv { font: 500 17px/1.2 var(--text); color: var(--ink); }
+.fact.ok svg { color: var(--leaf); }
+.fact.warn svg, .fact.warn .fv { color: var(--warn); }
+.fact.bad { background: var(--ink); border-color: var(--ink); }
+.fact.bad svg, .fact.bad .fv { color: var(--gold-soft); }
+.fact.bad .fk { color: #d9c98faa; }
+.maplink { text-align: right; font-style: italic; font-size: 15px; margin-top: 4px; }
+.lead-desc { margin-top: 22px; font-size: 19px; }
+.folds { margin-top: 24px; border-top: 1px solid #1f342633; }
+.fold { border-bottom: 1px solid #1f342633; }
+.fold summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+  padding: 15px 2px; font: 600 13px var(--caps); letter-spacing: 2px; text-transform: uppercase; color: var(--leaf); margin: 0; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary span::before { content: ""; display: inline-block; width: 14px; height: 8px; margin-right: 10px; background: currentColor; clip-path: path("M0 4C3 0 8 0 14 4 8 8 3 8 0 4Z"); vertical-align: 1px; }
+.fold summary svg { width: 20px; height: 20px; transition: transform .2s; flex: none; }
+.fold[open] summary svg { transform: rotate(180deg); }
+.fold-body { padding: 0 2px 18px; }

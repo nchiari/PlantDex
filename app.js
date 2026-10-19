@@ -420,6 +420,39 @@ function card(p) {
   </div>`;
 }
 
+const RARITY = ["Muy común", "Común", "Poco común", "Rara", "Rarísima"];
+const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
+
+// Meses [3,4,5,10] → "Mar–May, Oct"
+function monthRanges(ms = []) {
+  const a = [...new Set(ms)].sort((x, y) => x - y), out = [];
+  for (let i = 0; i < a.length; i++) {
+    let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
+    out.push(i === j ? MONTHS[a[i] - 1] : `${MONTHS[a[i] - 1]}–${MONTHS[a[j] - 1]}`); i = j;
+  }
+  return out.join(", ");
+}
+
+// Ficha técnica: lo esencial de un vistazo, con iconos.
+function factSheet(p) {
+  const toxic = p.types?.includes("toxica");
+  const ed = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "bad"] }[p.edible_human] || ["Sin datos", ""];
+  const origin = /invasora/i.test(p.native_range || "") ? "Invasora" : /introducid|exótic|naturalizad|cultivad/i.test(p.native_range || "") ? "Introducida" : /nativ|autóctona|endémic/i.test(p.native_range || "") ? "Nativa" : "";
+  const kind = (p.kind || "").toLowerCase();
+  const kindIcon = KIND_ICON[kind] || (p.types?.includes("arbol") ? "f-tree" : p.types?.includes("arbusto") ? "f-shrub" : p.types?.includes("hongo") ? "f-mushroom" : "f-herb");
+  const tile = (icon, k, v, cls = "") => v ? `<div class="fact ${cls}"><svg><use href="#${icon}"/></svg><span class="fk">${k}</span><span class="fv">${esc(v)}</span></div>` : "";
+  return `<div class="facts">
+    ${tile("f-edible", "Comestible", ed[0], ed[1])}
+    ${tile(toxic ? "f-skull" : "f-shield", "Toxicidad", toxic ? "Tóxica" : "Sin avisos", toxic ? "bad" : "ok")}
+    ${tile(kindIcon, "Porte", kind ? kind[0].toUpperCase() + kind.slice(1) : "")}
+    ${tile("f-family", "Familia", p.family)}
+    ${tile("f-flower", "Florece", monthRanges(p.flower_months))}
+    ${tile("f-fruit", "Fruto", monthRanges(p.fruit_months))}
+    ${tile("f-globe", "Origen", origin)}
+    ${tile("f-pin", "Hallada", [p.location_name?.split(",")[0], p.found_at && new Date(p.found_at + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })].filter(Boolean).join(" · "))}
+  </div>${p.lat ? `<div class="maplink"><a href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">Ver el lugar en el mapa</a></div>` : ""}`;
+}
+
 async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
   if (!p) return go("list");
@@ -430,8 +463,9 @@ async function renderDetail(id) {
     ...(ill ? [{ src: ill.url, cap: `Lámina antigua · ${esc(ill.credit)} · <a href="${ill.page}" target="_blank">${esc(ill.license)}</a>`, illu: true }] : []),
     ...(p.photos || []).map((x, i) => ({ src: urlCache.get(x), cap: i === 0 ? "Foto principal" : "Foto de campo", photo: i })).filter((f) => f.src),
   ];
-  const hum = HUMAN[p.edible_human || "desconocido"], toxic = p.types?.includes("toxica");
-  const sec = (title, txt, cls = "") => txt ? `<h3>${title}</h3><div class="field-note ${cls}">${esc(txt)}</div>` : "";
+    // Sección desplegable: se abre/cierra tocando el título.
+  const fold = (title, body) => body ? `<details class="fold"><summary><span>${title}</span><svg><use href="#f-chev"/></svg></summary><div class="fold-body">${body}</div></details>` : "";
+  const note = (txt) => (txt ? `<div class="field-note">${esc(txt)}</div>` : "");
   const hasMonths = p.flower_months?.length || p.fruit_months?.length;
   const idx = plants.findIndex((x) => x.id === id);
   const prev = plants[idx + 1], next = plants[idx - 1];
@@ -442,26 +476,25 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
+      <div class="rarity" title="Rareza en la zona del hallazgo">${[1, 2, 3, 4, 5].map((i) => `<svg class="${i <= (p.rarity || 1) ? "on" : ""}"><use href="#f-star"/></svg>`).join("")}<span>${RARITY[(p.rarity || 1) - 1]}</span></div>
     </div>
+    ${typeBadges(p.types)}
+    ${factSheet(p)}
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
     <div class="row fig-actions" id="figact"></div>
-    ${typeBadges(p.types)}
-    <div class="safety">
-      <div><div class="k">PARA COMER</div><div class="v ${hum[1]}">${hum[0]}</div></div>
-      <div><div class="k">TOXICIDAD</div><div class="v ${toxic ? "bad" : ""}">${toxic ? "☠ Tóxica" : "Sin advertencias"}</div></div>
+    ${p.description ? `<div class="field-note dropcap lead-desc">${esc(p.description)}</div>` : ""}
+    <div class="folds">
+      ${fold("Patria · origen", note(p.native_range))}
+      ${fold("Kalendarium", hasMonths ? monthsBar(p.flower_months, p.fruit_months) + legend : "")}
+      ${fold("Esculenta · comestibilidad", note(p.edibility_notes))}
+      ${fold("Usus · usos", note(p.uses))}
+      ${fold("Historia", note(p.history))}
+      ${fold("Curiosa", p.curiosity ? `<div class="curio">“${esc(p.curiosity)}”</div>` : "")}
+      ${fold("Notae · mis notas", note(p.notes))}
     </div>
-    ${sec("Descriptio", p.description, "dropcap")}
-    ${sec("Patria · origen", p.native_range)}
-    ${hasMonths ? `<h3>Kalendarium</h3>${monthsBar(p.flower_months, p.fruit_months)}${legend}` : ""}
-    ${sec("Esculenta · comestibilidad", p.edibility_notes)}
-    ${sec("Usus · usos", p.uses)}
-    ${sec("Historia", p.history)}
-    ${p.curiosity ? `<h3>Curiosa</h3><div class="curio">“${esc(p.curiosity)}”</div>` : ""}
-    ${sec("Notae · mis notas", p.notes)}
-    <div class="meta">Hallada en ${esc(p.location_name || "lugar sin nombre")}${p.lat ? ` (<a href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>)` : ""}, el ${esc(p.found_at || "")}.<br>
-      Rareza <span class="stars">${stars(p.rarity)}</span>${p.ai_confidence ? `<br>Confianza de la identificación: ${esc(p.ai_confidence)}` : ""}</div>
+    ${p.ai_confidence ? `<div class="meta">Confianza de la identificación: ${esc(p.ai_confidence)}</div>` : ""}
     <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, confirmalo con alguien que sepa.</div>
     <div class="row" style="margin-top:18px">
       <button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
