@@ -478,12 +478,12 @@ async function renderDetail(id) {
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
       <div class="rarity" title="Rareza en la zona del hallazgo">${[1, 2, 3, 4, 5].map((i) => `<svg class="${i <= (p.rarity || 1) ? "on" : ""}"><use href="#f-star"/></svg>`).join("")}<span>${RARITY[(p.rarity || 1) - 1]}</span></div>
     </div>
-    ${typeBadges(p.types)}
-    ${factSheet(p)}
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
     <div class="row fig-actions" id="figact"></div>
+    ${typeBadges(p.types)}
+    ${factSheet(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${esc(p.description)}</div>` : ""}
     <div class="folds">
       ${fold("Patria · origen", note(p.native_range))}
