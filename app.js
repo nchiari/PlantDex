@@ -436,7 +436,25 @@ function renderList() {
 
 const coverOf = (p) => illuOf(p)?.url || photoOf(p);
 
-const markOf = (p) => p.types?.includes("toxica") ? ["☠", "Tóxica"] : { si: ["✓", "Comestible"], parcial: ["½", "En parte comestible"], no: ["✕", "No se come"] }[p.edible_human] || ["?", "Sin datos"];
+const markOf = (p) => p.types?.includes("toxica") ? ["f-skull", "Tóxica", "tox"] : { si: ["f-edible", "Comestible", "ok"], parcial: ["f-bowl-half", "En parte comestible", "half"], no: ["f-bowl-no", "No se come", "no"] }[p.edible_human] || ["f-question", "Sin datos", "unk"];
+const edibleBadge = (p, cls = "dog") => { const m = markOf(p); return `<span class="${cls} eb-${m[2]}" title="${m[1]}"><svg><use href="#${m[0]}"/></svg></span>`; };
+
+// Medallón de conservación: hoja + anillo de 5 segmentos que se llena según la categoría UICN.
+const RING = (() => {
+  const seg = [], r = 17, c = 20, gap = 9;
+  for (let i = 0; i < 5; i++) {
+    const a0 = (-90 + i * 72 + gap / 2) * Math.PI / 180, a1 = (-90 + (i + 1) * 72 - gap / 2) * Math.PI / 180;
+    seg.push(`M${(c + r * Math.cos(a0)).toFixed(2)} ${(c + r * Math.sin(a0)).toFixed(2)} A${r} ${r} 0 0 1 ${(c + r * Math.cos(a1)).toFixed(2)} ${(c + r * Math.sin(a1)).toFixed(2)}`);
+  }
+  return seg;
+})();
+function consBadge(code, cls = "cons") {
+  const [label, n] = IUCN[code] || ["Sin dato de conservación", 0];
+  const tier = n >= 4 ? 4 : n;
+  return `<span class="${cls} ct-${tier}" title="${code && n ? code + " · " : ""}${label} (Lista Roja UICN)"><svg viewBox="0 0 40 40">
+    ${RING.map((d, i) => `<path d="${d}" class="${i < n ? "on" : ""}"/>`).join("")}
+    <use href="#${n ? "f-leaf" : "f-question"}" x="11" y="11" width="18" height="18"/></svg></span>`;
+}
 
 // Fila del modo índice: número romano, miniatura, nombres e indicador de comestibilidad.
 function row(p) {
@@ -445,7 +463,7 @@ function row(p) {
     <span class="ix-num">${roman(p.number)}</span>
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
     <span class="ix-txt"><b>${esc(p.common_name)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
-    <span class="ix-mark" title="${mark[1]}">${mark[0]}</span>
+    ${consBadge(p.iucn, "cons ix-cons")}${edibleBadge(p, "dog ix-mark")}
   </li>`;
 }
 
@@ -454,7 +472,8 @@ function card(p) {
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
     <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
-    <span class="dog" title="${mark[1]}">${mark[0]}</span>
+    ${consBadge(p.iucn)}
+    ${edibleBadge(p)}
     <span class="num">${tab(p.number)}</span>
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
   </div>`;
@@ -479,7 +498,7 @@ function normIucn(x) { const c = String(x || "").toUpperCase().match(/\b(LC|NT|V
 function iucnPill(code) {
   const [label, n] = IUCN[code] || ["Sin dato de conservación", 0];
   return `<div class="rarity ${n ? "" : "none"}" title="Estado de conservación global (Lista Roja UICN)">
-    ${n ? [1, 2, 3, 4, 5].map((i) => `<svg class="${i <= n ? "on" : ""}"><use href="#f-star"/></svg>`).join("") : ""}
+    ${consBadge(code, "cons pill-cons")}
     <span>${code && code !== "NE" && code !== "DD" ? code + " · " : ""}${label}</span></div>`;
 }
 const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
