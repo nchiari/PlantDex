@@ -52,6 +52,7 @@ async function boot() {
   user = data.session?.user ?? null;
   sb.auth.onAuthStateChange((_e, s) => { const was = user; user = s?.user ?? null; if (!!was !== !!user) { if (user) loadPlants().then(route); else route(); } });
   if (user) await loadPlants();
+  await restoreDraft();
   route();
 }
 
@@ -127,7 +128,7 @@ async function runDiagnostics() {
 
 // ---------- ilustraciones antiguas (Wikimedia Commons) ----------
 // Buscamos láminas de floras históricas por nombre científico. Se cachea por especie en este dispositivo.
-const ILLU_KEY = "plantdex.illu";
+const ILLU_KEY = "plantdex.illu2"; // v2: descarta resultados de la búsqueda anterior
 const ILLU_SOURCES = /k(ö|oe|o)hler|thom[ée]|flora batava|lindman|nordens flora|sturm|sowerby|curtis|botanical magazine|jacquin|redout|hooker|illustration|plate|tafel|tab\.|lámina|drawing|engraving|medizinal|pflanzen|kräuterbuch|fuchs|blackwell|bauer/i;
 let illuCache = {};
 try { illuCache = JSON.parse(localStorage.getItem(ILLU_KEY) || "{}"); } catch {}
@@ -136,30 +137,41 @@ const illuKey = (sci) => (sci || "").trim().toLowerCase().split(/\s+/).slice(0, 
 const illuOf = (p) => (cfg.illustrations && p.scientific_name ? illuCache[illuKey(p.scientific_name)] || null : null);
 const strip = (h) => String(h || "").replace(/<[^>]+>/g, "").trim();
 
+// Búsquedas dirigidas a cada flora histórica, en orden de preferencia.
+const ILLU_QUERIES = [
+  "intitle:Köhler", "intitle:Illustration", "intitle:Batava", "intitle:Sturm", "intitle:Nordens",
+  "Lindman", "intitle:Sowerby", '"English Botany"', "Curtis botanical", "drawing OR plate OR engraving OR tafel",
+];
 async function findIllustration(sci) {
   const key = illuKey(sci);
   if (!key || key.split(" ").length < 2) return null;
   if (key in illuCache) return illuCache[key];
+  let pick = null;
   try {
-    const q = new URLSearchParams({
-      action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "40",
-      gsrsearch: `intitle:"${key}" filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
-    });
-    const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
-    const pages = Object.values((await res.json()).query?.pages || {});
-    const scored = pages
-      .filter((pg) => pg.imageinfo?.[0]?.thumburl && ILLU_SOURCES.test(pg.title))
-      .map((pg) => ({ pg, score: (/k(ö|oe|o)hler|thom[ée]|flora batava|lindman|sturm|sowerby|curtis/i.test(pg.title) ? 2 : 1) - (pg.index || 0) / 100 }))
-      .sort((a, b) => b.score - a.score);
-    const best = scored[0]?.pg;
-    const info = best?.imageinfo[0];
-    const md = info?.extmetadata || {};
-    illuCache[key] = best ? {
-      url: info.thumburl, page: info.descriptionurl,
-      credit: [strip(md.Artist?.value), strip(md.ObjectName?.value) || best.title.replace(/^File:|\.\w+$/g, "")].filter(Boolean).join(" · ").slice(0, 160),
-      license: strip(md.LicenseShortName?.value) || "Dominio público",
-    } : false;
-  } catch { return null; } // sin red: no cacheamos, se reintenta otra vez
+    const search = async (extra) => {
+      const q = new URLSearchParams({
+        action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "5",
+        gsrsearch: `intitle:"${key}" ${extra} filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
+      });
+      const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return Object.values((await res.json()).query?.pages || {})
+        .filter((pg) => pg.imageinfo?.[0]?.thumburl && pg.title.toLowerCase().includes(key))
+        .sort((x, y) => (x.index || 0) - (y.index || 0));
+    };
+    const results = await Promise.all(ILLU_QUERIES.map((q) => search(q).catch(() => null)));
+    if (results.every((r) => r === null)) return null; // sin red: reintentar más tarde
+    for (let i = 0; i < results.length && !pick; i++) {
+      const list = results[i] || [];
+      pick = i < ILLU_QUERIES.length - 1 ? list[0] : list.find((pg) => ILLU_SOURCES.test(pg.title));
+    }
+  } catch { return null; }
+  const info = pick?.imageinfo[0], md = info?.extmetadata || {};
+  illuCache[key] = pick ? {
+    url: info.thumburl, page: info.descriptionurl,
+    credit: [strip(md.Artist?.value), strip(md.ObjectName?.value) || pick.title.replace(/^File:|\.\w+$/g, "")].filter(Boolean).join(" · ").slice(0, 160),
+    license: strip(md.LicenseShortName?.value) || "Dominio público",
+  } : false;
   saveIllu();
   return illuCache[key];
 }
@@ -523,6 +535,33 @@ async function renderDetail(id) {
   };
 }
 
+// ---------- borrador persistente ----------
+// Android a veces recarga la página al volver de la cámara: guardamos fotos y datos del borrador en IndexedDB.
+const idb = (() => {
+  let dbp;
+  const open = () => (dbp ||= new Promise((res, rej) => {
+    const r = indexedDB.open("plantdex", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => { const t = db.transaction("kv", mode); const req = fn(t.objectStore("kv")); t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error); });
+  };
+  return {
+    get: (k) => tx("readonly", (st) => st.get(k)).catch(() => null),
+    set: (k, val) => tx("readwrite", (st) => st.put(val, k)).catch(() => {}),
+    del: (k) => tx("readwrite", (st) => st.delete(k)).catch(() => {}),
+  };
+})();
+const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), data: draft.data, hint: draft.hint, mode: draft.mode }); };
+const clearDraft = () => { draft = null; idb.del("draft"); };
+async function restoreDraft() {
+  const sd = await idb.get("draft");
+  if (!sd || (!sd.blobs?.length && !sd.data?.common_name)) return;
+  draft = { files: (sd.blobs || []).map((b) => ({ blob: b, url: URL.createObjectURL(b) })), data: sd.data || {}, hint: sd.hint, mode: sd.mode || "ai" };
+}
+
 // ---------- alta ----------
 // Abre cámara o galería; al elegir, suma las fotos al borrador y muestra la lámina nueva.
 function pickPhotos(source) {
@@ -530,8 +569,10 @@ function pickPhotos(source) {
   input.value = "";
   input.onchange = async () => {
     if (!input.files.length) return;
+    if (draft?.editing) draft = null;
     if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
     for (const f of [...input.files].slice(0, 4 - draft.files.length)) { const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob) }); }
+    saveDraft();
     if (location.hash === "#new") renderNew(); else location.hash = "new";
   };
   input.click();
@@ -548,6 +589,7 @@ function openSheet() {
 }
 
 function renderNew() {
+  if (draft?.editing) draft = null;
   if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
   const has = draft.files.length > 0;
   const m = draft.mode;
@@ -559,6 +601,7 @@ function renderNew() {
       <div class="row"><button class="btn red" id="cam">Cámara</button><button class="btn" id="gal">Galería</button></div>
       <div class="preview" id="prev"></div>
     </div>
+    ${draft.data.common_name ? `<div class="resume"><span>Tenés una ficha a medio hacer: <b>${esc(draft.data.common_name)}</b></span><button class="btn primary" id="resume">Seguir</button></div>` : ""}
     <label>Dónde estás</label><input id="place" placeholder="se detecta solo con el GPS, o escribilo" value="${esc(draft.data.location_name || "")}">
     <label>Pista (opcional)</label><input id="hint" placeholder="ej: a orillas de un río, huele a anís" value="${esc(draft.hint || "")}">
     <div class="tabs">
@@ -569,7 +612,8 @@ function renderNew() {
     <div id="mode"></div>`;
   const prev = $app.querySelector("#prev");
   prev.innerHTML = draft.files.map((f, i) => `<div><img src="${f.url}"><button data-i="${i}">×</button></div>`).join("");
-  prev.querySelectorAll("button").forEach((b) => (b.onclick = () => { draft.files.splice(+b.dataset.i, 1); renderNew(); }));
+  prev.querySelectorAll("button").forEach((b) => (b.onclick = () => { draft.files.splice(+b.dataset.i, 1); saveDraft(); renderNew(); }));
+  $app.querySelector("#resume")?.addEventListener("click", () => renderForm(null));
   $app.querySelector("#cam").onclick = () => pickPhotos("camera");
   $app.querySelector("#gal").onclick = () => pickPhotos("gallery");
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
@@ -584,7 +628,7 @@ function renderNew() {
       const st = box.querySelector("#status");
       st.innerHTML = `<div class="scanning"><span class="leaf">${EMBLEM}</span><p><i>Consultando los tratados…</i></p></div>`;
       const say = (t) => { const el = st.querySelector("p i"); if (el) el.textContent = t; };
-      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx(), say)) }; renderForm(null); }
+      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx(), say)) }; saveDraft(); renderForm(null); }
       catch (e) { st.innerHTML = `<p class="muted">No pude identificarla: ${esc(e.message)}</p>`; }
     };
   } else if (m === "chat") {
@@ -603,7 +647,7 @@ function renderNew() {
       try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
     };
     box.querySelector("#useit").onclick = () => {
-      try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; renderForm(null); }
+      try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; saveDraft(); renderForm(null); }
       catch (e) { toast("No entendí la respuesta: " + e.message); }
     };
   } else {
@@ -634,10 +678,38 @@ function placeCtx() {
   return [d.location_name, d.lat ? `(${d.lat.toFixed(3)}, ${d.lng.toFixed(3)})` : ""].filter(Boolean).join(" ");
 }
 
+// Sube fotos nuevas a una lámina ya guardada y las suma al final.
+function addPhotosTo(p, source) {
+  const input = document.getElementById(source === "camera" ? "file-input" : "file-input-gallery");
+  input.value = "";
+  input.onchange = async () => {
+    if (!input.files.length) return;
+    toast("Subiendo fotos…");
+    try {
+      const added = [];
+      for (const f of [...input.files].slice(0, 6)) {
+        const blob = await resizeImage(f);
+        const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+        if (error) throw error;
+        urlCache.set(path, URL.createObjectURL(blob)); added.push(path);
+      }
+      const photos = [...(p.photos || []), ...added];
+      const { error } = await sb.from("plants").update({ photos }).eq("id", p.id);
+      if (error) throw error;
+      p.photos = photos; draft.data.photos = photos;
+      const box = document.getElementById("edphotos");
+      if (box) box.innerHTML = photos.map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("");
+      toast(added.length === 1 ? "Foto agregada" : `${added.length} fotos agregadas`);
+    } catch (e) { toast("Error al subir: " + e.message); }
+  };
+  input.click();
+}
+
 function renderEdit(id) {
   const p = plants.find((x) => x.id === id);
   if (!p) return go("list");
-  draft = { files: [], data: { ...p } };
+  draft = { files: [], data: { ...p }, editing: true };
   renderForm(p);
 }
 
@@ -650,6 +722,8 @@ function renderForm(existing) {
     <button class="back" id="bk">← Volver</button>
     <h2>${existing ? "Corregir " + tab(existing.number) : "Redactar la lámina"}</h2>
     ${d.ai_confidence ? `<p class="muted"><i>Confianza de la identificación: ${esc(d.ai_confidence)}</i></p>` : ""}
+    ${existing ? `<label>Fotos</label><div class="preview" id="edphotos">${(existing.photos || []).map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("")}</div>
+      <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
     <label>Otros nombres</label><input id="other_names" placeholder="euskera, populares…" value="${esc(d.other_names || "")}">
     <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
@@ -669,6 +743,10 @@ function renderForm(existing) {
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
+  if (existing) {
+    $app.querySelector("#addcam").onclick = () => addPhotosTo(existing, "camera");
+    $app.querySelector("#addgal").onclick = () => addPhotosTo(existing, "gallery");
+  }
   $app.querySelector("#rarity").oninput = (e) => ($app.querySelector("#rv").textContent = stars(+e.target.value));
   [["flm", "flower_months", "fl"], ["frm", "fruit_months", "fr"]].forEach(([id, key, cls]) =>
     $app.querySelectorAll(`#${id} span`).forEach((s) => (s.onclick = () => {
@@ -683,6 +761,7 @@ function renderForm(existing) {
     row.rarity = +v("rarity");
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
+    if (!existing && !draft.files.length && !confirm("Esta lámina no tiene fotos. ¿La guardo igual? (Después podés agregarlas al editarla.)")) return;
     btn.disabled = true; btn.textContent = "Entintando…";
     try {
       if (existing) {
@@ -703,7 +782,7 @@ function renderForm(existing) {
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants.unshift(data);
-        draft = null; toast(`${data.common_name} asentada como Tabula ${roman(data.number)}`);
+        clearDraft(); toast(`${data.common_name} asentada como Tabula ${roman(data.number)}`);
         location.hash = "plant/" + data.id;
       }
     } catch (e) { toast("Error: " + e.message); btn.disabled = false; btn.textContent = "Reintentar"; }
@@ -765,5 +844,5 @@ function renderStats() {
     <div class="badge-list">${badges.map(([e, t, d, ok]) => `<div class="badge ${ok ? "" : "locked"}"><div class="e">${e}</div><b>${t}</b><div class="muted" style="font-size:14px">${d}</div></div>`).join("")}</div>`;
 }
 
-Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (draft = x) });
+Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (x ? (draft = x) : clearDraft()) });
 boot();
