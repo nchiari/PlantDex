@@ -2,7 +2,7 @@
 
 Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come o es tóxica, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 
-Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos, una por persona) y Google Gemini o tu chat de IA (identificación).
+Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos, una por persona) y tu chat de IA, ChatGPT o Claude (identificación).
 
 ---
 
@@ -18,14 +18,12 @@ Cada persona usa **su propia nube gratuita (Supabase)**: nadie comparte datos ni
    - pegar la *Project URL* y la *publishable key*.
    La app prueba la conexión antes de seguir.
 3. Entrá con tu email (te llega un link) y, ya adentro, desactivá en Supabase *Allow new users to sign up*.
-4. Opcional: una clave gratis de [Gemini](https://aistudio.google.com/apikey) para la identificación automática. Sin ella, se identifica con ChatGPT o Claude copiando y pegando.
-5. Desde el menú del navegador: **Agregar a pantalla de inicio**.
+4. Desde el menú del navegador: **Agregar a pantalla de inicio**.
 
 ---
 
 ## Cómo se usa
 - **✚ Nueva lámina**: sacás 1 a 4 fotos y elegís cómo identificarla:
-  - **Automático**: Gemini completa la ficha (necesita la API key gratis).
   - **Con mi chat**: copiás un prompt, lo pegás en ChatGPT o Claude con las fotos, y pegás la respuesta. Usa tus suscripciones, sin API.
   - **A mano**.
 - Cada planta es una lámina ordenada alfabéticamente, con tipos, estado de conservación (UICN) y si es comestible o tóxica.

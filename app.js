@@ -3,12 +3,11 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ---------- configuración local ----------
 const CFG_KEY = "plantdex.cfg";
 // Cada persona conecta su propio Supabase desde el asistente de primeros pasos.
-const defaults = { sbUrl: "", sbKey: "", provider: "gemini", aiKey: "", model: "", engrave: true, illustrations: true };
+const defaults = { sbUrl: "", sbKey: "", engrave: true, illustrations: true };
 const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; } catch { return { ...defaults }; } };
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
 
-const DEFAULT_MODELS = { gemini: "gemini-flash-latest", openai: "gpt-4o-mini" };
 const BUCKET = "plant-photos";
 
 const TYPES = ["comestible", "toxica", "medicinal", "aromatica", "frutal", "flor", "arbol", "arbusto", "hierba", "trepadora", "hongo", "acuatica", "invasora", "ornamental"];
@@ -215,7 +214,6 @@ async function resizeImage(file, max = 1400) {
   c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
   return new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
 }
-const blobToBase64 = (blob) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(blob); });
 
 // ---------- IA ----------
 const buildPrompt = (hint = "", place = "") => `Sos un botánico de campo y naturalista experto en la flora silvestre y cultivada de todo el mundo. Identificá la planta, hongo o fruto de las fotos.
@@ -256,76 +254,6 @@ function normalizeAI(raw) {
   return out;
 }
 
-// Modelos "flash" de la cuenta que aceptan generateContent, del más nuevo al más viejo (los "lite" al final).
-async function geminiCandidates() {
-  try {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": cfg.aiKey } });
-    const j = await res.json();
-    const ver = (n) => (n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] * 1 || 0;
-    const names = (j.models || [])
-      .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-      .map((m) => m.name.replace(/^models\//, ""))
-      .filter((n) => /^gemini-[\d.]+-flash/.test(n) && !/image|tts|audio|live|thinking|exp/.test(n));
-    const rank = (n) => (/lite/.test(n) ? 1 : 0);
-    return names.sort((x, y) => rank(x) - rank(y) || ver(y) - ver(x) || x.length - y.length);
-  } catch { return []; }
-}
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function geminiError(msg = "", status) {
-  if (status === 429 || /quota|rate/i.test(msg)) return "Llegaste al límite gratuito de Gemini por ahora. Probá en un rato o usá «Con mi chat».";
-  if (status === 503 || /high demand|overloaded|unavailable/i.test(msg)) return "Los servidores de Gemini están saturados. Probá en unos minutos o usá «Con mi chat».";
-  if (/api key|permission|unauth/i.test(msg)) return "Google rechazó la API key. Revisala en Ajustes.";
-  return msg;
-}
-
-async function identify(blobs, hint = "", place = "", onStatus) {
-  if (!cfg.aiKey) throw new Error("Falta la API key en Ajustes. Probá la pestaña «Con mi chat».");
-  const imgs = await Promise.all(blobs.map(blobToBase64));
-  const prompt = buildPrompt(hint, place);
-  const model = cfg.model || DEFAULT_MODELS[cfg.provider];
-  let text;
-  if (cfg.provider === "openai") {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.aiKey },
-      body: JSON.stringify({
-        model, response_format: { type: "json_object" },
-        messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...imgs.map((b) => ({ type: "image_url", image_url: { url: "data:image/jpeg;base64," + b } }))] }],
-      }),
-    });
-    const j = await res.json();
-    if (!res.ok) throw new Error(j.error?.message || res.statusText);
-    text = j.choices[0].message.content;
-  } else {
-    const body = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }, ...imgs.map((b) => ({ inline_data: { mime_type: "image/jpeg", data: b } }))] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
-    });
-    const call = async (m) => {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cfg.aiKey }, body,
-      });
-      return { res, j: await res.json().catch(() => ({})) };
-    };
-    const busy = (r) => [429, 500, 503].includes(r.res.status) || /high demand|overloaded/i.test(r.j.error?.message || "");
-    const gone = (r) => /no longer available|not found|is not supported|deprecated/i.test(r.j.error?.message || "");
-    // Probamos el modelo guardado; si no existe o está saturado, recorremos los Flash de la cuenta.
-    let r = await call(model), used = model;
-    if (!r.res.ok && busy(r)) { onStatus?.("Gemini está saturado, reintentando…"); await sleep(2000); r = await call(model); }
-    if (!r.res.ok && (busy(r) || gone(r))) {
-      for (const m of (await geminiCandidates()).filter((m) => m !== model).slice(0, 4)) {
-        onStatus?.(`Probando con ${m}…`);
-        r = await call(m); used = m;
-        if (r.res.ok || !(busy(r) || gone(r))) break;
-      }
-    }
-    if (!r.res.ok) throw new Error(geminiError(r.j.error?.message || r.res.statusText, r.res.status));
-    if (used !== model) { cfg.model = used; saveCfg(cfg); }
-    text = r.j.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
-  }
-  return normalizeAI(text);
-}
 
 // ---------- piezas comunes ----------
 const typeBadges = (types = []) => `<div class="chips" style="justify-content:center">${types.map((t) => `<span class="type t-${t}">${TYPE_LABEL[t] || t}</span>`).join("")}</div>`;
@@ -365,14 +293,6 @@ function renderSettings() {
     <h3>Supabase · tu nube</h3>
     <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
     <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
-    <h3>Identificación automática</h3>
-    <label>Proveedor</label>
-    <select id="provider">
-      <option value="gemini" ${cfg.provider === "gemini" ? "selected" : ""}>Google Gemini (gratis)</option>
-      <option value="openai" ${cfg.provider === "openai" ? "selected" : ""}>OpenAI API (de pago)</option>
-    </select>
-    <label>API key (opcional: sin ella usás «Con mi chat»)</label><input id="aiKey" type="password" placeholder="AIza…" value="${esc(cfg.aiKey)}">
-    <label>Modelo (opcional)</label><input id="model" placeholder="${DEFAULT_MODELS[cfg.provider]}" value="${esc(cfg.model)}">
     <h3>Apariencia</h3>
     <label class="toggle"><input type="checkbox" id="engrave" ${cfg.engrave ? "checked" : ""}> Fotos con filtro de grabado antiguo</label>
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
@@ -383,7 +303,7 @@ function renderSettings() {
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), provider: v("provider"), aiKey: v("aiKey"), model: v("model"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
+    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
@@ -417,8 +337,7 @@ function renderSetup() {
       <li><b>Conectá la app.</b> En <i>Project Settings → API Keys</i> (o el botón <i>Connect</i>) copiá la <i>Project URL</i> y la <i>publishable key</i>:
         <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co">
         <label>Publishable key</label><input id="sbKey" placeholder="sb_publishable_…"></li>
-      <li><b>Opcional: identificación automática.</b> Si querés que Gemini identifique solo, sacá una clave gratis en <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>. Si no, usás ChatGPT o Claude con copiar y pegar.
-        <label>Clave de Gemini (opcional)</label><input id="aiKey" type="password" placeholder="AIza…"></li>
+
     </ol>
     <button class="btn primary" id="connect" style="width:100%;margin-top:6px">Conectar mi herbario</button>
     <p class="muted" id="setupmsg" style="text-align:center"></p>
@@ -438,7 +357,7 @@ function renderSetup() {
       const { error } = await test.from("plants").select("id").limit(1);
       if (error && /relation|does not exist|schema cache/i.test(error.message)) throw new Error("La conexión anda, pero falta el paso 2: correr el código SQL.");
       if (error && !/permission|JWT|row-level/i.test(error.message)) throw new Error(error.message);
-      cfg = { ...cfg, sbUrl: url, sbKey: key, aiKey: v("aiKey") || cfg.aiKey };
+      cfg = { ...cfg, sbUrl: url, sbKey: key };
       saveCfg(cfg);
       location.replace(SITE_URL());
     } catch (e) { msg.textContent = e.message; ev.currentTarget.disabled = false; }
@@ -692,7 +611,7 @@ const clearDraft = () => { draft = null; idb.del("draft"); };
 async function restoreDraft() {
   const sd = await idb.get("draft");
   if (!sd || (!sd.blobs?.length && !sd.data?.common_name)) return;
-  draft = { files: (sd.blobs || []).map((b) => ({ blob: b, url: URL.createObjectURL(b) })), data: sd.data || {}, hint: sd.hint, mode: sd.mode || "ai" };
+  draft = { files: (sd.blobs || []).map((b) => ({ blob: b, url: URL.createObjectURL(b) })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
 }
 
 // ---------- alta ----------
@@ -703,7 +622,7 @@ function pickPhotos(source) {
   input.onchange = async () => {
     if (!input.files.length) return;
     if (draft?.editing) draft = null;
-    if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
+    if (!draft) draft = { files: [], data: {}, mode: "chat" };
     for (const f of [...input.files].slice(0, 4 - draft.files.length)) { const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob) }); }
     saveDraft();
     if (location.hash === "#new") renderNew(); else location.hash = "new";
@@ -723,7 +642,7 @@ function openSheet() {
 
 function renderNew() {
   if (draft?.editing) draft = null;
-  if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
+  if (!draft) draft = { files: [], data: {}, mode: "chat" };
   const has = draft.files.length > 0;
   const m = draft.mode;
   $app.innerHTML = `
@@ -738,7 +657,6 @@ function renderNew() {
     <label>Dónde estás</label><input id="place" placeholder="se detecta solo con el GPS, o escribilo" value="${esc(draft.data.location_name || "")}">
     <label>Pista (opcional)</label><input id="hint" placeholder="ej: a orillas de un río, huele a anís" value="${esc(draft.hint || "")}">
     <div class="tabs">
-      <button data-m="ai" class="${m === "ai" ? "on" : ""}">Automático</button>
       <button data-m="chat" class="${m === "chat" ? "on" : ""}">Con mi chat</button>
       <button data-m="manual" class="${m === "manual" ? "on" : ""}">A mano</button>
     </div>
@@ -754,17 +672,7 @@ function renderNew() {
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));
 
   const box = $app.querySelector("#mode");
-  if (m === "ai") {
-    box.innerHTML = `<p class="muted">Gemini mira las fotos y completa la ficha. Después la revisás.</p>
-      <button class="btn primary" id="ai" style="width:100%" ${has ? "" : "disabled"}>Identificar</button><div id="status"></div>`;
-    box.querySelector("#ai").onclick = async () => {
-      const st = box.querySelector("#status");
-      st.innerHTML = `<div class="scanning"><span class="leaf">${EMBLEM}</span><p><i>Consultando los tratados…</i></p></div>`;
-      const say = (t) => { const el = st.querySelector("p i"); if (el) el.textContent = t; };
-      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx(), say)) }; saveDraft(); renderForm(null); }
-      catch (e) { st.innerHTML = `<p class="muted">No pude identificarla: ${esc(e.message)}</p>`; }
-    };
-  } else if (m === "chat") {
+  if (m === "chat") {
     box.innerHTML = `
       <ol class="steps">
         <li>Copiá el prompt y abrí ChatGPT o Claude.</li>
