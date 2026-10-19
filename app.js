@@ -97,6 +97,42 @@ async function signUrls(paths) {
   }));
 }
 
+// ---------- completar estado de conservación en lote ----------
+const missingIucn = () => plants.filter((p) => !p.iucn && p.scientific_name);
+const iucnBatchPrompt = () => `Para cada especie, decime su estado de conservación GLOBAL en la Lista Roja de la UICN (LC, NT, VU, EN, CR, EW, EX, DD o NE si no fue evaluada; no inventes).
+Respondé SOLO con un JSON así: {"Género especie": "LC", ...}
+${missingIucn().map((p) => "- " + p.scientific_name).join("\n")}`;
+function iucnBatchBox() {
+  const n = missingIucn().length;
+  if (!n) return "";
+  return `<h3>Estado de conservación</h3>
+    <p class="muted">${n === 1 ? "Hay 1 lámina" : `Hay ${n} láminas`} sin estado de conservación. Copiá el prompt, pegalo en ChatGPT o Claude, y pegá acá la respuesta.</p>
+    <div class="row"><button class="btn" id="iucncopy">Copiar prompt</button></div>
+    <details><summary>Ver prompt</summary><div class="prompt-box">${esc(iucnBatchPrompt())}</div></details>
+    <label>Respuesta</label><textarea id="iucnpaste" placeholder='{ "Ilex aquifolium": "LC" }'></textarea>
+    <button class="btn primary" id="iucnapply" style="width:100%;margin-top:12px">Actualizar láminas</button>`;
+}
+function bindIucnBatch() {
+  $app.querySelector("#iucncopy")?.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(iucnBatchPrompt()); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt»"); }
+  });
+  $app.querySelector("#iucnapply")?.addEventListener("click", async (ev) => {
+    let map;
+    try { map = JSON.parse(String(v("iucnpaste")).match(/\{[\s\S]*\}/)[0]); } catch { return toast("No entendí la respuesta"); }
+    const norm = Object.fromEntries(Object.entries(map).map(([k, c]) => [illuKey(k), normIucn(c)]));
+    const todo = missingIucn().map((p) => [p, norm[illuKey(p.scientific_name)]]).filter(([, c]) => c);
+    if (!todo.length) return toast("No encontré ninguna de tus especies en la respuesta");
+    ev.currentTarget.disabled = true;
+    for (const [p, c] of todo) {
+      const { error } = await sb.from("plants").update({ iucn: c }).eq("id", p.id);
+      if (error) { toast(/iucn/i.test(error.message) ? "Falta actualizar la base: corré en Supabase la línea SQL de «iucn»" : error.message); ev.currentTarget.disabled = false; return; }
+      p.iucn = c;
+    }
+    toast(todo.length === 1 ? "1 lámina actualizada" : `${todo.length} láminas actualizadas`);
+    renderSettings();
+  });
+}
+
 // ---------- ilustraciones antiguas (Wikimedia Commons) ----------
 // Buscamos láminas de floras históricas por nombre científico. Se cachea por especie en este dispositivo.
 const ILLU_KEY = "plantdex.illu2"; // v2: descarta resultados de la búsqueda anterior
@@ -188,7 +224,7 @@ Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta for
  "curiosity": "un dato curioso breve y sorprendente",
  "flower_months": [números de mes 1-12 en que florece en el lugar del hallazgo (ojo con el hemisferio)],
  "fruit_months": [números de mes 1-12 en que da fruto o se cosecha],
- "rarity": 1-5 (1 = muy común en esa región, 5 = rarísima allí),
+ "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)",
  "confidence": "alta | media | baja, y si es baja, qué foto extra ayudaría"
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
@@ -203,7 +239,8 @@ function normalizeAI(raw) {
   out.flower_months = months(out.flower_months);
   out.fruit_months = months(out.fruit_months);
   out.ai_confidence = out.confidence; delete out.confidence;
-  out.rarity = Math.max(1, Math.min(5, parseInt(out.rarity) || 1));
+  out.iucn = normIucn(out.iucn);
+  delete out.rarity;
   return out;
 }
 
@@ -328,7 +365,8 @@ function renderSettings() {
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
-      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
+      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
+      ${iucnBatchBox()}` : ""}
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
@@ -340,6 +378,7 @@ function renderSettings() {
     else go("list");
   };
   $app.querySelector("#logout")?.addEventListener("click", async () => { await sb.auth.signOut(); go("list"); });
+  bindIucnBatch();
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(plants, null, 2)], { type: "application/json" }));
@@ -430,7 +469,19 @@ function rich(txt) {
     .replace(/\*\*/g, "");
 }
 
-const RARITY = ["Muy común", "Común", "Poco común", "Rara", "Rarísima"];
+// Estado de conservación (Lista Roja UICN). Las estrellas miden lo difícil de encontrar en el mundo.
+const IUCN = {
+  LC: ["Preocupación menor", 1], NT: ["Casi amenazada", 2], VU: ["Vulnerable", 3], EN: ["En peligro", 4],
+  CR: ["En peligro crítico", 5], EW: ["Extinta en estado silvestre", 5], EX: ["Extinta", 5],
+  DD: ["Datos insuficientes", 0], NE: ["No evaluada", 0],
+};
+function normIucn(x) { const c = String(x || "").toUpperCase().match(/\b(LC|NT|VU|EN|CR|EW|EX|DD|NE)\b/); return c ? c[1] : null; }
+function iucnPill(code) {
+  const [label, n] = IUCN[code] || ["Sin dato de conservación", 0];
+  return `<div class="rarity ${n ? "" : "none"}" title="Estado de conservación global (Lista Roja UICN)">
+    ${n ? [1, 2, 3, 4, 5].map((i) => `<svg class="${i <= n ? "on" : ""}"><use href="#f-star"/></svg>`).join("") : ""}
+    <span>${code && code !== "NE" && code !== "DD" ? code + " · " : ""}${label}</span></div>`;
+}
 const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
 
 // Meses [3,4,5,10] → "Mar–May, Oct"
@@ -486,7 +537,7 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
-      <div class="rarity" title="Rareza en la zona del hallazgo">${[1, 2, 3, 4, 5].map((i) => `<svg class="${i <= (p.rarity || 1) ? "on" : ""}"><use href="#f-star"/></svg>`).join("")}<span>${RARITY[(p.rarity || 1) - 1]}</span></div>
+      ${iucnPill(p.iucn)}
     </div>
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
@@ -743,9 +794,10 @@ function renderForm(existing) {
 </div>
     <label>Floración: tocá los meses</label>${monthsBar(d.flower_months, [], "flm")}
     <label>Fruto o cosecha</label>${monthsBar([], d.fruit_months, "frm")}
-    ${d.ai_confidence
-      ? `<label>Rareza</label><p class="muted" style="margin:4px 0 0"><span class="stars">${stars(d.rarity || 1)}</span> ${RARITY[(d.rarity || 1) - 1]} · <i>calculada por la IA según la zona del hallazgo</i></p>`
-      : `<label>Rareza: <span id="rv" class="stars">${stars(d.rarity || 1)}</span></label><input id="rarity" type="range" min="1" max="5" value="${d.rarity || 1}">`}
+    <label>Estado de conservación (UICN)</label>
+    ${d.iucn
+      ? `<div style="margin-top:6px">${iucnPill(d.iucn)}</div>`
+      : `<select id="iucn"><option value="">Sin dato</option>${Object.entries(IUCN).map(([k, [l]]) => `<option value="${k}">${k} · ${l}</option>`).join("")}</select>`}
     ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
     ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
@@ -757,7 +809,6 @@ function renderForm(existing) {
     $app.querySelector("#addcam").onclick = () => addPhotosTo(existing, "camera");
     $app.querySelector("#addgal").onclick = () => addPhotosTo(existing, "gallery");
   }
-  if ($app.querySelector("#rarity")) $app.querySelector("#rarity").oninput = (e) => ($app.querySelector("#rv").textContent = stars(+e.target.value));
   [["flm", "flower_months", "fl"], ["frm", "fruit_months", "fr"]].forEach(([id, key, cls]) =>
     $app.querySelectorAll(`#${id} span`).forEach((s) => (s.onclick = () => {
       const n = +s.dataset.m, arr = d[key];
@@ -768,7 +819,7 @@ function renderForm(existing) {
     const btn = ev.currentTarget;
     const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, ai_confidence: d.ai_confidence || null, flower_months: d.flower_months, fruit_months: d.fruit_months };
     for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
-    row.rarity = document.getElementById("rarity") ? +v("rarity") : d.rarity || 1;
+    row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
     if (!existing && !draft.files.length && !confirm("Esta lámina no tiene fotos. ¿La guardo igual? (Después podés agregarlas al editarla.)")) return;
@@ -795,7 +846,10 @@ function renderForm(existing) {
         clearDraft(); toast(`${data.common_name} asentada como Tabula ${roman(data.number)}`);
         location.hash = "plant/" + data.id;
       }
-    } catch (e) { toast("Error: " + e.message); btn.disabled = false; btn.textContent = "Reintentar"; }
+    } catch (e) {
+      toast(/iucn/i.test(e.message) ? "Falta actualizar la base: corré en Supabase la línea SQL de «iucn»" : "Error: " + e.message);
+      btn.disabled = false; btn.textContent = "Reintentar";
+    }
   };
 }
 
@@ -827,14 +881,14 @@ function renderStats() {
   const families = new Set(plants.map((p) => p.family).filter(Boolean)).size;
   const edible = count((p) => p.edible_human === "si" || p.edible_human === "parcial");
   const toxic = count((p) => p.types?.includes("toxica"));
-  const rare = count((p) => p.rarity >= 4);
+  const notable = count((p) => ["VU", "EN", "CR", "EW"].includes(p.iucn));
   const badges = [
     ["I", "Primer brote", "Asentá tu primera lámina", n >= 1],
     ["X", "Herborista", "10 láminas", n >= 10],
     ["L", "Hortus conclusus", "50 láminas", n >= 50],
     ["R", "Recolector", "5 comestibles", edible >= 5],
     ["P", "Prudente", "3 plantas tóxicas identificadas", toxic >= 3],
-    ["O", "Ojo de lince", "Una rareza de 4 estrellas o más", rare >= 1],
+    ["O", "Hallazgo notable", "Una especie vulnerable o más amenazada", notable >= 1],
     ["T", "Taxónomo", "10 familias distintas", families >= 10],
     ["M", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
     ["IV", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],

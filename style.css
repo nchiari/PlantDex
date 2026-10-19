@@ -382,3 +382,4 @@ body.engrave .ix-ph:not(.illu) { filter: url(#engrave); }
 mark.warn-t { background: none; color: var(--bad); font-weight: 600; font-style: italic; border-bottom: 1px dotted currentColor; }
 .curio strong { background: none; }
 mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wavy var(--gold); text-underline-offset: 3px; text-decoration-thickness: 1.2px; }
+.rarity.none span { margin-left: 0; }
