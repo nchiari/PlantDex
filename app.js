@@ -140,22 +140,30 @@ function normalizeAI(raw) {
   return out;
 }
 
-// Lista los modelos de la cuenta y elige el "flash" de versión más alta que acepte generateContent.
-async function latestGeminiFlash() {
+// Modelos "flash" de la cuenta que aceptan generateContent, del más nuevo al más viejo (los "lite" al final).
+async function geminiCandidates() {
   try {
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": cfg.aiKey } });
     const j = await res.json();
     const ver = (n) => (n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] * 1 || 0;
-    const ok = (j.models || [])
+    const names = (j.models || [])
       .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
       .map((m) => m.name.replace(/^models\//, ""))
-      .filter((n) => /^gemini-[\d.]+-flash$|^gemini-[\d.]+-flash-(preview|latest)/.test(n) && !/lite|image|tts|audio|live|thinking/.test(n))
-      .sort((a, b) => ver(b) - ver(a) || a.length - b.length);
-    return ok[0] || "gemini-flash-latest";
-  } catch { return "gemini-flash-latest"; }
+      .filter((n) => /^gemini-[\d.]+-flash/.test(n) && !/image|tts|audio|live|thinking|exp/.test(n));
+    const rank = (n) => (/lite/.test(n) ? 1 : 0);
+    return names.sort((x, y) => rank(x) - rank(y) || ver(y) - ver(x) || x.length - y.length);
+  } catch { return []; }
 }
 
-async function identify(blobs, hint = "", place = "") {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function geminiError(msg = "", status) {
+  if (status === 429 || /quota|rate/i.test(msg)) return "Llegaste al límite gratuito de Gemini por ahora. Probá en un rato o usá «Con mi chat».";
+  if (status === 503 || /high demand|overloaded|unavailable/i.test(msg)) return "Los servidores de Gemini están saturados. Probá en unos minutos o usá «Con mi chat».";
+  if (/api key|permission|unauth/i.test(msg)) return "Google rechazó la API key. Revisala en Ajustes.";
+  return msg;
+}
+
+async function identify(blobs, hint = "", place = "", onStatus) {
   if (!cfg.aiKey) throw new Error("Falta la API key en Ajustes. Probá la pestaña «Con mi chat».");
   const imgs = await Promise.all(blobs.map(blobToBase64));
   const prompt = buildPrompt(hint, place);
@@ -178,20 +186,27 @@ async function identify(blobs, hint = "", place = "") {
       contents: [{ parts: [{ text: prompt }, ...imgs.map((b) => ({ inline_data: { mime_type: "image/jpeg", data: b } }))] }],
       generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
     });
-    const call = (m) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cfg.aiKey }, body,
-    });
-    let res = await call(model), j = await res.json();
-    // Google retira modelos seguido: si el configurado ya no existe, buscamos el Flash más nuevo y lo recordamos.
-    if (!res.ok && /no longer available|not found|is not supported|deprecated/i.test(j.error?.message || "")) {
-      const fresh = await latestGeminiFlash();
-      if (fresh && fresh !== model) {
-        res = await call(fresh); j = await res.json();
-        if (res.ok) { cfg.model = fresh; saveCfg(cfg); }
+    const call = async (m) => {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cfg.aiKey }, body,
+      });
+      return { res, j: await res.json().catch(() => ({})) };
+    };
+    const busy = (r) => [429, 500, 503].includes(r.res.status) || /high demand|overloaded/i.test(r.j.error?.message || "");
+    const gone = (r) => /no longer available|not found|is not supported|deprecated/i.test(r.j.error?.message || "");
+    // Probamos el modelo guardado; si no existe o está saturado, recorremos los Flash de la cuenta.
+    let r = await call(model), used = model;
+    if (!r.res.ok && busy(r)) { onStatus?.("Gemini está saturado, reintentando…"); await sleep(2000); r = await call(model); }
+    if (!r.res.ok && (busy(r) || gone(r))) {
+      for (const m of (await geminiCandidates()).filter((m) => m !== model).slice(0, 4)) {
+        onStatus?.(`Probando con ${m}…`);
+        r = await call(m); used = m;
+        if (r.res.ok || !(busy(r) || gone(r))) break;
       }
     }
-    if (!res.ok) throw new Error(j.error?.message || res.statusText);
-    text = j.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+    if (!r.res.ok) throw new Error(geminiError(r.j.error?.message || r.res.statusText, r.res.status));
+    if (used !== model) { cfg.model = used; saveCfg(cfg); }
+    text = r.j.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
   }
   return normalizeAI(text);
 }
@@ -434,7 +449,8 @@ function renderNew() {
     box.querySelector("#ai").onclick = async () => {
       const st = box.querySelector("#status");
       st.innerHTML = `<div class="scanning"><span class="leaf">${EMBLEM}</span><p><i>Consultando los tratados…</i></p></div>`;
-      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx())) }; renderForm(null); }
+      const say = (t) => { const el = st.querySelector("p i"); if (el) el.textContent = t; };
+      try { draft.data = { ...draft.data, ...(await identify(draft.files.map((f) => f.blob), draft.hint, placeCtx(), say)) }; renderForm(null); }
       catch (e) { st.innerHTML = `<p class="muted">No pude identificarla: ${esc(e.message)}</p>`; }
     };
   } else if (m === "chat") {
