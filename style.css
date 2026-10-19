@@ -303,3 +303,13 @@ details summary { cursor: pointer; font: 600 11px var(--caps); letter-spacing: 1
 .bottom { display: grid; grid-template-columns: repeat(5, 1fr); justify-items: center; align-items: end; padding-left: 2px; padding-right: 2px; }
 .bottom button { min-width: 0; width: 100%; letter-spacing: .6px; font-size: 10px; padding: 4px 0; }
 .bottom .capture { width: 76px; justify-self: center; align-self: start; }
+
+/* láminas antiguas: sin filtro, fondo papel, imagen entera */
+.card .ph.illu, .cal-item .ph.illu { background-size: contain; background-repeat: no-repeat; background-color: #fbf8ee; filter: none !important; }
+.hero img.illu { object-fit: contain; background: #fbf8ee; filter: none !important; }
+.thumbs img.illu { object-fit: contain; background: #fbf8ee; filter: none !important; }
+.thumbs img.on { box-shadow: 0 0 0 2px var(--leaf); }
+.hero figcaption a { color: var(--leaf); }
+.fig-actions { justify-content: center; margin-top: 4px; }
+.fig-actions:empty { display: none; }
+.fig-actions .btn { flex: none; font-size: 11px; padding: 8px 10px; }

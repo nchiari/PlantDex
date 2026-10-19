@@ -3,7 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ---------- configuración local ----------
 const CFG_KEY = "plantdex.cfg";
 // Datos públicos del proyecto Supabase (la clave publishable es segura en el navegador gracias a RLS)
-const defaults = { sbUrl: "https://ssrbytherfljgxfgvhlc.supabase.co", sbKey: "sb_publishable_tCn6CO053IFbwGBDg-mfpQ_uEjpmLbD", provider: "gemini", aiKey: "", model: "", engrave: true };
+const defaults = { sbUrl: "https://ssrbytherfljgxfgvhlc.supabase.co", sbKey: "sb_publishable_tCn6CO053IFbwGBDg-mfpQ_uEjpmLbD", provider: "gemini", aiKey: "", model: "", engrave: true, illustrations: true };
 const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; } catch { return { ...defaults }; } };
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
@@ -83,10 +83,67 @@ async function loadPlants() {
 }
 
 async function signUrls(paths) {
-  const missing = paths.filter((p) => !urlCache.has(p));
+  const missing = [...new Set(paths.filter((p) => p && !urlCache.has(p)))];
   if (!missing.length) return;
-  const { data } = await sb.storage.from(BUCKET).createSignedUrls(missing, 60 * 60 * 24);
-  data?.forEach((d) => d.signedUrl && urlCache.set(d.path, d.signedUrl));
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(missing, 60 * 60 * 24);
+  if (error) console.warn("signed urls", error);
+  // La respuesta viene en el mismo orden que pedimos; no dependemos del campo "path".
+  missing.forEach((p, i) => { const d = data?.[i]; const u = d?.signedUrl || d?.signedURL; if (u && !d.error) urlCache.set(p, u); });
+  // Plan B: si no hubo link firmado, bajamos el archivo y lo mostramos local.
+  await Promise.all(missing.filter((p) => !urlCache.has(p)).map(async (p) => {
+    const { data: blob, error: e } = await sb.storage.from(BUCKET).download(p);
+    if (blob) urlCache.set(p, URL.createObjectURL(blob)); else console.warn("download", p, e);
+  }));
+}
+
+// ---------- ilustraciones antiguas (Wikimedia Commons) ----------
+// Buscamos láminas de floras históricas por nombre científico. Se cachea por especie en este dispositivo.
+const ILLU_KEY = "plantdex.illu";
+const ILLU_SOURCES = /k(ö|oe|o)hler|thom[ée]|flora batava|lindman|nordens flora|sturm|sowerby|curtis|botanical magazine|jacquin|redout|hooker|illustration|plate|tafel|tab\.|lámina|drawing|engraving|medizinal|pflanzen|kräuterbuch|fuchs|blackwell|bauer/i;
+let illuCache = {};
+try { illuCache = JSON.parse(localStorage.getItem(ILLU_KEY) || "{}"); } catch {}
+const saveIllu = () => { try { localStorage.setItem(ILLU_KEY, JSON.stringify(illuCache)); } catch {} };
+const illuKey = (sci) => (sci || "").trim().toLowerCase().split(/\s+/).slice(0, 2).join(" ");
+const illuOf = (p) => (cfg.illustrations && p.scientific_name ? illuCache[illuKey(p.scientific_name)] || null : null);
+const strip = (h) => String(h || "").replace(/<[^>]+>/g, "").trim();
+
+async function findIllustration(sci) {
+  const key = illuKey(sci);
+  if (!key || key.split(" ").length < 2) return null;
+  if (key in illuCache) return illuCache[key];
+  try {
+    const q = new URLSearchParams({
+      action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "40",
+      gsrsearch: `intitle:"${key}" filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
+    });
+    const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
+    const pages = Object.values((await res.json()).query?.pages || {});
+    const scored = pages
+      .filter((pg) => pg.imageinfo?.[0]?.thumburl && ILLU_SOURCES.test(pg.title))
+      .map((pg) => ({ pg, score: (/k(ö|oe|o)hler|thom[ée]|flora batava|lindman|sturm|sowerby|curtis/i.test(pg.title) ? 2 : 1) - (pg.index || 0) / 100 }))
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0]?.pg;
+    const info = best?.imageinfo[0];
+    const md = info?.extmetadata || {};
+    illuCache[key] = best ? {
+      url: info.thumburl, page: info.descriptionurl,
+      credit: [strip(md.Artist?.value), strip(md.ObjectName?.value) || best.title.replace(/^File:|\.\w+$/g, "")].filter(Boolean).join(" · ").slice(0, 160),
+      license: strip(md.LicenseShortName?.value) || "Dominio público",
+    } : false;
+  } catch { return null; } // sin red: no cacheamos, se reintenta otra vez
+  saveIllu();
+  return illuCache[key];
+}
+
+// Completa las ilustraciones que falten en la vista actual sin trabar el render.
+async function hydrateIllustrations() {
+  if (!cfg.illustrations) return;
+  for (const el of document.querySelectorAll("[data-sci]")) {
+    const sci = el.dataset.sci;
+    if (!sci || illuKey(sci) in illuCache) continue;
+    const ill = await findIllustration(sci);
+    if (ill) document.querySelectorAll(`[data-sci="${CSS.escape(sci)}"]`).forEach((n) => { n.style.backgroundImage = `url('${ill.url}')`; n.classList.add("illu"); });
+  }
 }
 
 async function resizeImage(file, max = 1400) {
@@ -255,13 +312,14 @@ function renderSettings() {
     <label>Modelo (opcional)</label><input id="model" placeholder="${DEFAULT_MODELS[cfg.provider]}" value="${esc(cfg.model)}">
     <h3>Apariencia</h3>
     <label class="toggle"><input type="checkbox" id="engrave" ${cfg.engrave ? "checked" : ""}> Fotos con filtro de grabado antiguo</label>
+    <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), provider: v("provider"), aiKey: v("aiKey"), model: v("model"), engrave: document.getElementById("engrave").checked };
+    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), provider: v("provider"), aiKey: v("aiKey"), model: v("model"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
@@ -314,14 +372,17 @@ function renderList() {
   $q.oninput = () => { filter.q = $q.value; const pos = $q.selectionStart; renderList(); const n = $app.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   $app.querySelectorAll(".chip").forEach((c) => (c.onclick = () => { filter.type = filter.type === c.dataset.t ? "" : c.dataset.t; renderList(); }));
   $app.querySelectorAll(".card").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  hydrateIllustrations();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
+const coverOf = (p) => illuOf(p)?.url || photoOf(p);
+
 function card(p) {
-  const img = photoOf(p);
+  const img = coverOf(p), ill = !!illuOf(p);
   const mark = p.types?.includes("toxica") ? ["☠", "Tóxica"] : { si: ["✓", "Comestible"], parcial: ["◐", "En parte comestible"], no: ["✕", "No se come"] }[p.edible_human] || ["?", "Sin datos"];
   return `<div class="card" data-id="${p.id}">
-    <div class="ph" style="${img ? `background-image:url('${img}')` : ""}"></div>
+    <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
     <span class="dog" title="${mark[1]}">${mark[0]}</span>
     <span class="num">${tab(p.number)}</span>
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
@@ -332,7 +393,12 @@ async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
   if (!p) return go("list");
   await signUrls(p.photos || []);
-  const urls = (p.photos || []).map((x) => urlCache.get(x)).filter(Boolean);
+  const ill = cfg.illustrations && p.scientific_name ? await findIllustration(p.scientific_name) : null;
+  // Figuras: primero la lámina antigua (si hay), después las fotos propias.
+  const figs = [
+    ...(ill ? [{ src: ill.url, cap: `Lámina antigua · ${esc(ill.credit)} · <a href="${ill.page}" target="_blank">${esc(ill.license)}</a>`, illu: true }] : []),
+    ...(p.photos || []).map((x, i) => ({ src: urlCache.get(x), cap: i === 0 ? "Foto principal" : "Foto de campo", photo: i })).filter((f) => f.src),
+  ];
   const hum = HUMAN[p.edible_human || "desconocido"], toxic = p.types?.includes("toxica");
   const sec = (title, txt, cls = "") => txt ? `<h3>${title}</h3><div class="field-note ${cls}">${esc(txt)}</div>` : "";
   const hasMonths = p.flower_months?.length || p.fruit_months?.length;
@@ -346,9 +412,10 @@ async function renderDetail(id) {
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
     </div>
-    ${urls[0] ? `<figure class="hero" style="margin:0"><img id="hero" src="${urls[0]}" alt="">
-      <figcaption>Fig. I · ${esc(p.family || "")} ${p.kind ? "· " + esc(p.kind) : ""}</figcaption></figure>` : ""}
-    ${urls.length > 1 ? `<div class="thumbs">${urls.map((u, i) => `<img src="${u}" data-i="${i}">`).join("")}</div>` : ""}
+    ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
+      <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
+    ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
+    <div class="row fig-actions" id="figact"></div>
     ${typeBadges(p.types)}
     <div class="safety">
       <div><div class="k">PARA COMER</div><div class="v ${hum[1]}">${hum[0]}</div></div>
@@ -373,10 +440,26 @@ async function renderDetail(id) {
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${tab(prev.number)}</button>` : "<span></span>"}
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${tab(next.number)} →</button>` : "<span></span>"}
     </div>`;
-  $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => {
-    $app.querySelector("#hero").src = t.src;
-    $app.querySelector(".hero figcaption").firstChild.textContent = `Fig. ${roman(+t.dataset.i + 1)} · `;
-  }));
+  const showFig = (i) => {
+    const f = figs[i]; if (!f) return;
+    const hero = $app.querySelector("#hero"); hero.src = f.src; hero.classList.toggle("illu", !!f.illu);
+    $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
+    $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));
+    const act = $app.querySelector("#figact");
+    act.innerHTML = f.photo > 0 ? `<button class="btn ghost" id="mkmain">Usar como foto principal</button>`
+      : f.illu ? `<button class="btn ghost" id="noillu">No es esta planta: quitar lámina</button>` : "";
+    act.querySelector("#mkmain")?.addEventListener("click", async () => {
+      const photos = [p.photos[f.photo], ...p.photos.filter((_, k) => k !== f.photo)];
+      const { error } = await sb.from("plants").update({ photos }).eq("id", p.id);
+      if (error) return toast(error.message);
+      p.photos = photos; toast("Foto principal actualizada"); renderDetail(p.id);
+    });
+    act.querySelector("#noillu")?.addEventListener("click", () => {
+      illuCache[illuKey(p.scientific_name)] = false; saveIllu(); toast("Lámina quitada"); renderDetail(p.id);
+    });
+  };
+  $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
+  if (figs.length) showFig(0);
   $app.querySelector("#del").onclick = async () => {
     if (!confirm(`¿Arrancar la lámina de ${p.common_name}? Se borra para siempre.`)) return;
     if (p.photos?.length) await sb.storage.from(BUCKET).remove(p.photos);
@@ -577,7 +660,7 @@ function renderForm(existing) {
 function renderCalendar() {
   const cur = nowMonth();
   const order = [...Array(12)].map((_, i) => ((cur - 1 + i) % 12) + 1);
-  const item = (p, what) => `<div class="cal-item" data-id="${p.id}"><div class="ph" style="${photoOf(p) ? `background-image:url('${photoOf(p)}')` : ""}"></div>${esc(p.common_name)}<small>${what}</small></div>`;
+  const item = (p, what) => `<div class="cal-item" data-id="${p.id}"><div class="ph" data-sci="${esc(p.scientific_name || "")}" style="${coverOf(p) ? `background-image:url('${coverOf(p)}')` : ""}"></div>${esc(p.common_name)}<small>${what}</small></div>`;
   const block = (m) => {
     const fl = plants.filter((p) => p.flower_months?.includes(m));
     const fr = plants.filter((p) => p.fruit_months?.includes(m));
@@ -591,6 +674,7 @@ function renderCalendar() {
     <p class="muted">Qué florece y qué se puede recolectar cada mes, según tus láminas. Empieza por este mes. Los meses corresponden al lugar donde encontraste cada planta.</p>
     ${html || `<div class="empty"><div class="big">${PLANT_ART}</div><p class="lead">Todavía no hay meses cargados. La identificación automática los completa sola, o los marcás vos al editar una lámina.</p></div>`}`;
   $app.querySelectorAll(".cal-item").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  hydrateIllustrations();
 }
 
 // ---------- progreso ----------
