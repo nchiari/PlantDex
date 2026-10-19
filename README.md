@@ -1,4 +1,4 @@
-# 🌿 PlantDex
+# 🌿 Herbalorium
 
 Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come o es tóxica, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 

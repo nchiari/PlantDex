@@ -1,6 +1,6 @@
 {
-  "name": "PlantDex",
-  "short_name": "PlantDex",
+  "name": "Herbalorium",
+  "short_name": "Herbalorium",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f4efdf",

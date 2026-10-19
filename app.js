@@ -315,7 +315,7 @@ function renderSettings() {
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(plants, null, 2)], { type: "application/json" }));
-    a.download = `plantdex-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    a.download = `herbalorium-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   });
 }
 
