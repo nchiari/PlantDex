@@ -97,35 +97,6 @@ async function signUrls(paths) {
   }));
 }
 
-// Prueba fotos y láminas paso a paso y muestra el resultado en Ajustes.
-async function runDiagnostics() {
-  const out = document.getElementById("diagout"); out.hidden = false;
-  const log = (t) => { out.textContent += t + "\n"; };
-  out.textContent = "";
-  log(`Usuario: ${user?.id?.slice(0, 8)}… · láminas: ${plants.length}`);
-  for (const p of plants.slice(0, 3)) {
-    log(`\n${tab(p.number)} ${p.common_name} · fotos guardadas: ${p.photos?.length || 0}`);
-    for (const ph of (p.photos || []).slice(0, 2)) {
-      log(`  ruta: ${ph}`);
-      const { data, error } = await sb.storage.from(BUCKET).createSignedUrls([ph], 600);
-      log(`  link firmado: ${error ? "ERROR " + error.message : data?.[0]?.error ? "ERROR " + data[0].error : data?.[0]?.signedUrl ? "ok" : "vacío " + JSON.stringify(data).slice(0, 120)}`);
-      const d = await sb.storage.from(BUCKET).download(ph);
-      log(`  descarga: ${d.error ? "ERROR " + (d.error.message || d.error) : "ok (" + Math.round(d.data.size / 1024) + " KB)"}`);
-    }
-    if (p.scientific_name) {
-      const key = illuKey(p.scientific_name);
-      log(`  lámina en caché: ${key in illuCache ? JSON.stringify(illuCache[key]).slice(0, 80) : "no buscada"}`);
-      try {
-        const q = new URLSearchParams({ action: "query", format: "json", origin: "*", list: "search", srnamespace: "6", srlimit: "10", srsearch: `intitle:"${key}" filetype:bitmap` });
-        const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
-        const hits = (await res.json()).query?.search || [];
-        log(`  Commons: HTTP ${res.status}, ${hits.length} resultados`);
-        hits.slice(0, 5).forEach((h) => log(`   · ${h.title.slice(0, 70)}${ILLU_SOURCES.test(h.title) ? "  ✓" : ""}`));
-      } catch (e) { log("  Commons: ERROR " + e.message); }
-    }
-  }
-}
-
 // ---------- ilustraciones antiguas (Wikimedia Commons) ----------
 // Buscamos láminas de floras históricas por nombre científico. Se cachea por especie en este dispositivo.
 const ILLU_KEY = "plantdex.illu2"; // v2: descarta resultados de la búsqueda anterior
@@ -356,11 +327,7 @@ function renderSettings() {
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
-      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
-      <h3>Diagnóstico</h3>
-      <p class="muted">Si algo no se ve, tocá «Probar» y mandá captura del resultado.</p>
-      <div class="row"><button class="btn" id="diag">Probar</button><button class="btn ghost" id="clrillu">Volver a buscar láminas</button></div>
-      <pre class="prompt-box" id="diagout" hidden></pre>` : ""}
+      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
@@ -372,8 +339,6 @@ function renderSettings() {
     else go("list");
   };
   $app.querySelector("#logout")?.addEventListener("click", async () => { await sb.auth.signOut(); go("list"); });
-  $app.querySelector("#clrillu")?.addEventListener("click", () => { illuCache = {}; saveIllu(); toast("Se volverán a buscar las láminas"); });
-  $app.querySelector("#diag")?.addEventListener("click", runDiagnostics);
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(plants, null, 2)], { type: "application/json" }));
