@@ -341,3 +341,9 @@ body.engrave .ix-ph:not(.illu) { filter: url(#engrave); }
 .thumbs img.illu { background: transparent; mix-blend-mode: multiply; }
 /* aclarar el papel del escaneo hasta blanco para que el multiply lo funda del todo */
 .hero img.illu, .thumbs img.illu, .card .ph.illu, .cal-item .ph.illu, .ix-ph.illu { filter: brightness(1.09) contrast(1.12) saturate(1.05) !important; }
+/* marco de la lámina en la ficha: doble filete rectangular con aire interior */
+.hero img.illu {
+  border: 1px solid #1f342666; padding: 12px; box-sizing: border-box;
+  outline: 1px solid #1f342633; outline-offset: -6px;
+  filter: brightness(1.12) contrast(1.14) saturate(1.05) !important;
+}
