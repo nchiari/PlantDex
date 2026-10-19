@@ -45,3 +45,8 @@ drop policy if exists "own photos" on storage.objects;
 create policy "own photos" on storage.objects
   for all using (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- v2: Kalendarium (meses 1-12) y nombre en latín vulgar / otros nombres
+alter table public.plants add column if not exists flower_months int[] default '{}';
+alter table public.plants add column if not exists fruit_months  int[] default '{}';
+alter table public.plants add column if not exists other_names   text;

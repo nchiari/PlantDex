@@ -3,7 +3,7 @@
   "short_name": "PlantDex",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f3ead7",
-  "theme_color": "#b8322a",
+  "background_color": "#efe4cc",
+  "theme_color": "#efe4cc",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

@@ -1,6 +1,6 @@
 # 🌿 PlantDex
 
-Una Pokédex de plantas sin límite. Sacás una foto, la IA te dice qué es, si se come, si es peligrosa para Rufi, sus usos y su historia, y queda guardada en tu catálogo en la nube.
+Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come, si es peligrosa para Rufi, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 
 Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos) y Google Gemini (identificación).
 
@@ -20,7 +20,7 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
 4. Opcional, pero recomendado: en **Authentication → Sign In / Providers → Email**, después de registrarte, desactivá *Allow new users to sign up* para que nadie más pueda crearse una cuenta.
 5. En **Project Settings → API** copiá la **Project URL** y la **anon / publishable key**.
 
-### 3. Sacar la API key de Gemini (gratis)
+### 3. Sacar la API key de Gemini (gratis, opcional)
 1. Entrá a <https://aistudio.google.com/apikey> con tu cuenta de Google.
 2. **Create API key** y copiala. No pide tarjeta.
 
@@ -32,9 +32,14 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
 ---
 
 ## Cómo se usa
-- **＋ (la Pokébola)**: sacás 1 a 4 fotos (planta entera, hoja, flor o fruto) → *Identificar con IA* → revisás la ficha → *Registrar*.
-- Cada planta recibe su número (#001, #002…), tipos estilo Pokémon, rareza ★ y un semáforo para vos y para Rufi.
-- **Progreso**: estadísticas y medallas.
+- **✚ Nueva lámina**: sacás 1 a 4 fotos y elegís cómo identificarla:
+  - **Automático**: Gemini completa la ficha (necesita la API key gratis).
+  - **Con mi chat**: copiás un prompt, lo pegás en ChatGPT o Claude con las fotos, y pegás la respuesta. Usa tus suscripciones, sin API.
+  - **A mano**.
+- Cada planta es una *Tabula* numerada en romano, con tipos, rareza ✦, y qué tan segura es para vos y para Rufi.
+- **Kalendarium**: qué florece y qué fruto se puede recolectar cada mes, empezando por el mes actual.
+- **Progressus**: estadísticas, familias más vistas e insignias.
+- En Ajustes podés activar o desactivar el filtro de grabado en las fotos.
 - En ⚙ podés exportar un backup en JSON.
 
 ## Privacidad
