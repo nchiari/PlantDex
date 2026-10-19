@@ -360,27 +360,46 @@ function renderList() {
   const used = TYPES.filter((t) => plants.some((p) => p.types?.includes(t)));
   $app.innerHTML = `
     <div class="entry-head"><h2>Herbarium</h2><span class="sc muted">${plants.length} ${plants.length === 1 ? "lámina" : "láminas"}</span></div>
+    ${plants.length ? `<div class="viewsw" role="tablist">
+      <button data-v="grid" class="${cfg.view !== "list" ? "on" : ""}">Láminas</button>
+      <button data-v="list" class="${cfg.view === "list" ? "on" : ""}">Índice</button>
+    </div>` : ""}
     <div class="search"><input id="q" placeholder="Buscar por nombre, latín, familia, lugar…" value="${esc(filter.q)}"></div>
     ${used.length ? `<div class="chips">${used.map((t) => `<span class="chip ${filter.type === t ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
       <button class="btn red" id="start">Comenzar la Tab. I</button></div>` :
-      `<div class="grid">${list.map(card).join("") || `<p class="muted">Ninguna lámina coincide.</p>`}</div>`}
+      !list.length ? `<p class="muted">Ninguna lámina coincide.</p>` :
+      cfg.view === "list" ? `<ol class="index">${list.map(row).join("")}</ol>` : `<div class="grid">${list.map(card).join("")}</div>`}
   `;
   const $q = $app.querySelector("#q");
   $q.oninput = () => { filter.q = $q.value; const pos = $q.selectionStart; renderList(); const n = $app.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   $app.querySelectorAll(".chip").forEach((c) => (c.onclick = () => { filter.type = filter.type === c.dataset.t ? "" : c.dataset.t; renderList(); }));
-  $app.querySelectorAll(".card").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
 const coverOf = (p) => illuOf(p)?.url || photoOf(p);
 
+const markOf = (p) => p.types?.includes("toxica") ? ["☠", "Tóxica"] : { si: ["✓", "Comestible"], parcial: ["½", "En parte comestible"], no: ["✕", "No se come"] }[p.edible_human] || ["?", "Sin datos"];
+
+// Fila del modo índice: número romano, miniatura, nombres e indicador de comestibilidad.
+function row(p) {
+  const img = coverOf(p), ill = !!illuOf(p), mark = markOf(p);
+  return `<li data-id="${p.id}">
+    <span class="ix-num">${roman(p.number)}</span>
+    <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
+    <span class="ix-txt"><b>${esc(p.common_name)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
+    <span class="ix-mark" title="${mark[1]}">${mark[0]}</span>
+  </li>`;
+}
+
 function card(p) {
   const img = coverOf(p), ill = !!illuOf(p);
-  const mark = p.types?.includes("toxica") ? ["☠", "Tóxica"] : { si: ["✓", "Comestible"], parcial: ["◐", "En parte comestible"], no: ["✕", "No se come"] }[p.edible_human] || ["?", "Sin datos"];
+  const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
     <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
     <span class="dog" title="${mark[1]}">${mark[0]}</span>
