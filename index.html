@@ -45,6 +45,14 @@
 
   <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
   <input type="file" id="file-input-gallery" accept="image/*" multiple hidden>
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-box">
+      <div class="sheet-title">Nueva lámina</div>
+      <button class="btn primary" id="sh-cam">📷 Sacar foto</button>
+      <button class="btn" id="sh-gal">🖼 Elegir de la galería</button>
+      <button class="btn ghost" id="sh-cancel">Cancelar</button>
+    </div>
+  </div>
   <div id="toast" class="toast"></div>
 
   <script type="module" src="app.js"></script>

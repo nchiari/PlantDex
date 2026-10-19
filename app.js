@@ -43,7 +43,7 @@ const tab = (n) => "Tab. " + roman(n);
 async function boot() {
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-settings").onclick = () => go("settings");
-  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
+  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go === "new" ? openSheet() : go(b.dataset.go))));
   window.addEventListener("hashchange", route);
 
   if (!cfg.sbUrl || !cfg.sbKey) return go("settings");
@@ -250,13 +250,14 @@ function renderList() {
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">❦</div><h3>Las páginas están en blanco</h3>
       <p class="muted">Salí a pasear con Rufi y tocá ✚ para dibujar tu primera lámina.</p>
-      <button class="btn red" onclick="location.hash='new'">Comenzar la Tab. I</button></div>` :
+      <button class="btn red" id="start">Comenzar la Tab. I</button></div>` :
       `<div class="grid">${list.map(card).join("") || `<p class="muted">Ninguna lámina coincide.</p>`}</div>`}
   `;
   const $q = $app.querySelector("#q");
   $q.oninput = () => { filter.q = $q.value; const pos = $q.selectionStart; renderList(); const n = $app.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   $app.querySelectorAll(".chip").forEach((c) => (c.onclick = () => { filter.type = filter.type === c.dataset.t ? "" : c.dataset.t; renderList(); }));
   $app.querySelectorAll(".card").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
 function card(p) {
@@ -329,6 +330,29 @@ async function renderDetail(id) {
 }
 
 // ---------- alta ----------
+// Abre cámara o galería; al elegir, suma las fotos al borrador y muestra la lámina nueva.
+function pickPhotos(source) {
+  const input = document.getElementById(source === "camera" ? "file-input" : "file-input-gallery");
+  input.value = "";
+  input.onchange = async () => {
+    if (!input.files.length) return;
+    if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
+    for (const f of [...input.files].slice(0, 4 - draft.files.length)) { const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob) }); }
+    if (location.hash === "#new") renderNew(); else location.hash = "new";
+  };
+  input.click();
+}
+
+function openSheet() {
+  const sheet = document.getElementById("sheet");
+  sheet.hidden = false;
+  const close = () => (sheet.hidden = true);
+  sheet.onclick = (e) => { if (e.target === sheet) close(); };
+  sheet.querySelector("#sh-cam").onclick = () => { close(); pickPhotos("camera"); };
+  sheet.querySelector("#sh-gal").onclick = () => { close(); pickPhotos("gallery"); };
+  sheet.querySelector("#sh-cancel").onclick = close;
+}
+
 function renderNew() {
   if (!draft) draft = { files: [], data: {}, mode: cfg.aiKey ? "ai" : "chat" };
   const has = draft.files.length > 0;
@@ -352,12 +376,8 @@ function renderNew() {
   const prev = $app.querySelector("#prev");
   prev.innerHTML = draft.files.map((f, i) => `<div><img src="${f.url}"><button data-i="${i}">×</button></div>`).join("");
   prev.querySelectorAll("button").forEach((b) => (b.onclick = () => { draft.files.splice(+b.dataset.i, 1); renderNew(); }));
-  const pick = (input) => { input.value = ""; input.onchange = async () => {
-    for (const f of [...input.files].slice(0, 4 - draft.files.length)) { const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob) }); }
-    renderNew();
-  }; input.click(); };
-  $app.querySelector("#cam").onclick = () => pick(document.getElementById("file-input"));
-  $app.querySelector("#gal").onclick = () => pick(document.getElementById("file-input-gallery"));
+  $app.querySelector("#cam").onclick = () => pickPhotos("camera");
+  $app.querySelector("#gal").onclick = () => pickPhotos("gallery");
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
   $app.querySelector("#place").oninput = (e) => (draft.data.location_name = e.target.value);
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));

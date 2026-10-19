@@ -247,3 +247,14 @@ hr::before { content: "❧ ❦ ❧"; color: var(--sepia); letter-spacing: 10px; 
 details summary { cursor: pointer; font: 15px var(--fell-sc); letter-spacing: 1px; margin: 12px 0; }
 .toggle { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 17px; }
 .toggle input { width: auto; }
+
+/* ---------- menú del ✚ ---------- */
+.sheet { position: fixed; inset: 0; z-index: 40; background: #18211a88; display: flex; align-items: flex-end; justify-content: center; }
+.sheet[hidden] { display: none; }
+.sheet-box {
+  width: 100%; max-width: 620px; background: var(--paper); border-top: 3px double var(--ink);
+  padding: 18px 20px calc(18px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px;
+  animation: up .2s ease-out;
+}
+.sheet-title { font: 600 16px var(--fell-sc); letter-spacing: 1.5px; color: var(--rubric); text-align: center; }
+@keyframes up { from { transform: translateY(100%); } to { transform: none; } }
