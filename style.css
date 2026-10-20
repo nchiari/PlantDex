@@ -544,3 +544,25 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .lead-desc { margin-top: 18px; }
 .parts-box { margin-top: 20px; }
 .fx { align-content: start; grid-template-rows: auto 1fr; }
+
+/* ---------- más aire en la ficha ---------- */
+.plate-head { margin-bottom: 26px; }
+.plate-head .sci { margin-top: 4px; }
+.cons-row { margin-top: 16px; }
+.thumbs { padding: 18px 0 6px; gap: 12px; }
+.fig-actions { margin-top: 10px; }
+.parts-box { margin-top: 40px; }
+.parts-box h3, .facts-h { margin-bottom: 18px; }
+.uses { gap: 12px; }
+.use { gap: 10px; }
+.part-note { margin-top: 22px; padding: 18px 20px; line-height: 1.6; }
+.note-head { margin-bottom: 10px; gap: 8px; }
+.lead-desc { margin-top: 40px; line-height: 1.65; }
+.field-note { line-height: 1.65; }
+.facts2 { margin-top: 4px; }
+.fx { padding: 13px 0; }
+h3 { margin-top: 40px; margin-bottom: 16px; }
+.folds { margin-top: 40px; }
+.fold summary { padding: 18px 2px; }
+.fold-body { padding-bottom: 24px; }
+.disclaimer { margin-top: 34px; padding-top: 18px; }
