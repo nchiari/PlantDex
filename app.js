@@ -28,7 +28,14 @@ const $app = document.getElementById("app");
 const $nav = document.getElementById("nav");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const v = (id) => document.getElementById(id).value.trim();
-const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 3000); };
+// Aviso breve; con `action` = [texto, fn] suma un botón (por ejemplo «Deshacer») y dura un poco más.
+const toast = (msg, action) => {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  if (action) { const b = document.createElement("button"); b.className = "toast-act"; b.textContent = action[0]; b.onclick = () => { t.classList.remove("show"); action[1](); }; t.append(b); }
+  t.classList.toggle("has-act", !!action); t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), action ? 6000 : 3000);
+};
 const nowMonth = () => new Date().getMonth() + 1;
 
 function roman(n) {
@@ -614,6 +621,7 @@ async function renderDetail(id) {
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
     <div class="row fig-actions" id="figact"></div>
+    ${!ill && cfg.illustrations && p.scientific_name ? `<div class="row fig-actions"><button class="btn ghost" id="reillu">Restaurar lámina antigua</button></div>` : ""}
     ${typeBadges(p.types)}
     ${factSheet(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
@@ -636,6 +644,13 @@ async function renderDetail(id) {
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
+  $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
+    ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
+    delete illuCache[illuKey(p.scientific_name)]; saveIllu();
+    const found = await findIllustration(p.scientific_name);
+    if (!found) toast("No encontré una lámina antigua para esta especie");
+    renderDetail(p.id);
+  });
   const showFig = (i) => {
     const f = figs[i]; if (!f) return;
     const hero = $app.querySelector("#hero"); hero.src = f.src; hero.classList.toggle("illu", !!f.illu);
@@ -651,7 +666,9 @@ async function renderDetail(id) {
       p.photos = photos; toast("Foto principal actualizada"); renderDetail(p.id);
     });
     act.querySelector("#noillu")?.addEventListener("click", () => {
-      illuCache[illuKey(p.scientific_name)] = false; saveIllu(); toast("Lámina quitada"); renderDetail(p.id);
+      const key = illuKey(p.scientific_name), prev = illuCache[key];
+      illuCache[key] = false; saveIllu(); renderDetail(p.id);
+      toast("Lámina quitada", ["Deshacer", () => { illuCache[key] = prev; saveIllu(); renderDetail(p.id); }]);
     });
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));

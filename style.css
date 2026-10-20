@@ -499,3 +499,5 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .iucn-table tr.cur td { background: var(--wash); }
 .iucn-table tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .tb-cons { width: 34px; height: 34px; border-radius: 50%; display: grid; background: var(--parchment-2); }
+.toast.has-act { pointer-events: auto; display: flex; align-items: center; gap: 14px; }
+.toast-act { background: none; border: 0; color: var(--gold-soft); font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; padding: 4px 2px; }
