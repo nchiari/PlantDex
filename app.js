@@ -253,29 +253,32 @@ async function resizeImage(file, max = 1400) {
 }
 
 // ---------- IA ----------
-const buildPrompt = (hint = "", place = "") => `Sos un botánico de campo y naturalista experto en la flora silvestre y cultivada de todo el mundo. Identificá la planta, hongo o fruto de las fotos.
-Lugar del hallazgo: ${place || "desconocido (deducilo de las fotos si podés)"}. Usá ese lugar como referencia para la rareza, los meses y si es nativa o introducida.
-Respondé SOLO con un bloque JSON válido, en español rioplatense, con esta forma exacta:
+const buildPrompt = (hint = "", place = "") => `Sos un botánico divulgador, de esos que hacen que cualquiera se interese por las plantas. Identificá la planta, hongo o fruto de las fotos.
+Lugar del hallazgo: ${place || "desconocido"}. Usalo SOLO para ayudarte a identificarla y para saber en qué hemisferio está (meses de flor y fruto). Los textos NO deben mencionar las fotos, el ejemplar fotografiado ni el lugar del hallazgo: hablá de la especie en general.
+
+TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usás un término botánico, explicalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
+
+Respondé SOLO con un bloque JSON válido, con esta forma exacta:
 {
  "common_name": "nombre común en español de España",
  "other_names": "solo en este formato: 'España: … · Latinoamérica: … · Inglés: …'. Poné Latinoamérica únicamente si el nombre cambia (y aclará el país si varía, ej. 'Argentina: …'). NO incluyas euskera, catalán, gallego ni otras lenguas cooficiales o regionales",
  "scientific_name": "Género especie",
  "family": "Familia",
- "native_range": "de dónde es nativa y si en el lugar del hallazgo es nativa, introducida o invasora",
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
- "edibility_notes": "qué partes se comen, cómo, en qué época, y confusiones peligrosas con especies parecidas",
- "description": "cómo reconocerla, 2-3 frases",
- "uses": "usos culinarios, medicinales tradicionales, artesanales u ornamentales",
- "history": "historia, etimología o folklore, 2-4 frases",
- "curiosity": "un dato curioso breve y sorprendente",
- "flower_months": [números de mes 1-12 en que florece en el lugar del hallazgo (ojo con el hemisferio)],
- "fruit_months": [números de mes 1-12 en que da fruto o se cosecha],
+ "description": "2-3 frases para alguien que no sabe nada de botánica. Empezá por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y terminá con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
+ "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, decilo",
+ "edibility_notes": "qué partes se comen y cómo, o por qué no; con qué se puede confundir y qué riesgos hay. Claro y directo",
+ "uses": "para qué la usamos: cocina, remedios tradicionales, oficios, jardín",
+ "history": "historia, mitos o etimología contados como una buena anécdota, 2-4 frases",
+ "curiosity": "un dato sorprendente que den ganas de contarle a alguien, 1-2 frases",
+ "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
+ "fruit_months": [meses 1-12 en que suele dar fruto o cosecharse, mismo criterio],
  "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
-En description, native_range, edibility_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista: ${hint}` : ""}`;
+En description, native_range, edibility_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
 
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
