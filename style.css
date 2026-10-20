@@ -533,3 +533,14 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .note-head b { font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; margin-right: 4px; }
 .ptag { display: inline-flex; align-items: center; gap: 4px; font: 600 9.5px var(--caps); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-soft); padding: 2px 8px 2px 5px; border: 1px solid rgb(var(--line) / .3); border-radius: 99px; background: var(--parchment-2); }
 .ptag svg { width: 14px; height: 14px; color: var(--ink-soft); }
+
+/* ficha técnica compacta */
+.facts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; margin: 0; border-top: 1px solid rgb(var(--line) / .15); }
+.fx { display: grid; grid-template-columns: 22px 1fr; column-gap: 8px; align-items: start; padding: 9px 0; border-bottom: 1px solid rgb(var(--line) / .15); }
+.fx svg { width: 20px; height: 20px; color: var(--leaf); grid-row: span 2; margin-top: 2px; }
+.fx dt { font: 600 9px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft); }
+.fx dd { margin: 0; font-size: 16.5px; line-height: 1.3; color: var(--ink); }
+.fx .maplink { font: italic 14px var(--text); margin-left: 4px; }
+.lead-desc { margin-top: 18px; }
+.parts-box { margin-top: 20px; }
+.fx { align-content: start; grid-template-rows: auto 1fr; }

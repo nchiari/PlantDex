@@ -585,7 +585,16 @@ function normParts(raw) {
   }
   return out;
 }
-const usesOf = (p) => USE_ORDER.filter((u) => p.parts?.[u]);
+const firstSentence = (t) => (String(t || "").match(/^.*?[.!?](\s|$)/) || [t || ""])[0].trim();
+function ensureUses(p) {
+  if (p.parts && Object.keys(p.parts).length) return p.parts;
+  const u = {};
+  if (["si", "parcial"].includes(p.edible_human)) u.comer = { partes: [], nota: firstSentence(p.edibility_notes) || "Comestible." };
+  if (p.types?.includes("medicinal")) u.medicina = { partes: [], nota: firstSentence(p.uses) || "Tiene usos medicinales tradicionales." };
+  if (p.types?.includes("toxica")) u.toxica = { partes: [], nota: firstSentence(p.edibility_notes) || "Es tóxica: no consumir." };
+  return (p.parts = u);
+}
+const usesOf = (p) => (ensureUses(p), USE_ORDER.filter((u) => p.parts?.[u]));
 // Tira compacta para la carta: los usos que tiene la planta.
 const partsStrip = (p) => {
   const list = usesOf(p);
@@ -612,23 +621,21 @@ function monthRanges(ms = []) {
 }
 
 // Ficha técnica: lo esencial de un vistazo, con iconos.
+// Ficha técnica compacta: datos de referencia en dos columnas, como el pie de una lámina antigua.
 function factSheet(p) {
-  const toxic = p.types?.includes("toxica");
-  const ed = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "no"] }[p.edible_human] || ["Sin datos", ""];
-  const origin = p.origin || "";
   const kind = (p.kind || "").toLowerCase();
   const kindIcon = KIND_ICON[kind] || (p.types?.includes("arbol") ? "f-tree" : p.types?.includes("arbusto") ? "f-shrub" : p.types?.includes("hongo") ? "f-mushroom" : "f-herb");
-  const tile = (icon, k, v, cls = "") => v ? `<div class="fact ${cls}"><svg><use href="#${icon}"/></svg><span class="fk">${k}</span><span class="fv">${esc(v)}</span></div>` : "";
-  return `<div class="facts">
-    ${tile("f-edible", "Comestible", ed[0], ed[1])}
-    ${tile(toxic ? "f-skull" : "f-shield", "Toxicidad", toxic ? "Tóxica" : "Sin avisos", toxic ? "bad" : "ok")}
-    ${tile(kindIcon, "Porte", kind ? kind[0].toUpperCase() + kind.slice(1) : "")}
-    ${tile("f-family", "Familia", p.family)}
-    ${tile("f-flower", "Florece", monthRanges(p.flower_months))}
-    ${tile("f-fruit", "Fruto", monthRanges(p.fruit_months))}
-    ${tile("f-globe", "Origen", origin)}
-    ${tile("f-pin", "Hallada", [p.location_name?.split(",")[0], p.found_at && new Date(p.found_at + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })].filter(Boolean).join(" · "))}
-  </div>${p.lat ? `<div class="maplink"><a href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">Ver el lugar en el mapa</a></div>` : ""}`;
+  const found = [p.location_name?.split(",")[0], p.found_at && new Date(p.found_at + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })].filter(Boolean).join(" · ");
+  const row = (icon, k, v, extra = "") => v ? `<div class="fx"><svg><use href="#${icon}"/></svg><dt>${k}</dt><dd>${esc(v)}${extra}</dd></div>` : "";
+  const rows = [
+    row(kindIcon, "Porte", kind ? kind[0].toUpperCase() + kind.slice(1) : ""),
+    row("f-family", "Familia", p.family),
+    row("f-globe", "Origen", p.origin),
+    row("f-flower", "Florece", monthRanges(p.flower_months)),
+    row("f-fruit", "Fruto", monthRanges(p.fruit_months)),
+    row("f-pin", "Hallada", found, p.lat ? ` <a class="maplink" href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>` : ""),
+  ].join("");
+  return rows ? `<h3>Ficha</h3><dl class="facts2">${rows}</dl>` : "";
 }
 
 async function renderDetail(id) {
@@ -661,10 +668,9 @@ async function renderDetail(id) {
     ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
     <div class="row fig-actions" id="figact"></div>
     ${!ill && cfg.illustrations && p.scientific_name ? `<div class="row fig-actions"><button class="btn ghost" id="reillu">Restaurar lámina antigua</button></div>` : ""}
-    ${typeBadges(p.types)}
-    ${factSheet(p)}
     ${partsPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
+    ${factSheet(p)}
     <div class="folds">
       ${fold("Patria · origen", note(p.native_range))}
       ${fold("Kalendarium", hasMonths ? monthsBar(p.flower_months, p.fruit_months) + legend : "")}
