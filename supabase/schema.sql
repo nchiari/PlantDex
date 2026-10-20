@@ -60,5 +60,5 @@ alter table public.plants add column if not exists iucn text;
 -- v5: origen corto para la ficha técnica
 alter table public.plants add column if not exists origin text;
 
--- v6: partes útiles {hoja|flor|fruto|semilla|raiz|tallo: {usos: [comer|medicina|toxica|otro], nota}}
+-- v6: usos de la planta {comer|medicina|toxica|otro: {partes: [hoja|flor|fruto|semilla|raiz|tallo], nota}}
 alter table public.plants add column if not exists parts jsonb default '{}'::jsonb;
