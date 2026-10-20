@@ -267,6 +267,7 @@ Respondé SOLO con un bloque JSON válido, con esta forma exacta:
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
+ "parts": {incluí SOLO las partes que tengan algún uso o riesgo, con estas claves: hoja, flor, fruto, semilla, raiz, tallo (tallo incluye madera y corteza). Cada una: {"usos": [de: comer, medicina, toxica, otro], "nota": "qué se hace con esa parte o por qué es peligrosa, máx. 15 palabras"}},
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empezá por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y terminá con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
  "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
  "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, decilo",
@@ -291,6 +292,7 @@ function normalizeAI(raw) {
   out.fruit_months = months(out.fruit_months);
   delete out.confidence;
   out.iucn = normIucn(out.iucn);
+  out.parts = normParts(out.parts);
   delete out.rarity;
   return out;
 }
@@ -507,6 +509,7 @@ function card(p) {
     ${consBadge(p.iucn)}
     ${edibleBadge(p)}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
+    ${partsStrip(p)}
   </div>`;
 }
 
@@ -565,6 +568,38 @@ function iucnPill(code) {
     <span>${code && code !== "NE" && code !== "DD" ? code + " · " : ""}${label}</span></div>`;
 }
 const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
+
+// ---------- partes útiles ----------
+const PARTS = [["hoja", "Hojas"], ["flor", "Flores"], ["fruto", "Frutos"], ["semilla", "Semillas"], ["raiz", "Raíz"], ["tallo", "Tallo y madera"]];
+const USES = { comer: "Se come", medicina: "Medicinal", toxica: "Tóxica", otro: "Otros usos" };
+const USE_ORDER = ["toxica", "comer", "medicina", "otro"];
+function normParts(raw) {
+  const out = {};
+  for (const [k] of PARTS) {
+    const v = raw?.[k] || raw?.[k === "raiz" ? "raíz" : k];
+    if (!v) continue;
+    const usos = (Array.isArray(v.usos) ? v.usos : []).map((u) => String(u).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^toxico$/, "toxica")).filter((u) => USES[u]);
+    if (usos.length) out[k] = { usos: USE_ORDER.filter((u) => usos.includes(u)), nota: String(v.nota || "").slice(0, 160) };
+  }
+  return out;
+}
+const mainUse = (part) => USE_ORDER.find((u) => part.usos.includes(u));
+// Tira compacta para la carta: solo las partes con uso, teñidas por su uso principal.
+const partsStrip = (p) => {
+  const list = PARTS.filter(([k]) => p.parts?.[k]);
+  return list.length ? `<div class="pstrip">${list.map(([k, l]) => `<span class="pchip u-${mainUse(p.parts[k])}" title="${l}: ${p.parts[k].usos.map((u) => USES[u]).join(", ")}"><svg><use href="#p-${k}"/></svg></span>`).join("")}</div>` : "";
+};
+// Fila completa para la ficha: las 6 partes, las que no sirven apagadas, y la nota de la elegida.
+function partsPanel(p) {
+  if (!p.parts || !Object.keys(p.parts).length) return "";
+  return `<div class="parts-box"><h3>Partes útiles</h3>
+    <div class="parts">${PARTS.map(([k, l]) => { const pt = p.parts[k];
+      return `<button class="part ${pt ? "on u-" + mainUse(pt) : "off"}" data-part="${k}" ${pt ? "" : "disabled"}>
+        <span class="part-ic"><svg><use href="#p-${k}"/></svg></span><span class="part-l">${l}</span>
+        <span class="part-u">${pt ? pt.usos.map((u) => `<svg class="u-${u}" title="${USES[u]}"><use href="#${u === "toxica" ? "f-skull" : "u-" + u}"/></svg>`).join("") : ""}</span></button>`; }).join("")}</div>
+    <div class="part-note" id="partnote"></div>
+    <div class="part-legend">${USE_ORDER.map((u) => `<span class="u-${u}"><svg><use href="#${u === "toxica" ? "f-skull" : "u-" + u}"/></svg>${USES[u]}</span>`).join("")}</div></div>`;
+}
 
 // Meses [3,4,5,10] → "Mar–May, Oct"
 function monthRanges(ms = []) {
@@ -628,6 +663,7 @@ async function renderDetail(id) {
     ${!ill && cfg.illustrations && p.scientific_name ? `<div class="row fig-actions"><button class="btn ghost" id="reillu">Restaurar lámina antigua</button></div>` : ""}
     ${typeBadges(p.types)}
     ${factSheet(p)}
+    ${partsPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     <div class="folds">
       ${fold("Patria · origen", note(p.native_range))}
@@ -648,6 +684,13 @@ async function renderDetail(id) {
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
+  const showPart = (k) => {
+    const pt = p.parts?.[k], note = $app.querySelector("#partnote"); if (!pt || !note) return;
+    $app.querySelectorAll(".part").forEach((b) => b.classList.toggle("sel", b.dataset.part === k));
+    note.innerHTML = `<b>${PARTS.find(([x]) => x === k)[1]}</b> · ${pt.usos.map((u) => `<span class="tag u-${u}">${USES[u]}</span>`).join(" ")}<br>${rich(pt.nota)}`;
+  };
+  $app.querySelectorAll(".part.on").forEach((b) => (b.onclick = () => showPart(b.dataset.part)));
+  const firstPart = PARTS.find(([k]) => p.parts?.[k]); if (firstPart) showPart(firstPart[0]);
   $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
     delete illuCache[illuKey(p.scientific_name)]; saveIllu();
@@ -898,7 +941,7 @@ function renderForm(existing) {
     })));
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
-    const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
+    const row = { parts: normParts(d.parts), kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
     for (const k of ["common_name", "other_names", "origin", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
