@@ -268,6 +268,7 @@ Respondé SOLO con un bloque JSON válido, con esta forma exacta:
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empezá por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y terminá con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
+ "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
  "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, decilo",
  "edibility_notes": "qué partes se comen y cómo, o por qué no; con qué se puede confundir y qué riesgos hay. Claro y directo",
  "uses": "para qué la usamos: cocina, remedios tradicionales, oficios, jardín",
@@ -579,7 +580,7 @@ function monthRanges(ms = []) {
 function factSheet(p) {
   const toxic = p.types?.includes("toxica");
   const ed = { si: ["Comestible", "ok"], parcial: ["En parte", "warn"], no: ["No se come", "no"] }[p.edible_human] || ["Sin datos", ""];
-  const origin = /invasora/i.test(p.native_range || "") ? "Invasora" : /introducid|exótic|naturalizad|cultivad/i.test(p.native_range || "") ? "Introducida" : /nativ|autóctona|endémic/i.test(p.native_range || "") ? "Nativa" : "";
+  const origin = p.origin || "";
   const kind = (p.kind || "").toLowerCase();
   const kindIcon = KIND_ICON[kind] || (p.types?.includes("arbol") ? "f-tree" : p.types?.includes("arbusto") ? "f-shrub" : p.types?.includes("hongo") ? "f-mushroom" : "f-herb");
   const tile = (icon, k, v, cls = "") => v ? `<div class="fact ${cls}"><svg><use href="#${icon}"/></svg><span class="fk">${k}</span><span class="fv">${esc(v)}</span></div>` : "";
@@ -864,6 +865,7 @@ function renderForm(existing) {
       <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
     <label>Otros nombres</label><input id="other_names" placeholder="España: … · Latinoamérica: … · Inglés: …" value="${esc(d.other_names || "")}">
+    <label>Origen (corto)</label><input id="origin" placeholder="ej: Mediterráneo" value="${esc(d.origin || "")}">
     <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
     <div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
     <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
@@ -897,7 +899,7 @@ function renderForm(existing) {
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
     const row = { kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
-    for (const k of ["common_name", "other_names", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
+    for (const k of ["common_name", "other_names", "origin", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");

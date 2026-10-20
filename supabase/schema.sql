@@ -56,3 +56,6 @@ alter table public.plants add column if not exists native_range text;
 
 -- v4: estado de conservación global (Lista Roja UICN) en lugar de la rareza local
 alter table public.plants add column if not exists iucn text;
+
+-- v5: origen corto para la ficha técnica
+alter table public.plants add column if not exists origin text;

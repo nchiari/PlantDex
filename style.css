@@ -504,3 +504,6 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 /* sin cortar palabras con guiones; alineado a la izquierda para que no queden huecos grandes entre palabras */
 .field-note, .curio, .lead-desc, .modal-box p { hyphens: none; -webkit-hyphens: none; overflow-wrap: normal; word-break: normal; }
 .field-note { text-align: left; }
+/* si queda un número impar de recuadros, el último ocupa todo el ancho */
+.facts { grid-template-columns: repeat(2, 1fr); }
+.facts > .fact:last-child:nth-child(odd) { grid-column: 1 / -1; }
