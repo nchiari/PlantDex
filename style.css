@@ -501,3 +501,6 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .tb-cons { width: 34px; height: 34px; border-radius: 50%; display: grid; background: var(--parchment-2); }
 .toast.has-act { pointer-events: auto; display: flex; align-items: center; gap: 14px; }
 .toast-act { background: none; border: 0; color: var(--gold-soft); font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; padding: 4px 2px; }
+/* sin cortar palabras con guiones; alineado a la izquierda para que no queden huecos grandes entre palabras */
+.field-note, .curio, .lead-desc, .modal-box p { hyphens: none; -webkit-hyphens: none; overflow-wrap: normal; word-break: normal; }
+.field-note { text-align: left; }
