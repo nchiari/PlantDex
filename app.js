@@ -738,6 +738,38 @@ async function renderDetail(id) {
   };
 }
 
+// ---------- fecha de las fotos ----------
+const localISODate = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+// Lee DateTimeOriginal del EXIF de un JPEG ("2026:10:18 14:32:10" → "2026-10-18"). Si no hay, usa la fecha del archivo.
+async function photoDate(file) {
+  try {
+    const buf = new DataView(await file.slice(0, 256 * 1024).arrayBuffer());
+    if (buf.getUint16(0) === 0xffd8) {
+      let off = 2;
+      while (off + 4 < buf.byteLength) {
+        const marker = buf.getUint16(off), size = buf.getUint16(off + 2);
+        if (marker === 0xffe1 && buf.getUint32(off + 4) === 0x45786966) { // "Exif"
+          const t = off + 10, le = buf.getUint16(t) === 0x4949;
+          const u16 = (o) => buf.getUint16(t + o, le), u32 = (o) => buf.getUint32(t + o, le);
+          const readAscii = (o, n) => { let x = ""; for (let i = 0; i < n - 1; i++) x += String.fromCharCode(buf.getUint8(t + o + i)); return x; };
+          const scan = (ifd, want) => { const n = u16(ifd); for (let i = 0; i < n; i++) { const e = ifd + 2 + i * 12; if (u16(e) === want) return e; } return null; };
+          const ifd0 = u32(4);
+          let e = null; const sub = scan(ifd0, 0x8769); // ExifIFD
+          if (sub) e = scan(u32(sub + 8), 0x9003); // DateTimeOriginal
+          if (!e) e = scan(ifd0, 0x0132); // DateTime
+          if (e) { const m = readAscii(u32(e + 8), 20).match(/^(\d{4}):(\d{2}):(\d{2})/); if (m && m[1] !== "0000") return `${m[1]}-${m[2]}-${m[3]}`; }
+          break;
+        }
+        if ((marker & 0xff00) !== 0xff00) break;
+        off += 2 + size;
+      }
+    }
+  } catch {}
+  // Respaldo: fecha de modificación del archivo (en fotos recién sacadas coincide con hoy).
+  return file.lastModified ? localISODate(new Date(file.lastModified)) : null;
+}
+const oldestPhotoDate = () => (draft?.files || []).map((f) => f.taken).filter(Boolean).sort()[0] || null;
+
 // ---------- borrador persistente ----------
 // Android a veces recarga la página al volver de la cámara: guardamos fotos y datos del borrador en IndexedDB.
 const idb = (() => {
@@ -757,12 +789,12 @@ const idb = (() => {
     del: (k) => tx("readwrite", (st) => st.delete(k)).catch(() => {}),
   };
 })();
-const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), data: draft.data, hint: draft.hint, mode: draft.mode }); };
+const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), takens: draft.files.map((f) => f.taken || null), data: draft.data, hint: draft.hint, mode: draft.mode }); };
 const clearDraft = () => { draft = null; idb.del("draft"); };
 async function restoreDraft() {
   const sd = await idb.get("draft");
   if (!sd || (!sd.blobs?.length && !sd.data?.common_name)) return;
-  draft = { files: (sd.blobs || []).map((b) => ({ blob: b, url: URL.createObjectURL(b) })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
+  draft = { files: (sd.blobs || []).map((b, i) => ({ blob: b, url: URL.createObjectURL(b), taken: sd.takens?.[i] || null })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
 }
 
 // ---------- alta ----------
@@ -774,7 +806,10 @@ function pickPhotos(source) {
     if (!input.files.length) return;
     if (draft?.editing) draft = null;
     if (!draft) draft = { files: [], data: {}, mode: "chat" };
-    for (const f of [...input.files].slice(0, 4 - draft.files.length)) { const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob) }); }
+    for (const f of [...input.files].slice(0, 4 - draft.files.length)) {
+      const taken = await photoDate(f); // antes de achicar: el canvas descarta los datos EXIF
+      const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken });
+    }
     saveDraft();
     if (location.hash === "#new") renderNew(); else location.hash = "new";
   };
@@ -946,7 +981,7 @@ function renderForm(existing) {
     ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
     ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
-    <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || new Date().toISOString().slice(0, 10))}"></div></div>
+    <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
