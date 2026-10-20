@@ -3,7 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ---------- configuración local ----------
 const CFG_KEY = "plantdex.cfg";
 // Cada persona conecta su propio Supabase desde el asistente de primeros pasos.
-const defaults = { sbUrl: "", sbKey: "", engrave: true, illustrations: true };
+const defaults = { sbUrl: "", sbKey: "", engrave: true, illustrations: true, theme: "auto" };
 const loadCfg = () => { try { return { ...defaults, ...JSON.parse(localStorage.getItem(CFG_KEY) || "{}") }; } catch { return { ...defaults }; } };
 const saveCfg = (c) => { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch {} };
 let cfg = loadCfg();
@@ -37,7 +37,37 @@ function roman(n) {
 }
 
 // ---------- arranque ----------
+// ---------- tema claro / oscuro ----------
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+function applyTheme() {
+  const t = cfg.theme === "light" || cfg.theme === "dark" ? cfg.theme : darkQuery.matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "dark" ? "#121a14" : "#f7f2e3");
+}
+darkQuery.addEventListener?.("change", () => cfg.theme === "auto" && applyTheme());
+
+// ---------- enlace de configuración ----------
+// ?c=<base64url de {u, k}>: la URL del proyecto y su clave publishable (pública por diseño, protegida por RLS).
+const b64u = { enc: (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+  dec: (t) => JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g, "+").replace(/_/g, "/"))))) };
+const shareLink = () => SITE_URL() + "?c=" + b64u.enc({ u: cfg.sbUrl, k: cfg.sbKey });
+function readConfigLink() {
+  const c = new URLSearchParams(location.search).get("c");
+  if (!c) return;
+  history.replaceState(null, "", SITE_URL() + location.hash);
+  try {
+    const { u, k } = b64u.dec(c);
+    if (!/^https:\/\/.+\.supabase\.co$/.test(u) || !k) throw 0;
+    if (cfg.sbUrl === u && cfg.sbKey === k) return;
+    if (cfg.sbUrl && !confirm("Este enlace conecta la app a otro herbario. ¿Cambiar?")) return;
+    cfg = { ...cfg, sbUrl: u, sbKey: k }; saveCfg(cfg);
+    setTimeout(() => toast("Herbario configurado. Entrá con tu email."), 300);
+  } catch { setTimeout(() => toast("El enlace de configuración no es válido"), 300); }
+}
+
 async function boot() {
+  applyTheme();
+  readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-settings").onclick = () => go("settings");
   document.getElementById("btn-home").onclick = () => go("list");
@@ -294,16 +324,30 @@ function renderSettings() {
     <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
     <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
     <h3>Apariencia</h3>
+    <label>Tema</label>
+    <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
     <label class="toggle"><input type="checkbox" id="engrave" ${cfg.engrave ? "checked" : ""}> Fotos con filtro de grabado antiguo</label>
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
+      <div class="share-box"><h3>Enlace de configuración</h3>
+        <p class="muted" style="margin-top:0">Abrilo en otro celular o navegador y la app queda conectada a este herbario: solo te pide el email. Contiene la dirección de tu nube y su clave pública, no tu contraseña.</p>
+        <button class="btn" id="sharecfg" style="width:100%">Compartir enlace</button></div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
 ` : ""}
   `;
+  $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
+    cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
+    $app.querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
+  }));
+  $app.querySelector("#sharecfg")?.addEventListener("click", async () => {
+    const url = shareLink();
+    try { if (navigator.share) return await navigator.share({ title: "Herbalorium", text: "Mi herbario en Herbalorium", url }); } catch { return; }
+    try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copiá este enlace:", url); }
+  });
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
+    cfg = { ...cfg, sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
