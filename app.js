@@ -272,8 +272,9 @@ El JSON tiene que ser válido y con esta forma exacta:
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empezá por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y terminá con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
  "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
  "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, decilo",
- "edibility_notes": "qué partes se comen y cómo, o por qué no; con qué se puede confundir y qué riesgos hay. Claro y directo",
- "uses": "para qué la usamos: cocina, remedios tradicionales, oficios, jardín",
+ "edibility_notes": "SOLO lo alimentario: qué partes se comen y cómo se preparan (o por qué no se come), con qué se puede confundir y qué riesgos hay al comerla. Nada de usos medicinales ni de otros usos",
+ "medicinal_notes": "SOLO usos medicinales: para qué se usó o se usa, cómo se prepara, qué respaldo científico tiene y precauciones. Si no tiene usos medicinales conocidos, dejalo vacío (\"\")",
+ "uses": "SOLO otros usos que no sean comida ni medicina: madera, jardín, setos, artesanía, tintes, cosmética, fauna, ganado, etc. No repitas nada de edibility_notes ni de medicinal_notes. Si no hay, dejalo vacío (\"\")",
  "history": "historia, mitos o etimología contados como una buena anécdota, 2-4 frases",
  "curiosity": "un fun fact de verdad, de esos que hacen decir '¡no lo sabía!': su aparición en la cultura popular (películas, libros, refranes, expresiones del idioma, marcas, deportes), una leyenda, una anécdota histórica rara o un uso inesperado. NO repitas datos de botánica básica (machos y hembras, cómo se reproduce, cuántas semillas da) ni lo que ya contaste en history. 1-3 frases",
  "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
@@ -281,7 +282,7 @@ El JSON tiene que ser válido y con esta forma exacta:
  "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
-En description, native_range, edibility_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
+En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
 
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
@@ -676,7 +677,8 @@ async function renderDetail(id) {
       ${fold("Patria · origen", note(p.native_range))}
       ${fold("Kalendarium", hasMonths ? monthsBar(p.flower_months, p.fruit_months) + legend : "")}
       ${fold("Esculenta · comestibilidad", note(p.edibility_notes))}
-      ${fold("Usus · usos", note(p.uses))}
+      ${fold("Medicina · usos medicinales", note(p.medicinal_notes))}
+      ${fold("Usus · otros usos", note(p.uses))}
       ${fold("Historia", note(p.history))}
       ${fold("Curiosa", p.curiosity ? `<div class="curio">“${rich(p.curiosity)}”</div>` : "")}
       ${fold("Notae · mis notas", note(p.notes))}
@@ -1008,7 +1010,7 @@ function renderForm(existing) {
       ? `<div style="margin-top:6px">${iucnPill(d.iucn)}</div>`
       : `<select id="iucn"><option value="">Sin dato</option>${Object.entries(IUCN).map(([k, [l]]) => `<option value="${k}">${k} · ${l}</option>`).join("")}</select>`}
     ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
-    ${ta("uses", "Usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
+    ${ta("medicinal_notes", "Usos medicinales")}${ta("uses", "Otros usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
     <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
@@ -1027,7 +1029,7 @@ function renderForm(existing) {
   $app.querySelector("#save").onclick = async (ev) => {
     const btn = ev.currentTarget;
     const row = { parts: normParts(d.parts), kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
-    for (const k of ["common_name", "other_names", "origin", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
+    for (const k of ["common_name", "other_names", "origin", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "medicinal_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");

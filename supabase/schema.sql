@@ -62,3 +62,6 @@ alter table public.plants add column if not exists origin text;
 
 -- v6: usos de la planta {comer|medicina|toxica|otro: {partes: [hoja|flor|fruto|semilla|raiz|tallo], nota}}
 alter table public.plants add column if not exists parts jsonb default '{}'::jsonb;
+
+-- v7: usos medicinales separados de comestibilidad y otros usos
+alter table public.plants add column if not exists medicinal_notes text;
