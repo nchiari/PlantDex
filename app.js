@@ -140,7 +140,7 @@ const missingIucn = () => plants.filter((p) => !p.iucn && p.scientific_name);
 let iucnAll = false; // true: volver a consultar todas, no solo las que faltan
 const iucnTargets = () => (iucnAll ? plants.filter((p) => p.scientific_name) : missingIucn());
 const iucnBatchPrompt = () => `Para cada especie, decime su estado de conservación GLOBAL en la Lista Roja de la UICN (LC, NT, VU, EN, CR, EW, EX, DD o NE si no fue evaluada; no inventes).
-Respondé SOLO con un JSON así: {"Género especie": "LC", ...}
+Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. El JSON, así: {"Género especie": "LC", ...}
 ${iucnTargets().map((p) => "- " + p.scientific_name).join("\n")}`;
 function iucnBatchBox() {
   if (!plants.length) return "";
@@ -258,7 +258,8 @@ Lugar del hallazgo: ${place || "desconocido"}. Usalo SOLO para ayudarte a identi
 
 TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usás un término botánico, explicalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
 
-Respondé SOLO con un bloque JSON válido, con esta forma exacta:
+Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después.
+El JSON tiene que ser válido y con esta forma exacta:
 {
  "common_name": "nombre común en español de España",
  "other_names": "solo en este formato: 'España: … · Latinoamérica: … · Inglés: …'. Poné Latinoamérica únicamente si el nombre cambia (y aclará el país si varía, ej. 'Argentina: …'). NO incluyas euskera, catalán, gallego ni otras lenguas cooficiales o regionales",
