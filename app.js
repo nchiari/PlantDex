@@ -740,8 +740,10 @@ async function renderDetail(id) {
 
 // ---------- fecha de las fotos ----------
 const localISODate = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-// Lee DateTimeOriginal del EXIF de un JPEG ("2026:10:18 14:32:10" → "2026-10-18"). Si no hay, usa la fecha del archivo.
-async function photoDate(file) {
+// Lee del EXIF de un JPEG la fecha de captura (DateTimeOriginal) y las coordenadas GPS.
+// Devuelve { date: "AAAA-MM-DD" | null, lat, lng }. Sin EXIF, la fecha sale del archivo.
+async function photoMeta(file) {
+  const meta = { date: null, lat: null, lng: null };
   try {
     const buf = new DataView(await file.slice(0, 256 * 1024).arrayBuffer());
     if (buf.getUint16(0) === 0xffd8) {
@@ -751,13 +753,26 @@ async function photoDate(file) {
         if (marker === 0xffe1 && buf.getUint32(off + 4) === 0x45786966) { // "Exif"
           const t = off + 10, le = buf.getUint16(t) === 0x4949;
           const u16 = (o) => buf.getUint16(t + o, le), u32 = (o) => buf.getUint32(t + o, le);
-          const readAscii = (o, n) => { let x = ""; for (let i = 0; i < n - 1; i++) x += String.fromCharCode(buf.getUint8(t + o + i)); return x; };
+          const ascii = (o, n) => { let x = ""; for (let i = 0; i < n - 1; i++) x += String.fromCharCode(buf.getUint8(t + o + i)); return x; };
           const scan = (ifd, want) => { const n = u16(ifd); for (let i = 0; i < n; i++) { const e = ifd + 2 + i * 12; if (u16(e) === want) return e; } return null; };
           const ifd0 = u32(4);
-          let e = null; const sub = scan(ifd0, 0x8769); // ExifIFD
-          if (sub) e = scan(u32(sub + 8), 0x9003); // DateTimeOriginal
-          if (!e) e = scan(ifd0, 0x0132); // DateTime
-          if (e) { const m = readAscii(u32(e + 8), 20).match(/^(\d{4}):(\d{2}):(\d{2})/); if (m && m[1] !== "0000") return `${m[1]}-${m[2]}-${m[3]}`; }
+          // fecha
+          let e = null; const sub = scan(ifd0, 0x8769);
+          if (sub) e = scan(u32(sub + 8), 0x9003);
+          if (!e) e = scan(ifd0, 0x0132);
+          if (e) { const m = ascii(u32(e + 8), 20).match(/^(\d{4}):(\d{2}):(\d{2})/); if (m && m[1] !== "0000") meta.date = `${m[1]}-${m[2]}-${m[3]}`; }
+          // GPS: grados, minutos y segundos como tres fracciones
+          const gps = scan(ifd0, 0x8825);
+          if (gps) {
+            const g = u32(gps + 8);
+            const ref = (tag) => { const x = scan(g, tag); return x ? String.fromCharCode(buf.getUint8(t + x + 8)) : ""; };
+            const dms = (tag) => { const x = scan(g, tag); if (!x) return null; const o = u32(x + 8); const r = (k) => u32(o + k * 8) / (u32(o + k * 8 + 4) || 1); return r(0) + r(1) / 60 + r(2) / 3600; };
+            let la = dms(2), lo = dms(4);
+            if (la != null && lo != null && (la || lo)) {
+              if (ref(1) === "S") la = -la; if (ref(3) === "W") lo = -lo;
+              meta.lat = +la.toFixed(6); meta.lng = +lo.toFixed(6);
+            }
+          }
           break;
         }
         if ((marker & 0xff00) !== 0xff00) break;
@@ -765,8 +780,8 @@ async function photoDate(file) {
       }
     }
   } catch {}
-  // Respaldo: fecha de modificación del archivo (en fotos recién sacadas coincide con hoy).
-  return file.lastModified ? localISODate(new Date(file.lastModified)) : null;
+  if (!meta.date && file.lastModified) meta.date = localISODate(new Date(file.lastModified));
+  return meta;
 }
 const oldestPhotoDate = () => (draft?.files || []).map((f) => f.taken).filter(Boolean).sort()[0] || null;
 
@@ -789,12 +804,12 @@ const idb = (() => {
     del: (k) => tx("readwrite", (st) => st.delete(k)).catch(() => {}),
   };
 })();
-const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), takens: draft.files.map((f) => f.taken || null), data: draft.data, hint: draft.hint, mode: draft.mode }); };
+const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), takens: draft.files.map((f) => f.taken || null), gps: draft.files.map((f) => f.gps || null), data: draft.data, hint: draft.hint, mode: draft.mode }); };
 const clearDraft = () => { draft = null; idb.del("draft"); };
 async function restoreDraft() {
   const sd = await idb.get("draft");
   if (!sd || (!sd.blobs?.length && !sd.data?.common_name)) return;
-  draft = { files: (sd.blobs || []).map((b, i) => ({ blob: b, url: URL.createObjectURL(b), taken: sd.takens?.[i] || null })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
+  draft = { files: (sd.blobs || []).map((b, i) => ({ blob: b, url: URL.createObjectURL(b), taken: sd.takens?.[i] || null, gps: sd.gps?.[i] || null })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
 }
 
 // ---------- alta ----------
@@ -807,9 +822,10 @@ function pickPhotos(source) {
     if (draft?.editing) draft = null;
     if (!draft) draft = { files: [], data: {}, mode: "chat" };
     for (const f of [...input.files].slice(0, 4 - draft.files.length)) {
-      const taken = await photoDate(f); // antes de achicar: el canvas descarta los datos EXIF
-      const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken });
+      const meta = await photoMeta(f); // antes de achicar: el canvas descarta los datos EXIF
+      const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken: meta.date, gps: meta.lat != null ? [meta.lat, meta.lng] : null });
     }
+    usePhotoLocation();
     saveDraft();
     if (location.hash === "#new") renderNew(); else location.hash = "new";
   };
@@ -854,7 +870,7 @@ function renderNew() {
   $app.querySelector("#cam").onclick = () => pickPhotos("camera");
   $app.querySelector("#gal").onclick = () => pickPhotos("gallery");
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
-  $app.querySelector("#place").oninput = (e) => (draft.data.location_name = e.target.value);
+  $app.querySelector("#place").oninput = (e) => { draft.data.location_name = e.target.value; draft.data.locSource = "manual"; saveDraft(); };
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));
 
   const box = $app.querySelector("#mode");
@@ -897,19 +913,32 @@ function renderNew() {
   getLocation();
 }
 
+// Nombre legible de unas coordenadas (OpenStreetMap, sin clave).
+async function placeName(lat, lng) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&accept-language=es&lat=${lat}&lon=${lng}`);
+    const a = (await r.json()).address || {};
+    return [a.village || a.town || a.city || a.municipality, a.state || a.region, a.country].filter(Boolean).join(", ");
+  } catch { return ""; }
+}
+async function setPlace(lat, lng, source) {
+  const d = draft?.data; if (!d || d.locSource === "manual") return;
+  if (source === "device" && d.locSource === "photo") return; // la foto manda sobre la ubicación actual
+  d.lat = lat; d.lng = lng; d.locSource = source;
+  const name = await placeName(lat, lng);
+  if (name && draft?.data === d && d.locSource === source) {
+    d.location_name = name; saveDraft();
+    const el = document.getElementById("place"); if (el) el.value = name;
+  }
+}
+// Si alguna foto trae GPS, el lugar del hallazgo es el de la foto más antigua con coordenadas.
+function usePhotoLocation() {
+  const withGps = (draft?.files || []).filter((f) => f.gps).sort((a, b) => String(a.taken).localeCompare(String(b.taken)));
+  if (withGps.length) setPlace(withGps[0].gps[0], withGps[0].gps[1], "photo");
+}
 function getLocation() {
   if (draft.data.lat || !navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const d = draft?.data; if (!d) return;
-    d.lat = pos.coords.latitude; d.lng = pos.coords.longitude;
-    if (d.location_name) return;
-    try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&accept-language=es&lat=${d.lat}&lon=${d.lng}`);
-      const a = (await r.json()).address || {};
-      d.location_name = [a.village || a.town || a.city || a.municipality, a.state || a.region, a.country].filter(Boolean).join(", ");
-      const el = document.getElementById("place"); if (el && !el.value) el.value = d.location_name;
-    } catch {}
-  }, () => {}, { timeout: 8000 });
+  navigator.geolocation.getCurrentPosition((pos) => setPlace(pos.coords.latitude, pos.coords.longitude, "device"), () => {}, { timeout: 8000 });
 }
 
 function placeCtx() {
