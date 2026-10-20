@@ -267,7 +267,7 @@ Respondé SOLO con un bloque JSON válido, con esta forma exacta:
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elegí de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
- "parts": {incluí SOLO las partes que tengan algún uso o riesgo, con estas claves: hoja, flor, fruto, semilla, raiz, tallo (tallo incluye madera y corteza). Cada una: {"usos": [de: comer, medicina, toxica, otro], "nota": "qué se hace con esa parte o por qué es peligrosa, máx. 15 palabras"}},
+ "parts": {usos de la planta. Incluí SOLO los que apliquen, con estas claves: comer, medicina, toxica, otro (madera, aceite, tintes, aroma, jardín…). Cada uno: {"partes": [de: hoja, flor, fruto, semilla, raiz, tallo], "nota": "qué parte se usa y cómo, o por qué es peligrosa; 1-2 frases claras"}},
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empezá por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y terminá con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
  "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
  "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, decilo",
@@ -569,36 +569,36 @@ function iucnPill(code) {
 }
 const KIND_ICON = { "árbol": "f-tree", arbol: "f-tree", arbusto: "f-shrub", hierba: "f-herb", trepadora: "f-vine", hongo: "f-mushroom" };
 
-// ---------- partes útiles ----------
+// ---------- usos de la planta (se guardan en la columna "parts") ----------
+// Forma: { comer|medicina|toxica|otro: { partes: [hoja|flor|fruto|semilla|raiz|tallo], nota } }
 const PARTS = [["hoja", "Hojas"], ["flor", "Flores"], ["fruto", "Frutos"], ["semilla", "Semillas"], ["raiz", "Raíz"], ["tallo", "Tallo y madera"]];
 const USES = { comer: "Se come", medicina: "Medicinal", toxica: "Tóxica", otro: "Otros usos" };
-const USE_ORDER = ["toxica", "comer", "medicina", "otro"];
+const USE_ORDER = ["comer", "medicina", "toxica", "otro"];
+const useIcon = (u) => (u === "toxica" ? "f-skull" : "u-" + u);
+const plain = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 function normParts(raw) {
   const out = {};
-  for (const [k] of PARTS) {
-    const v = raw?.[k] || raw?.[k === "raiz" ? "raíz" : k];
-    if (!v) continue;
-    const usos = (Array.isArray(v.usos) ? v.usos : []).map((u) => String(u).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^toxico$/, "toxica")).filter((u) => USES[u]);
-    if (usos.length) out[k] = { usos: USE_ORDER.filter((u) => usos.includes(u)), nota: String(v.nota || "").slice(0, 160) };
+  for (const u of USE_ORDER) {
+    const v = raw?.[u] || (u === "toxica" ? raw?.toxico : null);
+    if (!v || !(v.nota || v.partes?.length)) continue;
+    out[u] = { partes: (Array.isArray(v.partes) ? v.partes : []).map(plain).filter((k) => PARTS.some(([x]) => x === k)), nota: String(v.nota || "").slice(0, 400) };
   }
   return out;
 }
-const mainUse = (part) => USE_ORDER.find((u) => part.usos.includes(u));
-// Tira compacta para la carta: solo las partes con uso, teñidas por su uso principal.
+const usesOf = (p) => USE_ORDER.filter((u) => p.parts?.[u]);
+// Tira compacta para la carta: los usos que tiene la planta.
 const partsStrip = (p) => {
-  const list = PARTS.filter(([k]) => p.parts?.[k]);
-  return list.length ? `<div class="pstrip">${list.map(([k, l]) => `<span class="pchip u-${mainUse(p.parts[k])}" title="${l}: ${p.parts[k].usos.map((u) => USES[u]).join(", ")}"><svg><use href="#p-${k}"/></svg></span>`).join("")}</div>` : "";
+  const list = usesOf(p);
+  return list.length ? `<div class="pstrip">${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>` : "";
 };
-// Fila completa para la ficha: las 6 partes, las que no sirven apagadas, y la nota de la elegida.
+// Panel de la ficha: 4 botones de uso; al tocar uno, explica qué parte se usa y cómo.
 function partsPanel(p) {
-  if (!p.parts || !Object.keys(p.parts).length) return "";
-  return `<div class="parts-box"><h3>Partes útiles</h3>
-    <div class="parts">${PARTS.map(([k, l]) => { const pt = p.parts[k];
-      return `<button class="part ${pt ? "on u-" + mainUse(pt) : "off"}" data-part="${k}" ${pt ? "" : "disabled"}>
-        <span class="part-ic"><svg><use href="#p-${k}"/></svg></span><span class="part-l">${l}</span>
-        <span class="part-u">${pt ? pt.usos.map((u) => `<svg class="u-${u}" title="${USES[u]}"><use href="#${u === "toxica" ? "f-skull" : "u-" + u}"/></svg>`).join("") : ""}</span></button>`; }).join("")}</div>
-    <div class="part-note" id="partnote"></div>
-    <div class="part-legend">${USE_ORDER.map((u) => `<span class="u-${u}"><svg><use href="#${u === "toxica" ? "f-skull" : "u-" + u}"/></svg>${USES[u]}</span>`).join("")}</div></div>`;
+  if (!usesOf(p).length) return "";
+  return `<div class="parts-box"><h3>Para qué sirve</h3>
+    <div class="uses">${USE_ORDER.map((u) => { const on = !!p.parts[u];
+      return `<button class="use ${on ? "on" : "off"} u-${u}" data-use="${u}" ${on ? "" : "disabled"}>
+        <span class="use-ic"><svg><use href="#${useIcon(u)}"/></svg></span><span class="use-l">${USES[u]}</span></button>`; }).join("")}</div>
+    <div class="part-note" id="partnote"></div></div>`;
 }
 
 // Meses [3,4,5,10] → "Mar–May, Oct"
@@ -684,13 +684,15 @@ async function renderDetail(id) {
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
-  const showPart = (k) => {
-    const pt = p.parts?.[k], note = $app.querySelector("#partnote"); if (!pt || !note) return;
-    $app.querySelectorAll(".part").forEach((b) => b.classList.toggle("sel", b.dataset.part === k));
-    note.innerHTML = `<b>${PARTS.find(([x]) => x === k)[1]}</b> · ${pt.usos.map((u) => `<span class="tag u-${u}">${USES[u]}</span>`).join(" ")}<br>${rich(pt.nota)}`;
+  const showUse = (u) => {
+    const it = p.parts?.[u], note = $app.querySelector("#partnote"); if (!it || !note) return;
+    $app.querySelectorAll(".use").forEach((b) => b.classList.toggle("sel", b.dataset.use === u));
+    const parts = PARTS.filter(([k]) => it.partes.includes(k));
+    note.className = "part-note u-" + u;
+    note.innerHTML = `<div class="note-head"><b>${USES[u]}</b>${parts.map(([k, l]) => `<span class="ptag"><svg><use href="#p-${k}"/></svg>${l}</span>`).join("")}</div>${rich(it.nota)}`;
   };
-  $app.querySelectorAll(".part.on").forEach((b) => (b.onclick = () => showPart(b.dataset.part)));
-  const firstPart = PARTS.find(([k]) => p.parts?.[k]); if (firstPart) showPart(firstPart[0]);
+  $app.querySelectorAll(".use.on").forEach((b) => (b.onclick = () => showUse(b.dataset.use)));
+  if (usesOf(p).length) showUse(usesOf(p)[0]);
   $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
     delete illuCache[illuKey(p.scientific_name)]; saveIllu();

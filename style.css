@@ -508,30 +508,28 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 .facts { grid-template-columns: repeat(2, 1fr); }
 .facts > .fact:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
-/* ---------- partes útiles ---------- */
+/* ---------- para qué sirve (usos) ---------- */
 :root { --u-comer: #4c6b3c; --u-medicina: #3f6a6a; --u-toxica: #1f3426; --u-otro: #a08a45; }
 :root[data-theme="dark"] { --u-comer: #a3c487; --u-medicina: #8fc0bb; --u-toxica: #e9d8a2; --u-otro: #d6ba6c; }
+.u-comer { color: var(--u-comer); } .u-medicina { color: var(--u-medicina); } .u-toxica { color: var(--u-toxica); } .u-otro { color: var(--u-otro); }
 .pstrip { display: flex; justify-content: center; gap: 5px; margin-top: 8px; }
 .pchip { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 1px solid currentColor; background: var(--parchment-2); }
-.pchip svg { width: 15px; height: 15px; }
+.pchip svg { width: 14px; height: 14px; }
 .pchip.u-toxica { background: var(--deep); color: var(--gold-soft); border-color: var(--gold); }
-.u-comer { color: var(--u-comer); } .u-medicina { color: var(--u-medicina); } .u-toxica { color: var(--u-toxica); } .u-otro { color: var(--u-otro); }
 .parts-box { margin: 18px 0 4px; }
 .parts-box h3 { margin-top: 6px; }
-.parts { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.part { background: none; border: 0; padding: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: var(--ink); font: inherit; }
-.part.off { opacity: .28; cursor: default; }
-.part-ic { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgb(var(--line) / .35); background: var(--parchment-2); color: var(--ink-soft); transition: .15s; }
-.part-ic svg { width: 26px; height: 26px; }
-.part.on .part-ic { color: currentColor; border-color: currentColor; }
-.part.on.u-toxica .part-ic { background: var(--deep); color: var(--gold-soft); border-color: var(--gold); }
-.part.sel .part-ic { box-shadow: 0 0 0 3px var(--parchment), 0 0 0 4px var(--gold); }
-.part-l { font: 600 8.5px var(--caps); letter-spacing: .8px; text-transform: uppercase; color: var(--ink-soft); text-align: center; line-height: 1.2; min-height: 2.4em; }
-.part-u { display: flex; gap: 2px; min-height: 13px; }
-.part-u svg { width: 13px; height: 13px; }
-.part-note { margin-top: 10px; padding: 10px 14px; background: var(--wash); font-size: 17px; line-height: 1.45; min-height: 3em; }
-.part-note b { font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; }
-.part-note .tag { font: 600 10px var(--caps); letter-spacing: 1px; text-transform: uppercase; padding: 2px 7px; border: 1px solid currentColor; border-radius: 99px; }
-.part-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
-.part-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.part-legend svg { width: 13px; height: 13px; }
+.uses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.use { background: none; border: 0; padding: 2px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; font: inherit; }
+.use.off { opacity: .25; cursor: default; filter: grayscale(1); }
+.use-ic { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid currentColor; background: var(--parchment-2); transition: .15s; }
+.use-ic svg { width: 26px; height: 26px; }
+.use.on.u-toxica .use-ic { background: var(--deep); color: var(--gold-soft); border-color: var(--gold); }
+.use.sel .use-ic { box-shadow: 0 0 0 3px var(--parchment), 0 0 0 4.5px var(--gold); }
+.use-l { font: 600 9.5px var(--caps); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-soft); text-align: center; }
+.use.sel .use-l { color: var(--ink); }
+.part-note { margin-top: 12px; padding: 12px 14px; background: var(--wash); font-size: 17px; line-height: 1.5; color: var(--ink); border-left: 3px solid currentColor; }
+.part-note > *:not(.note-head) { color: var(--ink); }
+.note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.note-head b { font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; margin-right: 4px; }
+.ptag { display: inline-flex; align-items: center; gap: 4px; font: 600 9.5px var(--caps); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-soft); padding: 2px 8px 2px 5px; border: 1px solid rgb(var(--line) / .3); border-radius: 99px; background: var(--parchment-2); }
+.ptag svg { width: 14px; height: 14px; color: var(--ink-soft); }
