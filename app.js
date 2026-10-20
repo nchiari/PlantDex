@@ -819,15 +819,27 @@ function renderNew() {
   if (m === "chat") {
     box.innerHTML = `
       <ol class="steps">
-        <li>Copiá el prompt y abrí ChatGPT o Claude.</li>
-        <li>Pegalo y adjuntá las mismas fotos.</li>
+        <li>Tocá <b>Enviar a la IA</b> y elegí ChatGPT o Claude: se abre con las fotos adjuntas y el prompt ya copiado.</li>
+        <li>Pegá el prompt en el chat y enviá.</li>
         <li>Copiá la respuesta entera y pegala acá abajo.</li>
       </ol>
-      <div class="row"><button class="btn" id="copy">Copiar prompt</button>
+      <button class="btn primary" id="sendai" style="width:100%" ${has ? "" : "disabled"}>Enviar a la IA (fotos + prompt)</button>
+      <div class="row" style="margin-top:10px"><button class="btn" id="copy">Solo copiar prompt</button>
         <a class="btn" href="https://chatgpt.com/" target="_blank">ChatGPT</a><a class="btn" href="https://claude.ai/new" target="_blank">Claude</a></div>
       <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint, placeCtx()))}</div></details>
       <label>Respuesta del chat</label><textarea id="paste" placeholder='{ "common_name": … }'></textarea>
       <button class="btn primary" id="useit" style="width:100%;margin-top:12px">Completar la ficha</button>`;
+    // Comparte las fotos al chat de IA por el menú de Android y deja el prompt en el portapapeles.
+    box.querySelector("#sendai").onclick = async () => {
+      const prompt = buildPrompt(draft.hint, placeCtx());
+      let copied = false;
+      try { await navigator.clipboard.writeText(prompt); copied = true; } catch {}
+      const files = draft.files.map((f, i) => new File([f.blob], `planta-${i + 1}.jpg`, { type: "image/jpeg" }));
+      if (navigator.canShare?.({ files })) {
+        try { await navigator.share({ files, text: prompt }); toast(copied ? "Pegá el prompt en el chat y enviá" : "Fotos enviadas: copiá el prompt con «Solo copiar prompt»"); }
+        catch (e) { if (e.name !== "AbortError") toast("No pude compartir las fotos"); }
+      } else toast(copied ? "Este navegador no comparte fotos: prompt copiado, adjuntá las fotos a mano" : "Este navegador no permite compartir fotos");
+    };
     box.querySelector("#copy").onclick = async () => {
       try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
     };
