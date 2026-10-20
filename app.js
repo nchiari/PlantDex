@@ -272,7 +272,7 @@ Respondé SOLO con un bloque JSON válido, con esta forma exacta:
  "edibility_notes": "qué partes se comen y cómo, o por qué no; con qué se puede confundir y qué riesgos hay. Claro y directo",
  "uses": "para qué la usamos: cocina, remedios tradicionales, oficios, jardín",
  "history": "historia, mitos o etimología contados como una buena anécdota, 2-4 frases",
- "curiosity": "un dato sorprendente que den ganas de contarle a alguien, 1-2 frases",
+ "curiosity": "un fun fact de verdad, de esos que hacen decir '¡no lo sabía!': su aparición en la cultura popular (películas, libros, refranes, expresiones del idioma, marcas, deportes), una leyenda, una anécdota histórica rara o un uso inesperado. NO repitas datos de botánica básica (machos y hembras, cómo se reproduce, cuántas semillas da) ni lo que ya contaste en history. 1-3 frases",
  "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
  "fruit_months": [meses 1-12 en que suele dar fruto o cosecharse, mismo criterio],
  "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"
