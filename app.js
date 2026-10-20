@@ -884,11 +884,10 @@ function renderNew() {
         <li>Copiá la respuesta entera y pegala acá abajo.</li>
       </ol>
       <button class="btn primary" id="sendai" style="width:100%" ${has ? "" : "disabled"}>Enviar a la IA (fotos + prompt)</button>
-      <div class="row" style="margin-top:10px"><button class="btn" id="copy">Solo copiar prompt</button>
-        <a class="btn" href="https://chatgpt.com/" target="_blank">ChatGPT</a><a class="btn" href="https://claude.ai/new" target="_blank">Claude</a></div>
+      <button class="btn" id="copy" style="width:100%;margin-top:10px">Solo copiar prompt</button>
       <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint, placeCtx()))}</div></details>
       <label>Respuesta del chat</label><textarea id="paste" placeholder='{ "common_name": … }'></textarea>
-      <button class="btn primary" id="useit" style="width:100%;margin-top:12px">Completar la ficha</button>`;
+      <div class="row" style="margin-top:12px"><button class="btn" id="pasteit">Pegar</button><button class="btn primary" id="useit">Completar la ficha</button></div>`;
     // Comparte las fotos al chat de IA por el menú de Android y deja el prompt en el portapapeles.
     box.querySelector("#sendai").onclick = async () => {
       const prompt = buildPrompt(draft.hint, placeCtx());
@@ -902,6 +901,13 @@ function renderNew() {
     };
     box.querySelector("#copy").onclick = async () => {
       try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
+    };
+    box.querySelector("#pasteit").onclick = async () => {
+      try {
+        const t = await navigator.clipboard.readText();
+        if (!t.trim()) return toast("El portapapeles está vacío");
+        box.querySelector("#paste").value = t; toast("Respuesta pegada");
+      } catch { box.querySelector("#paste").focus(); toast("No pude leer el portapapeles: mantené apretado el recuadro y elegí «Pegar»"); }
     };
     box.querySelector("#useit").onclick = () => {
       try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; saveDraft(); renderForm(null); }
