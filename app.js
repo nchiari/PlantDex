@@ -515,6 +515,38 @@ const IUCN = {
   DD: ["Datos insuficientes", 0], NE: ["No evaluada", 0],
 };
 function normIucn(x) { const c = String(x || "").toUpperCase().match(/\b(LC|NT|VU|EN|CR|EW|EX|DD|NE)\b/); return c ? c[1] : null; }
+// Ventana explicativa del estado de conservación, con todas las categorías de la UICN.
+const IUCN_INFO = {
+  LC: "Abundante y extendida. No enfrenta riesgos importantes.",
+  NT: "Cerca de calificar como amenazada; podría estarlo pronto.",
+  VU: "Riesgo alto de extinción en estado silvestre. Poco frecuente o en retroceso.",
+  EN: "Riesgo muy alto de extinción. Escasa: encontrarla es excepcional.",
+  CR: "Riesgo extremadamente alto. Quedan muy pocos ejemplares en la naturaleza.",
+  EW: "Solo sobrevive en cultivo o en jardines botánicos, fuera de su hábitat.",
+  EX: "No queda ningún ejemplar vivo conocido.",
+  DD: "Fue estudiada, pero no hay datos suficientes para clasificarla.",
+  NE: "La UICN todavía no la evaluó. Es lo más habitual en plantas comunes.",
+};
+function openIucnInfo(current) {
+  const rows = ["LC", "NT", "VU", "EN", "CR", "EW", "EX", "DD", "NE"].map((c) => `<tr class="${c === current ? "cur" : ""}">
+    <td>${consBadge(c, "cons tb-cons")}</td><td><b>${c}</b><span>${IUCN[c][0]}</span></td><td>${IUCN_INFO[c]}</td></tr>`).join("");
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true" aria-label="Estado de conservación">
+    <button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Estado de conservación</h3>
+    <p>Es la clasificación de la <b>Lista Roja de la UICN</b> (Unión Internacional para la Conservación de la Naturaleza), la referencia mundial para saber cuán amenazada está una especie <i>en todo el planeta</i>. Cuantos más segmentos tiene el medallón, más difícil es encontrarla.</p>
+    <table class="iucn-table"><tbody>${rows}</tbody></table>
+    <p class="muted" style="font-size:15px">Es un dato global: una especie común en el mundo puede ser rara en una zona concreta, y al revés.</p>
+  </div>`;
+  const close = () => { m.remove(); document.removeEventListener("keydown", esc_); };
+  const esc_ = (e) => e.key === "Escape" && close();
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  document.addEventListener("keydown", esc_);
+  document.body.appendChild(m);
+}
+
 function iucnPill(code) {
   const [label, n] = IUCN[code] || ["Sin dato de conservación", 0];
   return `<div class="rarity ${n ? "" : "none"}" title="Estado de conservación global (Lista Roja UICN)">
@@ -575,7 +607,8 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
-      ${iucnPill(p.iucn)}${p.iucn ? "" : ` <a class="fill-link" href="#settings/iucn">Completar</a>`}
+      <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
+      ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
@@ -602,6 +635,7 @@ async function renderDetail(id) {
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
+  $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
   const showFig = (i) => {
     const f = figs[i]; if (!f) return;
     const hero = $app.querySelector("#hero"); hero.src = f.src; hero.classList.toggle("illu", !!f.illu);

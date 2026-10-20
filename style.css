@@ -476,3 +476,26 @@ mark.warn-t { color: var(--ink); border-bottom: 0; text-decoration: underline wa
 /* en la noche, el papel de las láminas se ve cálido y sin encandilar */
 :root[data-theme="dark"] .hero img.illu, :root[data-theme="dark"] .thumbs img.illu, :root[data-theme="dark"] .card .ph.illu,
 :root[data-theme="dark"] .cal-item .ph.illu, :root[data-theme="dark"] .ix-ph.illu { filter: sepia(.28) brightness(.9) contrast(1.04) !important; }
+
+/* botón de información y ventana de estado de conservación */
+.cons-row { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+.cons-row .rarity { margin-top: 0; }
+.info-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgb(var(--line) / .3); background: none; color: var(--leaf); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.info-btn svg { width: 20px; height: 20px; }
+.modal { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / .45); display: flex; align-items: flex-end; justify-content: center; animation: fade .18s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.modal-box { position: relative; width: 100%; max-width: 620px; max-height: 88vh; overflow-y: auto; background: var(--parchment); color: var(--ink);
+  padding: 10px 20px calc(22px + env(safe-area-inset-bottom)); border-top: 3px double var(--gold); animation: up .22s ease-out; }
+@media (min-width: 640px) { .modal { align-items: center; } .modal-box { border: 1px solid rgb(var(--line) / .3); box-shadow: inset 0 0 0 5px var(--parchment), inset 0 0 0 6px rgb(var(--line) / .2); } }
+.modal-box h3 { margin-top: 16px; padding-right: 40px; }
+.modal-box p { line-height: 1.5; }
+.modal-x { position: absolute; top: 10px; right: 12px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgb(var(--line) / .3); background: var(--parchment-2); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+.iucn-table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+.iucn-table td { padding: 9px 6px; border-bottom: 1px solid rgb(var(--line) / .15); vertical-align: middle; font-size: 15.5px; line-height: 1.35; }
+.iucn-table td:first-child { width: 40px; padding-left: 0; }
+.iucn-table td:nth-child(2) { width: 108px; }
+.iucn-table td:nth-child(2) b { display: block; font: 600 14px var(--caps); letter-spacing: 1.5px; color: var(--ink); }
+.iucn-table td:nth-child(2) span { font-size: 13.5px; color: var(--ink-soft); font-style: italic; }
+.iucn-table tr.cur td { background: var(--wash); }
+.iucn-table tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.tb-cons { width: 34px; height: 34px; border-radius: 50%; display: grid; background: var(--parchment-2); }
