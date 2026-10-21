@@ -80,16 +80,17 @@ async function readConfigLink() {
   } catch { setTimeout(() => toast("El enlace de configuración no es válido"), 300); }
 }
 
-// ---------- versión nueva publicada: al volver a la app se recarga sola ----------
-// Compara el ?v= de app.js con el del index.html publicado. Si se está cargando o editando una lámina, espera a que cambie de pantalla.
-const MY_V = new URL(import.meta.url).searchParams.get("v");
+// ---------- lanzamientos: al volver a la app, se recarga sola solo si hay novedades nuevas ----------
+// El aviso es <meta name="news" content="N"> en index.html (igual al v de la última entrada de NEWS).
+// Los cambios chicos no lo tocan: llegan la próxima vez que la app arranca de cero.
+const MY_NEWS = +(document.querySelector('meta[name="news"]')?.content || 0);
 let updateReady = false;
 async function checkUpdate() {
-  if (updateReady || !MY_V) return;
+  if (updateReady) return;
   try {
     const html = await (await fetch(SITE_URL() + "?_=" + Date.now(), { cache: "no-store" })).text();
-    const v = html.match(/app\.js\?v=([\w.-]+)/)?.[1];
-    if (v && v !== MY_V) { updateReady = true; reloadIfIdle(); }
+    const n = +(html.match(/<meta name="news" content="(\d+)"/)?.[1] || 0);
+    if (n > MY_NEWS) { updateReady = true; reloadIfIdle(); }
   } catch {}
 }
 function reloadIfIdle() {
