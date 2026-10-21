@@ -755,6 +755,9 @@ const waitFor = async (sel, ms = 2500) => {
 function startTour() {
   if (document.querySelector(".tour")) return;
   const steps = [...TOUR];
+  // El paso de los símbolos se apoya en las tarjetas: durante el tutorial se muestra la vista con imágenes.
+  const prevView = cfg.view;
+  if (prevView === "list") { cfg.view = "grid"; if (currentView() === "list") renderList(); }
   let i = 0, busy = false;
   const ov = document.createElement("div");
   ov.className = "tour";
@@ -788,8 +791,8 @@ function startTour() {
   };
   const end = () => {
     ov.classList.add("out"); setTimeout(() => ov.remove(), 250);
-    cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place);
-    if (currentView() !== "list") go("list");
+    cfg.view = prevView; cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place);
+    if (currentView() !== "list") go("list"); else renderList();
   };
   ov.querySelector("[data-skip]").onclick = end;
   ov.querySelector("[data-next]").onclick = () => (busy ? null : i < steps.length - 1 ? (i++, show()) : end());
