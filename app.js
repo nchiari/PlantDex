@@ -935,18 +935,18 @@ function factSheet(p) {
     row("f-globe", "Origen", p.origin),
     row("f-flower", "Florece", monthRanges(p.flower_months)),
     row("f-fruit", "Fruto", monthRanges(p.fruit_months)),
-    row("i-quill", "Añadida por", p.author_name),
     row("f-pin", "Hallada", found, p.lat ? ` <a class="maplink" href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>` : ""),
   ].join("");
   return rows ? `<h3>Ficha</h3><dl class="facts2">${rows}</dl>` : "";
 }
 
-// Quién subió esta especie al herbario y cuándo (fecha de subida, no de la foto).
+// Quién encontró esta especie y cuándo la subió: la primera arriba y los hallazgos siguientes debajo.
 function findsTable(p) {
   const fmt = (t) => (t ? new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—");
-  const rows = [{ who: p.author_name, when: p.created_at, first: true }, ...(p.sightings || []).map((x) => ({ who: x.author_name, when: x.created_at }))];
-  return `<div class="finds"><h3>Hallazgos</h3><table><thead><tr><th>Quién</th><th>Subida</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td>${esc(r.who || "—")}${r.first ? ' <span class="first">primera</span>' : ""}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
+  const rows = [{ who: p.author_name, when: p.created_at }, ...(p.sightings || []).map((x) => ({ who: x.author_name, when: x.created_at }))]
+    .sort((a, b) => new Date(a.when || 0) - new Date(b.when || 0));
+  return `<div class="finds"><h3>Hallazgos</h3><table><tbody>
+    ${rows.map((r) => `<tr><td class="av"><span class="avatar sm" aria-hidden="true">${esc([...(r.who || "?").trim() || "?"][0].toUpperCase())}</span></td><td>${esc(r.who || "Sin nombre")}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 async function renderDetail(id) {
