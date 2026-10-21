@@ -1104,7 +1104,7 @@ async function renderDetail(id) {
   if (usesOf(p).length) showUse(usesOf(p)[0]);
   const canReillu = !ill && cfg.illustrations && p.scientific_name;
   const bindReillu = () => $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
-    ev.currentTarget.disabled = true; ev.currentTarget.lastChild.textContent = "Buscando…";
+    ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
     delete illuCache[illuKey(p.scientific_name)]; saveIllu();
     const found = await findIllustration(p.scientific_name);
     if (!found) toast("No encontré una lámina antigua para esta especie");
@@ -1116,13 +1116,13 @@ async function renderDetail(id) {
     $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
     $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));
     const act = $app.querySelector("#figact");
-    // Acciones de la figura: una sola fila de botoncitos con ícono.
-    const pill = (id, icon, label, title) => `<button class="fig-pill" id="${id}" title="${title}"><svg><use href="#${icon}"/></svg>${label}</button>`;
+    // Acciones de la figura: una línea de texto, separada por puntos, como el pie de la lámina.
+    const link = (id, label) => `<button class="fig-link" id="${id}">${label}</button>`;
     act.innerHTML = [
-      f.illu ? pill("noillu", "i-x", "No es esta planta", "Quitar la lámina antigua") : "",
-      f.own && f.photo > 0 ? pill("mkmain", "i-star", "Principal", "Usar como foto principal") : "",
-      f.own ? pill("delphoto", "i-trash", "Borrar", "Borrar esta foto") : "",
-      canReillu ? pill("reillu", "i-restore", "Lámina antigua", "Buscar de nuevo la lámina antigua") : "",
+      f.illu ? link("noillu", "No es esta planta") : "",
+      f.own && f.photo > 0 ? link("mkmain", "Usar como principal") : "",
+      f.own ? link("delphoto", "Borrar foto") : "",
+      canReillu ? link("reillu", "Restaurar lámina") : "",
     ].join("");
     bindReillu();
     act.querySelector("#delphoto")?.addEventListener("click", async () => { if (await deletePhoto(p, f.path, f.sighting)) renderDetail(p.id); });
@@ -1140,7 +1140,7 @@ async function renderDetail(id) {
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
   if (figs.length) showFig(0);
-  else if (canReillu) { $app.querySelector("#figact").innerHTML = `<button class="fig-pill" id="reillu"><svg><use href="#i-restore"/></svg>Lámina antigua</button>`; bindReillu(); }
+  else if (canReillu) { $app.querySelector("#figact").innerHTML = `<button class="fig-link" id="reillu">Restaurar lámina</button>`; bindReillu(); }
   if ($app.querySelector("#del")) $app.querySelector("#del").onclick = async () => {
     if (!(await ask({ title: "Arrancar la lámina", text: `La lámina de <b>${esc(p.common_name)}</b> se borra para siempre, con sus fotos.`, ok: "Arrancarla", cancel: "Dejarla" }))) return;
     if (p.photos?.length) await sb.storage.from(BUCKET).remove(p.photos);
