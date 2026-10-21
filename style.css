@@ -667,12 +667,11 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .tour-btns .btn { padding: 10px 14px; flex: none; }
 
 /* tabla de hallazgos y enlace «¿Por qué usamos IA?» */
-.finds { margin-top: 30px; }
+.origin-line { margin: 0 0 12px; color: var(--ink); }
 .pager { margin-top: 26px; }
-.finds h3 { margin-top: 0; }
 .finds table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .finds td { padding: 5px 4px; border-bottom: 1px solid rgb(var(--line) / .14); color: var(--ink); vertical-align: middle; }
-.finds tr:first-child td { border-top: 1px solid rgb(var(--line) / .14); }
+.finds tr:last-child td { border-bottom: 0; }
 .finds td.av { width: 1%; padding-right: 8px; }
 .finds td:last-child { text-align: right; color: var(--ink-soft); font-style: italic; white-space: nowrap; }
 .link-btn { background: none; border: 0; padding: 4px 0 10px; cursor: pointer; font: italic 16px var(--text); color: var(--leaf); text-decoration: underline; text-underline-offset: 3px; display: block; margin: 0 auto 4px; }

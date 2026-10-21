@@ -945,7 +945,7 @@ function findsTable(p) {
   const fmt = (t) => (t ? new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—");
   const rows = [{ who: p.author_name, when: p.created_at }, ...(p.sightings || []).map((x) => ({ who: x.author_name, when: x.created_at }))]
     .sort((a, b) => new Date(a.when || 0) - new Date(b.when || 0));
-  return `<div class="finds"><h3>Hallazgos</h3><table><tbody>
+  return `<div class="finds"><table><tbody>
     ${rows.map((r) => `<tr><td class="av"><span class="avatar sm" aria-hidden="true">${esc([...(r.who || "?").trim() || "?"][0].toUpperCase())}</span></td><td>${esc(r.who || "Sin nombre")}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
@@ -984,21 +984,20 @@ async function renderDetail(id) {
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     ${factSheet(p)}
     <div class="folds">
-      ${fold("Patria · origen", note(p.native_range))}
+      ${fold("Historia · origen", (p.native_range ? `<p class="origin-line"><b>Origen.</b> ${rich(p.native_range)}</p>` : "") + note(p.history))}
       ${fold("Kalendarium", hasMonths ? monthsBar(p.flower_months, p.fruit_months) + legend : "")}
       ${fold("Esculenta · comestibilidad", note(p.edibility_notes))}
       ${fold("Medicina · usos medicinales", note(p.medicinal_notes))}
       ${fold("Usus · otros usos", note(p.uses))}
-      ${fold("Historia", note(p.history))}
       ${fold("Curiosa", p.curiosity ? `<div class="curio">“${rich(p.curiosity)}”</div>` : "")}
       ${fold("Notae · mis notas", note(p.notes))}
+      ${fold(`Hallazgos · ${1 + (p.sightings?.length || 0)}`, findsTable(p))}
     </div>
     <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, confirmalo con alguien que sepa.</div>
     <div class="row" style="margin-top:18px">
       ${!p.user_id || p.user_id === user.id ? `<button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
       <button class="btn ghost" id="del">Arrancar la lámina</button>` : `<p class="muted" style="text-align:center;width:100%">Solo ${esc(p.author_name || "quien la cargó")} puede editar esta lámina.</p>`}
     </div>
-    ${findsTable(p)}
     <div class="row pager">
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
