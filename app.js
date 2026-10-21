@@ -132,7 +132,7 @@ function route() {
   $nav.hidden = false;
   document.body.classList.remove("onboarding");
   checkAchievements();
-  if (cfg.tourPending && (view === "list" || !view)) setTimeout(() => cfg.tourPending && !document.querySelector(".tour") && startTour(), 700);
+  if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
@@ -729,19 +729,26 @@ function openShareInfo() {
 }
 
 // ---------- tutorial: enfoca cada sección y explica para qué sirve ----------
+// Cada paso dice en qué pantalla se muestra: el tutorial va cambiando de página y al final vuelve al herbario.
 const TOUR = [
-  ["#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
-  [".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
-  [".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Debajo aparecen filtros por tipo de planta."],
-  [".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola."],
-  ['.bottom [data-go="cal"]', "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
-  ['.bottom [data-go="stats"]', "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
-  ['.bottom [data-go="settings"]', "Ajustes", "Tema, invitar a otras personas a tu herbario y el resto de las opciones."],
+  ["list", "#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
+  ["list", ".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
+  ["list", ".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Debajo aparecen filtros por tipo de planta."],
+  ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola."],
+  ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
+  ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
+  ["settings", "#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
 ];
+const currentView = () => location.hash.slice(1).split("/")[0] || "list";
+// Espera a que la pantalla pinte el elemento (las páginas se dibujan de forma asíncrona).
+const waitFor = async (sel, ms = 2500) => {
+  for (let t = 0; t < ms; t += 100) { const el = document.querySelector(sel); if (el && el.offsetParent !== null) return el; await new Promise((r) => setTimeout(r, 100)); }
+  return null;
+};
 function startTour() {
-  const steps = TOUR.filter(([sel]) => { const el = document.querySelector(sel); return el && el.offsetParent !== null; });
-  if (!steps.length) return;
-  let i = 0;
+  if (document.querySelector(".tour")) return;
+  const steps = [...TOUR];
+  let i = 0, busy = false;
   const ov = document.createElement("div");
   ov.className = "tour";
   ov.innerHTML = `<div class="tour-hole"></div><div class="tour-card"><small></small><b></b><p></p><div class="tour-dots"></div>
@@ -749,29 +756,36 @@ function startTour() {
   document.body.appendChild(ov);
   const hole = ov.querySelector(".tour-hole"), card = ov.querySelector(".tour-card");
   const place = () => {
-    const el = document.querySelector(steps[i][0]); if (!el) return;
+    const el = document.querySelector(steps[i][1]); if (!el) return;
     const r = el.getBoundingClientRect(), pad = 8;
     Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
     const below = r.top < innerHeight / 2;
     card.style.top = below ? r.bottom + pad + 14 + "px" : "auto";
     card.style.bottom = below ? "auto" : innerHeight - r.top + pad + 14 + "px";
   };
-  const show = () => {
-    const [sel, t, d] = steps[i];
-    const el = document.querySelector(sel);
-    if (el && !el.closest(".bottom")) el.scrollIntoView({ block: "center" });
+  const show = async () => {
+    if (busy) return; busy = true;
     card.classList.add("out");
-    setTimeout(() => {
-      card.querySelector("small").textContent = `${i + 1} de ${steps.length}`;
-      card.querySelector("b").textContent = t; card.querySelector("p").textContent = d;
-      card.querySelector(".tour-dots").innerHTML = steps.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("");
-      card.querySelector("[data-next]").textContent = i === steps.length - 1 ? "Empezar" : "Siguiente";
-      place(); card.classList.remove("out");
-    }, 180);
+    const [view, sel, t, d] = steps[i];
+    const here = currentView() === view;
+    if (!here) go(view);
+    const el = await waitFor(sel, here ? 700 : 2500); // en la misma pantalla no hace falta esperar tanto
+    if (!el) { busy = false; steps.splice(i, 1); return i < steps.length ? show() : end(); } // paso sin elemento en esta pantalla: se salta
+    if (!el.closest(".bottom")) el.scrollIntoView({ block: "center" });
+    await new Promise((r) => setTimeout(r, 180));
+    card.querySelector("small").textContent = `${i + 1} de ${steps.length}`;
+    card.querySelector("b").textContent = t; card.querySelector("p").textContent = d;
+    card.querySelector(".tour-dots").innerHTML = steps.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("");
+    card.querySelector("[data-next]").textContent = i === steps.length - 1 ? "Empezar" : "Siguiente";
+    place(); card.classList.remove("out"); busy = false;
   };
-  const end = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 250); cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place); };
+  const end = () => {
+    ov.classList.add("out"); setTimeout(() => ov.remove(), 250);
+    cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place);
+    if (currentView() !== "list") go("list");
+  };
   ov.querySelector("[data-skip]").onclick = end;
-  ov.querySelector("[data-next]").onclick = () => (i < steps.length - 1 ? (i++, show()) : end());
+  ov.querySelector("[data-next]").onclick = () => (busy ? null : i < steps.length - 1 ? (i++, show()) : end());
   addEventListener("resize", place);
   show();
 }
