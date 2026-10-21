@@ -379,7 +379,7 @@ function renderSettings() {
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}</p>
-      <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button><button class="btn ghost" id="switchbook">Cambiar de herbario</button></div>
+      <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
@@ -411,6 +411,7 @@ function renderSettings() {
     try { localStorage.removeItem(ACH_KEY); } catch {}
     location.replace(SITE_URL());
   });
+  $app.querySelector("#leavebook")?.addEventListener("click", openLeave);
   bindIucnBatch();
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
@@ -592,8 +593,48 @@ function openWhyAI() {
     <p><b>Montarlo por nuestra cuenta costaría mucho:</b> servidores, modelos y una base de datos gigante. Usar la IA que ya tenés en el celular lo resuelve rápido y gratis.</p>
     <p><b>No necesitás pagar nada.</b> Las versiones gratuitas de ChatGPT, Claude o Gemini alcanzan. Lo único: tienen un límite de imágenes por día, que para un paseo normal sobra.</p></div>`;
   const close = () => m.remove();
-  m.onclick = (e) => e.target === m && close();
+  m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+}
+
+// Salir de un herbario ajeno: borra tu cuenta en esa nube (para volver hace falta otra invitación)
+// y te deja elegir si tus láminas se quedan (pasan al dueño, con tu firma) o te las llevás (se borran).
+function openLeave() {
+  const who = cfg.joinedFrom ? esc(cfg.joinedFrom) : "quien lo creó";
+  const mine = plants.filter((p) => p.user_id === user.id);
+  const shared = mine.filter((p) => (p.sightings || []).some((s) => s.user_id !== user.id));
+  const n = (k) => `${k} lámina${k === 1 ? "" : "s"}`;
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Salir de este herbario</h3>
+    <p>Vas a dejar ${cfg.joinedFrom ? "el herbario de " + who : "este herbario"}. <b>Para volver a entrar vas a tener que pedirle a ${who} que te invite de nuevo.</b></p>
+    ${mine.length ? `<p>¿Qué hacemos con tus ${n(mine.length)}?</p>
+      <label class="toggle"><input type="radio" name="take" value="0" checked> <span><b>Dejarlas en el herbario.</b> Siguen firmadas con tu nombre y quedan al cuidado de ${who}.</span></label>
+      <label class="toggle"><input type="radio" name="take" value="1"> <span><b>Llevármelas.</b> Se borran del herbario con sus fotos y no se pueden recuperar.${shared.length ? ` ${shared.length === 1 ? "La que también encontró otra persona se queda" : `Las ${shared.length} que también encontraron otras personas se quedan`}, para no borrar sus hallazgos.` : ""}</span></label>` : ""}
+    <p class="muted">Lo que encontraste en láminas de otros se queda en el herbario.</p>
+    <div class="row" style="margin-top:18px"><button class="btn ghost" id="lv-no">Cancelar</button><button class="btn primary" id="lv-yes">Salir</button></div></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelector("#lv-no").onclick = close;
+  const yes = m.querySelector("#lv-yes");
+  m.querySelectorAll("[name=take]").forEach((r) => (r.onchange = () => (yes.textContent = r.value === "1" && r.checked ? "Salir y borrar mis láminas" : "Salir")));
+  yes.onclick = async () => {
+    const take = m.querySelector("[name=take]:checked")?.value === "1";
+    yes.disabled = true; yes.textContent = "Saliendo…";
+    const gone = take ? mine.filter((p) => !shared.includes(p)) : [];
+    const { error } = await sb.rpc("leave_herbarium", { take_mine: take });
+    if (error) { yes.disabled = false; yes.textContent = "Salir"; return toast("No se pudo salir: " + error.message); }
+    // Las fotos de las láminas borradas se limpian al final: si falla, solo quedan archivos sueltos.
+    const files = gone.flatMap((p) => [...(p.photos || []), ...(p.sightings || []).flatMap((s) => s.photos || [])]);
+    if (files.length) try { await sb.storage.from(BUCKET).remove(files); } catch {}
+    try { await sb.auth.signOut(); } catch {}
+    cfg = { ...cfg, sbUrl: "", sbKey: "", onboarded: false, joinedFrom: null }; saveCfg(cfg);
+    try { localStorage.removeItem(ACH_KEY); } catch {}
+    location.replace(SITE_URL());
+  };
   document.body.appendChild(m);
 }
 
@@ -607,7 +648,7 @@ function openShareInfo() {
     <p><b>Crear tu herbario</b> es empezar tu propio libro, en tu propia nube gratuita. Después podés invitar a quien quieras.</p>
     <p class="muted">Podés cambiar de herbario más adelante desde Ajustes, pero las láminas quedan en el herbario donde las publicaste: si te cambiás, dejás de verlas.</p></div>`;
   const close = () => m.remove();
-  m.onclick = (e) => e.target === m && close();
+  m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   document.body.appendChild(m);
 }

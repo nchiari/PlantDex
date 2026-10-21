@@ -111,3 +111,25 @@ language sql stable security definer set search_path = '' as $$
 $$;
 revoke all on function public.is_owner() from public, anon;
 grant execute on function public.is_owner() to authenticated;
+
+-- v11: salir del herbario (solo invitados). Borra la cuenta de quien sale; si elige llevarse sus láminas, se borran
+-- las que nadie más encontró. Las demás láminas y sus hallazgos pasan al dueño, con su firma intacta.
+create or replace function public.leave_herbarium(take_mine boolean default false) returns void
+language plpgsql security definer set search_path = '' as $$
+declare me uuid := auth.uid(); boss uuid; base int;
+begin
+  if me is null then raise exception 'sin sesión'; end if;
+  select id into boss from auth.users order by created_at asc limit 1;
+  if me = boss then raise exception 'el dueño no puede salir de su propio herbario'; end if;
+  if take_mine then
+    delete from public.plants p where p.user_id = me
+      and not exists (select 1 from public.sightings s where s.plant_id = p.id and s.user_id <> me);
+  end if;
+  select coalesce(max(number), 0) into base from public.plants where user_id = boss;
+  update public.plants p set user_id = boss, number = base + r.rn
+    from (select id, row_number() over (order by number) as rn from public.plants where user_id = me) r where p.id = r.id;
+  update public.sightings set user_id = boss where user_id = me;
+  delete from auth.users where id = me;
+end $$;
+revoke all on function public.leave_herbarium(boolean) from public, anon;
+grant execute on function public.leave_herbarium(boolean) to authenticated;
