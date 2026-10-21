@@ -771,19 +771,3 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .stamp-seal .stamp-mark { inset: 25%; width: 50%; height: 50%; color: #f3eedb; }
 .stamp-ink { border-color: #9fbf86; }
 @media (prefers-reduced-motion: reduce) { .stamp-seal, .stamp-ink, .stamp-l, .stamp-n { animation: none; } .stamp-ink { display: none; } }
-/* misiones de exploración */
-.mission { display: flex; gap: 14px; align-items: center; margin: 14px 0 18px; padding: 12px 14px; background: var(--parchment-2);
-  border: 1px solid rgb(var(--line) / .25); box-shadow: inset 0 0 0 3px var(--parchment-2), inset 0 0 0 4px rgb(var(--line) / .12); }
-.mission img { flex: none; width: 64px; height: 80px; object-fit: cover; border-radius: 99px 99px 2px 2px; border: 1px solid rgb(var(--line) / .35); }
-.ms-txt { display: flex; flex-direction: column; min-width: 0; }
-.ms-txt small { font: 600 9.5px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gold); }
-.ms-txt b { font: 500 19px/1.2 var(--text); color: var(--ink); margin-top: 2px; }
-.ms-txt i { font-size: 15px; color: var(--ink-soft); }
-.ms-meta { font-size: 14px; color: var(--ink-soft); margin-top: 3px; }
-.ms-links { display: flex; flex-wrap: wrap; gap: 0 14px; margin-top: 4px; }
-.ms-links a, .ms-links .linkish { font: italic 15px var(--text); color: var(--leaf); margin: 0; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(var(--line) / .35); }
-.ms-hint { margin: 12px 0 16px; font: italic 15.5px/1.5 var(--text); color: var(--ink-soft); }
-.ms-hint .linkish { margin: 0; padding: 0; font-size: inherit; }
-.zone-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgb(var(--line) / .2); }
-.zone-row .linkish { margin: 0; padding: 0; flex: none; }
-.zone-note { font-size: 14px; margin: 6px 0 0; }
