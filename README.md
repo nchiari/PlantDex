@@ -28,7 +28,7 @@ Cada persona usa **su propia nube gratuita (Supabase)**: nadie comparte datos ni
   - **A mano**.
 - Cada planta es una lámina ordenada alfabéticamente, con tipos, estado de conservación (UICN) y si es comestible o tóxica.
 - **Kalendarium**: qué florece y qué fruto se puede recolectar cada mes, empezando por el mes actual.
-- **Progressus**: estadísticas, familias más vistas e insignias.
+- **Progressus**: estadísticas y **63 logros** en 14 categorías, con aviso al desbloquear cada uno.
 - En Ajustes: tema **claro, oscuro o automático**, filtro de grabado en las fotos y láminas antiguas.
 - **Enlace de configuración** (Ajustes): abrilo en otro celular o navegador y la app queda conectada a tu herbario; solo pide el email.
 - En ⚙ podés exportar un backup en JSON.

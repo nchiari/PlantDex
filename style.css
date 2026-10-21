@@ -566,3 +566,31 @@ h3 { margin-top: 40px; margin-bottom: 16px; }
 .fold summary { padding: 18px 2px; }
 .fold-body { padding-bottom: 24px; }
 .disclaimer { margin-top: 34px; padding-top: 18px; }
+
+/* ---------- logros ---------- */
+.ach-total { margin: 20px 0 4px; font: 600 12px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-soft); }
+.ach-total b { font: 600 26px var(--caps); color: var(--gold); letter-spacing: 0; }
+.ach-prog { height: 5px; border-radius: 99px; background: rgb(var(--line) / .12); overflow: hidden; margin: 8px auto 0; max-width: 110px; }
+.ach-prog.big { height: 7px; max-width: none; margin-top: 8px; }
+.ach-prog i { display: block; height: 100%; background: var(--gold); border-radius: 99px; }
+.ach-num { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.cat-count { font: 600 11px var(--caps); color: var(--ink-soft); letter-spacing: 1px; margin-left: 4px; }
+/* niveles: 1 verde, 2 dorado, 3 épico (oscuro con dorado) */
+.badge.tier-1 .e { background: var(--deep-leaf); }
+.badge.tier-2 .e { background: #8a7433; box-shadow: 0 0 0 3px var(--parchment), 0 0 0 4px var(--gold); }
+.badge.tier-3 .e { background: var(--deep); box-shadow: 0 0 0 3px var(--parchment), 0 0 0 4px var(--gold), 0 0 14px #d6ba6c55; }
+.badge.locked .e { background: var(--parchment-3) !important; box-shadow: 0 0 0 3px var(--parchment), 0 0 0 4px rgb(var(--line) / .2) !important; }
+/* aviso de logro: sube desde abajo, se va solo a los 5 segundos, con X */
+.ach-toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 70; width: min(92vw, 420px);
+  transform: translate(-50%, 140%); opacity: 0; transition: transform .35s cubic-bezier(.2,.9,.3,1.2), opacity .3s;
+  display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 12px; cursor: pointer;
+  background: var(--parchment-2); color: var(--ink); border: 1px solid var(--gold); box-shadow: 0 10px 30px #0004, inset 0 0 0 3px var(--parchment-2), inset 0 0 0 4px rgb(var(--line) / .15); }
+.ach-toast.show { transform: translate(-50%, 0); opacity: 1; }
+.ach-medal { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--gold-soft); background: var(--deep-leaf); box-shadow: 0 0 0 2px var(--parchment-2), 0 0 0 3px var(--gold); }
+.ach-toast.tier-2 .ach-medal { background: #8a7433; } .ach-toast.tier-3 .ach-medal { background: var(--deep); }
+.ach-medal svg { width: 24px; height: 24px; --leaf-vein: var(--deep-leaf); }
+.ach-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.ach-txt small { font: 600 9.5px var(--caps); letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold); }
+.ach-txt b { font: 600 15px var(--caps); letter-spacing: .8px; margin-top: 2px; }
+.ach-txt i { font-size: 14.5px; color: var(--ink-soft); }
+.ach-x { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgb(var(--line) / .25); background: none; color: var(--ink-soft); font-size: 19px; line-height: 1; cursor: pointer; align-self: flex-start; }

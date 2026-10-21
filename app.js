@@ -103,6 +103,7 @@ function route() {
   if (view === "settings") return renderSettings();
   if (!user) return renderLogin();
   $nav.hidden = false;
+  checkAchievements();
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -1092,37 +1093,160 @@ function renderCalendar() {
 }
 
 // ---------- progreso ----------
+// ---------- logros ----------
+// Todo se calcula con los datos de las láminas: funciona igual en cualquier dispositivo.
+function achStats() {
+  const P = plants, has = (p, t) => p.types?.includes(t), uses = (p) => Object.keys(p.parts || {});
+  const kind = (p) => plain(p.kind);
+  const set = (f) => new Set(P.map(f).filter(Boolean));
+  const byDay = {}; P.forEach((p) => p.found_at && (byDay[p.found_at] = (byDay[p.found_at] || 0) + 1));
+  const months = set((p) => p.found_at?.slice(5, 7));
+  const season = (m) => ({ 12: "inv", 1: "inv", 2: "inv", 3: "pri", 4: "pri", 5: "pri", 6: "ver", 7: "ver", 8: "ver", 9: "oto", 10: "oto", 11: "oto" })[+m];
+  const dates = P.map((p) => p.found_at).filter(Boolean).sort();
+  const span = dates.length > 1 ? (new Date(dates.at(-1)) - new Date(dates[0])) / 864e5 : 0;
+  const genus = {}; P.forEach((p) => { const g = (p.scientific_name || "").split(" ")[0]; if (g) genus[g] = (genus[g] || 0) + 1; });
+  const country = (p) => (p.location_name || "").split(",").map((x) => x.trim()).filter(Boolean).at(-1);
+  const photos = P.reduce((a, p) => a + (p.photos?.length || 0), 0);
+  const c = (f) => P.filter(f).length;
+  return {
+    n: P.length, families: set((p) => p.family).size, edible: c((p) => ["si", "parcial"].includes(p.edible_human) || uses(p).includes("comer")),
+    medicinal: c((p) => has(p, "medicinal") || uses(p).includes("medicina")), toxic: c((p) => has(p, "toxica") || uses(p).includes("toxica")),
+    other: c((p) => uses(p).includes("otro")), maxUses: Math.max(0, ...P.map((p) => uses(p).length)),
+    vu: c((p) => ["VU", "EN", "CR", "EW"].includes(p.iucn)), en: c((p) => ["EN", "CR", "EW"].includes(p.iucn)), cr: c((p) => ["CR", "EW"].includes(p.iucn)),
+    lc: c((p) => p.iucn === "LC"), ne: c((p) => ["NE", "DD"].includes(p.iucn)),
+    tree: c((p) => kind(p) === "arbol" || has(p, "arbol")), shrub: c((p) => kind(p) === "arbusto" || has(p, "arbusto")),
+    herb: c((p) => kind(p) === "hierba" || has(p, "hierba")), vine: c((p) => kind(p) === "trepadora" || has(p, "trepadora")),
+    fungi: c((p) => kind(p) === "hongo" || has(p, "hongo")),
+    aromatic: c((p) => has(p, "aromatica")), flower: c((p) => has(p, "flor")), fruit: c((p) => has(p, "frutal")),
+    aquatic: c((p) => has(p, "acuatica")), invasive: c((p) => has(p, "invasora")), ornamental: c((p) => has(p, "ornamental")),
+    seasons: new Set([...months].map(season)).size, months: months.size, winter: c((p) => ["12", "01", "02"].includes(p.found_at?.slice(5, 7))),
+    sameDay: Math.max(0, ...Object.values(byDay)), span, sameGenus: Math.max(0, ...Object.values(genus)),
+    places: set((p) => p.location_name?.split(",")[0]?.trim()).size, countries: set(country).size,
+    hemis: set((p) => (p.lat == null ? null : p.lat >= 0 ? "N" : "S")).size, geo: c((p) => p.lat != null),
+    origins: set((p) => p.origin).size, letters: set((p) => plain(p.common_name).charAt(0)).size,
+    photos, maxPhotos: Math.max(0, ...P.map((p) => p.photos?.length || 0)), notes: c((p) => (p.notes || "").trim().length > 10),
+  };
+}
+// [id, categoría, icono, nombre, descripción, nivel 1-3, valor, meta]
+const ACH = [
+  ["n1", "Colección", "f-herb", "Primer brote", "Asentá tu primera lámina", 1, "n", 1],
+  ["n5", "Colección", "f-herb", "Semillero", "5 láminas", 1, "n", 5],
+  ["n10", "Colección", "i-book", "Herborista", "10 láminas", 1, "n", 10],
+  ["n25", "Colección", "i-book", "Cuaderno lleno", "25 láminas", 2, "n", 25],
+  ["n50", "Colección", "f-tree", "Hortus conclusus", "50 láminas", 2, "n", 50],
+  ["n100", "Colección", "f-tree", "Centuria", "100 láminas", 3, "n", 100],
+  ["n200", "Colección", "i-laurel", "Linneo moderno", "200 láminas", 3, "n", 200],
+  ["f3", "Taxonomía", "f-family", "Parentela", "3 familias distintas", 1, "families", 3],
+  ["f5", "Taxonomía", "f-family", "Árbol genealógico", "5 familias distintas", 1, "families", 5],
+  ["f10", "Taxonomía", "f-family", "Taxónomo", "10 familias distintas", 2, "families", 10],
+  ["f20", "Taxonomía", "f-family", "Sistemático", "20 familias distintas", 2, "families", 20],
+  ["f40", "Taxonomía", "f-family", "Gran clasificador", "40 familias distintas", 3, "families", 40],
+  ["g3", "Taxonomía", "f-family", "Primos hermanos", "3 especies del mismo género", 2, "sameGenus", 3],
+  ["e1", "Despensa", "u-comer", "Primer bocado", "Una planta comestible", 1, "edible", 1],
+  ["e5", "Despensa", "u-comer", "Recolector", "5 comestibles", 1, "edible", 5],
+  ["e15", "Despensa", "u-comer", "Despensa silvestre", "15 comestibles", 2, "edible", 15],
+  ["e30", "Despensa", "u-comer", "Chef del monte", "30 comestibles", 3, "edible", 30],
+  ["m1", "Botica", "u-medicina", "Remedio de la abuela", "Una planta medicinal", 1, "medicinal", 1],
+  ["m5", "Botica", "u-medicina", "Boticario", "5 medicinales", 2, "medicinal", 5],
+  ["m15", "Botica", "u-medicina", "Herbolario mayor", "15 medicinales", 3, "medicinal", 15],
+  ["t1", "Venenos", "f-skull", "Ojo con esa", "Una planta tóxica", 1, "toxic", 1],
+  ["t3", "Venenos", "f-skull", "Prudente", "3 tóxicas identificadas", 1, "toxic", 3],
+  ["t10", "Venenos", "f-skull", "Envenenador retirado", "10 tóxicas identificadas", 3, "toxic", 10],
+  ["o10", "Oficios", "u-otro", "Artesano", "10 plantas con otros usos", 2, "other", 10],
+  ["u3", "Oficios", "u-otro", "Navaja suiza", "Una planta con 3 tipos de uso", 2, "maxUses", 3],
+  ["c1", "Conservación", "f-leaf", "Hallazgo notable", "Una especie vulnerable o más", 2, "vu", 1],
+  ["c2", "Conservación", "f-leaf", "Joya escondida", "Una especie en peligro", 3, "en", 1],
+  ["c3", "Conservación", "f-leaf", "Leyenda viva", "Una especie en peligro crítico", 3, "cr", 1],
+  ["c4", "Conservación", "f-leaf", "Lo común también cuenta", "10 especies de preocupación menor", 1, "lc", 10],
+  ["c5", "Conservación", "f-question", "Terra incognita", "Una especie que la UICN no evaluó", 1, "ne", 1],
+  ["k1", "Porte", "f-tree", "Bosquecillo", "5 árboles", 1, "tree", 5],
+  ["k2", "Porte", "f-shrub", "Matorral", "5 arbustos", 1, "shrub", 5],
+  ["k3", "Porte", "f-herb", "Pradera", "10 hierbas", 1, "herb", 10],
+  ["k4", "Porte", "f-vine", "Escaladora", "Una trepadora", 1, "vine", 1],
+  ["k5", "Porte", "f-mushroom", "Micólogo", "Un hongo", 2, "fungi", 1],
+  ["k6", "Porte", "f-mushroom", "Reino Fungi", "5 hongos", 3, "fungi", 5],
+  ["y1", "Rasgos", "f-flower", "Nariz fina", "3 aromáticas", 1, "aromatic", 3],
+  ["y2", "Rasgos", "f-flower", "Ramillete", "10 plantas con flor", 2, "flower", 10],
+  ["y3", "Rasgos", "f-fruit", "Huerto silvestre", "5 frutales", 1, "fruit", 5],
+  ["y4", "Rasgos", "f-leaf", "Pies mojados", "Una planta acuática", 2, "aquatic", 1],
+  ["y5", "Rasgos", "f-skull", "Patrulla invasora", "3 especies invasoras", 2, "invasive", 3],
+  ["y6", "Rasgos", "f-flower", "Paisajista", "5 ornamentales", 1, "ornamental", 5],
+  ["s1", "Estaciones", "i-moon", "Cuatro estaciones", "Hallazgos en las 4 estaciones", 2, "seasons", 4],
+  ["s2", "Estaciones", "i-moon", "Kalendarium completo", "Hallazgos en los 12 meses", 3, "months", 12],
+  ["s3", "Estaciones", "i-moon", "Flor de invierno", "Un hallazgo en pleno invierno", 1, "winter", 1],
+  ["s4", "Estaciones", "f-pin", "Día de campo", "3 plantas el mismo día", 1, "sameDay", 3],
+  ["s5", "Estaciones", "f-pin", "Gran cosecha", "5 plantas el mismo día", 2, "sameDay", 5],
+  ["s6", "Estaciones", "i-moon", "Aniversario", "Un año entre tu primer y tu último hallazgo", 2, "span", 365],
+  ["l1", "Viajes", "f-pin", "Explorador local", "Hallazgos en 3 lugares", 1, "places", 3],
+  ["l2", "Viajes", "f-pin", "Trotamundos", "Hallazgos en 10 lugares", 2, "places", 10],
+  ["l3", "Viajes", "f-globe", "Pasaporte verde", "Hallazgos en 2 países", 2, "countries", 2],
+  ["l4", "Viajes", "f-globe", "Ciudadano del mundo", "Hallazgos en 5 países", 3, "countries", 5],
+  ["l5", "Viajes", "f-globe", "Dos hemisferios", "Hallazgos al norte y al sur del ecuador", 3, "hemis", 2],
+  ["l6", "Viajes", "f-pin", "Cartógrafo", "10 láminas con ubicación", 1, "geo", 10],
+  ["r1", "Orígenes", "f-globe", "Viajeras", "Plantas de 3 regiones de origen", 1, "origins", 3],
+  ["r2", "Orígenes", "f-globe", "Atlas botánico", "Plantas de 6 regiones de origen", 2, "origins", 6],
+  ["a1", "Abecedario", "i-quill", "Primeras letras", "Plantas con 10 iniciales distintas", 1, "letters", 10],
+  ["a2", "Abecedario", "i-quill", "Abecedario verde", "Plantas con 20 iniciales distintas", 3, "letters", 20],
+  ["p1", "Fotografía", "i-camera", "Reportaje", "Una lámina con 4 fotos", 1, "maxPhotos", 4],
+  ["p2", "Fotografía", "i-camera", "Fotógrafo de campo", "50 fotos en total", 2, "photos", 50],
+  ["p3", "Fotografía", "i-camera", "Archivo gráfico", "200 fotos en total", 3, "photos", 200],
+  ["w1", "Cuaderno", "i-quill", "Cuaderno de campo", "Notas propias en 5 láminas", 1, "notes", 5],
+  ["w2", "Cuaderno", "i-quill", "Diario de naturalista", "Notas propias en 20 láminas", 2, "notes", 20],
+];
+const ACH_KEY = "plantdex.ach";
+const achUnlocked = (S = achStats()) => ACH.filter((a) => S[a[6]] >= a[7]).map((a) => a[0]);
+
+// Avisa los logros nuevos. La primera vez en un dispositivo los registra en silencio, sin avalancha de avisos.
+function checkAchievements() {
+  if (!user) return;
+  const now = achUnlocked();
+  let seen = null;
+  try { seen = JSON.parse(localStorage.getItem(ACH_KEY)); } catch {}
+  const fresh = seen ? now.filter((id) => !seen.includes(id)) : [];
+  try { localStorage.setItem(ACH_KEY, JSON.stringify([...new Set([...(seen || []), ...now])])); } catch {}
+  fresh.forEach((id) => achQueue.push(ACH.find((a) => a[0] === id)));
+  if (fresh.length && !achShowing) showNextAch();
+}
+const achQueue = []; let achShowing = false;
+function showNextAch() {
+  const a = achQueue.shift(); if (!a) { achShowing = false; return; }
+  achShowing = true;
+  const el = document.createElement("div");
+  el.className = `ach-toast tier-${a[5]}`;
+  el.innerHTML = `<span class="ach-medal"><svg><use href="#${a[2]}"/></svg></span>
+    <span class="ach-txt"><small>Logro desbloqueado</small><b>${esc(a[3])}</b><i>${esc(a[4])}</i></span>
+    <button class="ach-x" aria-label="Cerrar">×</button>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  const close = () => { if (el._closed) return; el._closed = true; el.classList.remove("show"); setTimeout(() => { el.remove(); showNextAch(); }, 350); };
+  el.querySelector(".ach-x").onclick = (e) => { e.stopPropagation(); close(); };
+  el.onclick = () => { close(); go("stats"); };
+  setTimeout(close, 5000);
+}
+
 function renderStats() {
-  const n = plants.length;
-  const count = (f) => plants.filter(f).length;
-  const families = new Set(plants.map((p) => p.family).filter(Boolean)).size;
-  const edible = count((p) => p.edible_human === "si" || p.edible_human === "parcial");
-  const toxic = count((p) => p.types?.includes("toxica"));
-  const notable = count((p) => ["VU", "EN", "CR", "EW"].includes(p.iucn));
-  const badges = [
-    ["f-herb", "Primer brote", "Asentá tu primera lámina", n >= 1],
-    ["i-book", "Herborista", "10 láminas", n >= 10],
-    ["f-tree", "Hortus conclusus", "50 láminas", n >= 50],
-    ["f-fruit", "Recolector", "5 comestibles", edible >= 5],
-    ["f-skull", "Prudente", "3 plantas tóxicas identificadas", toxic >= 3],
-    ["f-leaf", "Hallazgo notable", "Una especie vulnerable o más amenazada", notable >= 1],
-    ["f-family", "Taxónomo", "10 familias distintas", families >= 10],
-    ["f-mushroom", "Micólogo", "Un hongo", count((p) => p.types?.includes("hongo")) >= 1],
-    ["i-moon", "Cuatro estaciones", "Hallazgos en 4 meses distintos", new Set(plants.map((p) => (p.found_at || "").slice(5, 7)).filter(Boolean)).size >= 4],
-  ];
+  const S = achStats(), n = S.n;
+  const unlocked = new Set(achUnlocked(S));
   const fam = Object.entries(plants.reduce((a, p) => (p.family && (a[p.family] = (a[p.family] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const cats = [...new Set(ACH.map((a) => a[1]))];
+  const pct = Math.round((unlocked.size / ACH.length) * 100);
+  const badge = (a) => { const ok = unlocked.has(a[0]); const cur = Math.min(S[a[6]], a[7]);
+    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[3]}</b>
+      <div class="muted" style="font-size:14px">${a[4]}</div>
+      ${!ok && a[7] > 1 ? `<div class="ach-prog"><i style="width:${(cur / a[7]) * 100}%"></i></div><div class="ach-num">${Math.floor(cur)} / ${a[7]}</div>` : ""}</div>`; };
   $app.innerHTML = `
     <h2>Progressus</h2>
     <p class="muted"><i>Herbarium numquam finitur.</i> El herbario nunca se termina.</p>
     <div class="stat-grid">
       <div class="stat"><b>${n}</b>láminas</div>
-      <div class="stat"><b>${families}</b>familias</div>
-      <div class="stat"><b>${edible}</b>comestibles</div>
-      <div class="stat"><b>${toxic}</b>tóxicas</div>
+      <div class="stat"><b>${S.families}</b>familias</div>
+      <div class="stat"><b>${S.edible}</b>comestibles</div>
+      <div class="stat"><b>${S.toxic}</b>tóxicas</div>
     </div>
+    <div class="ach-total"><div><b>${unlocked.size}</b> de ${ACH.length} logros</div><div class="ach-prog big"><i style="width:${pct}%"></i></div></div>
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
-    <h3>Insignias</h3>
-    <div class="badge-list">${badges.map(([e, t, d, ok]) => `<div class="badge ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${e}"/></svg></div><b>${t}</b><div class="muted" style="font-size:14px">${d}</div></div>`).join("")}</div>`;
+    ${cats.map((cat) => { const list = ACH.filter((a) => a[1] === cat); const got = list.filter((a) => unlocked.has(a[0])).length;
+      return `<h3>${cat} <span class="cat-count">${got}/${list.length}</span></h3><div class="badge-list">${list.map(badge).join("")}</div>`; }).join("")}`;
 }
 
 Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (x ? (draft = x) : clearDraft()) });
