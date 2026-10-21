@@ -754,3 +754,20 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .lg-nova b { position: relative; font: 700 8px var(--caps); letter-spacing: .9px; text-transform: uppercase; color: #3d2c0c; }
 /* después de las secciones desplegables el aviso no lleva otra raya: ya la cierra la última sección */
 .folds + .disclaimer { border-top: 0; padding-top: 0; }
+/* sello que se estampa al asentar una lámina */
+.stamp { position: fixed; inset: 0; z-index: 90; display: grid; place-content: center; justify-items: center; gap: 0;
+  background: rgb(10 15 11 / .55); backdrop-filter: blur(1.5px); animation: fade .2s ease-out; }
+.stamp.out { opacity: 0; transition: opacity .4s; }
+.stamp-seal { position: relative; width: 132px; height: 132px; filter: drop-shadow(0 6px 10px rgb(0 0 0 / .35)); animation: stamp-drop .55s cubic-bezier(.3,1.5,.5,1) both; }
+.stamp-ink { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; margin: -96px 0 0 -66px; border-radius: 50%;
+  border: 3px solid var(--leaf); opacity: 0; animation: stamp-ring .7s ease-out .32s both; }
+.stamp-l { margin: 18px 0 0; font: 600 15px var(--caps); letter-spacing: 4px; text-transform: uppercase; color: #f3eedb;
+  text-shadow: 0 1px 6px rgb(0 0 0 / .5); animation: stamp-text .4s ease-out .42s both; }
+.stamp-n { margin: 4px 0 0; font: italic 22px var(--text); color: #f3eedb; text-shadow: 0 1px 6px rgb(0 0 0 / .5); animation: stamp-text .4s ease-out .5s both; }
+@keyframes stamp-drop { 0% { transform: translateY(-60vh) scale(2.2) rotate(-28deg); opacity: 0; } 55% { opacity: 1; } 75% { transform: translateY(0) scale(.92) rotate(4deg); } 100% { transform: translateY(0) scale(1) rotate(0); } }
+@keyframes stamp-ring { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes stamp-text { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.stamp-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stamp-seal .stamp-mark { inset: 25%; width: 50%; height: 50%; color: #f3eedb; }
+.stamp-ink { border-color: #9fbf86; }
+@media (prefers-reduced-motion: reduce) { .stamp-seal, .stamp-ink, .stamp-l, .stamp-n { animation: none; } .stamp-ink { display: none; } }
