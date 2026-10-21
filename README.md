@@ -2,7 +2,7 @@
 
 Un herbario personal sin límite, con estética de florilegio antiguo. Sacás una foto, la IA te dice qué es, si se come o es tóxica, sus usos y su historia, y queda guardada en tu catálogo en la nube.
 
-Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y fotos, una por persona) y tu chat de IA, ChatGPT o Claude (identificación).
+Todo funciona **gratis**: Cloudflare Pages (hosting), Supabase (base de datos y fotos, una por persona) y tu chat de IA, ChatGPT o Claude (identificación).
 
 ---
 
@@ -10,7 +10,7 @@ Todo funciona **gratis**: GitHub Pages (hosting), Supabase (base de datos y foto
 
 Cada persona usa **su propia nube gratuita (Supabase)**: nadie comparte datos ni cupos.
 
-1. Abrí `https://nchiari.github.io/PlantDex/` en el celular.
+1. Abrí `https://herbalorium.pages.dev/` en el celular.
 2. La primera vez aparece el asistente **Primeros pasos**, que guía todo:
    - crear un proyecto gratis en [supabase.com](https://supabase.com),
    - copiar y correr el código SQL (botón incluido),
