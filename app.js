@@ -740,6 +740,7 @@ const TOUR = [
   ["list", "#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
   ["list", ".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
   ["list", ".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Con Filtrar elegís tipos de planta o quién la encontró, y podés sumar varios."],
+  ["list", "#app .card .pstrip", "Los símbolos", "Dicen el estado de conservación de cada planta y para qué sirve. En «Leyenda», arriba a la derecha, está qué significa cada uno."],
   ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola."],
   ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
   ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
@@ -835,7 +836,7 @@ function renderList() {
   const chipT = (t) => `<span class="chip ${filter.types.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`;
   const chipW = ([w, n]) => `<span class="chip who ${filter.who.includes(w) ? "on" : ""}" data-w="${esc(w)}"><span class="avatar xs">${esc([...w][0].toUpperCase())}</span>${esc(w)} <small>${n}</small></span>`;
   $app.innerHTML = `
-    <div class="entry-head"><h2>Herbarium</h2><span class="sc muted">${plants.length} ${plants.length === 1 ? "lámina" : "láminas"}</span></div>
+    <div class="entry-head"><h2>Herbarium</h2><span class="eh-side"><span class="sc muted">${plants.length} ${plants.length === 1 ? "lámina" : "láminas"}</span>${plants.length ? `<button class="linkish" id="legend">Leyenda</button>` : ""}</span></div>
     ${plants.length ? `<div class="viewsw" role="tablist">
       <button data-v="grid" class="${cfg.view !== "list" ? "on" : ""}">Láminas</button>
       <button data-v="list" class="${cfg.view === "list" ? "on" : ""}">Índice</button>
@@ -859,6 +860,7 @@ function renderList() {
   const toggle = (arr, x) => (arr.includes(x) ? arr.filter((y) => y !== x) : [...arr, x]);
   $app.querySelectorAll(".chip[data-t]").forEach((c) => (c.onclick = () => { filter.types = toggle(filter.types, c.dataset.t); renderList(); }));
   $app.querySelectorAll(".chip[data-w]").forEach((c) => (c.onclick = () => { filter.who = toggle(filter.who, c.dataset.w); renderList(); }));
+  $app.querySelector("#legend")?.addEventListener("click", openLegend);
   $app.querySelector("#filt")?.addEventListener("click", () => { filter.open = !filter.open; renderList(); });
   $app.querySelector("#fclear")?.addEventListener("click", () => { filter.types = []; filter.who = []; renderList(); });
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
@@ -979,6 +981,32 @@ function openIucnInfo(current) {
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   document.addEventListener("keydown", esc_);
+  document.body.appendChild(m);
+}
+
+// Leyenda de los símbolos de las tarjetas, agrupados por familia.
+function openLegend() {
+  const chip = (cls, icon, label) => `<li><span class="pchip ${cls}"><svg><use href="#${icon}"/></svg></span>${label}</li>`;
+  const cons = (code, label) => `<li>${consBadge(code, "cons pc-cons")}${label}</li>`;
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box legend" role="dialog" aria-modal="true" aria-label="Leyenda"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Leyenda</h3>
+    <p class="lg-h">Estado de conservación</p>
+    <p class="lg-note">Cuantos más segmentos tiene el anillo, más amenazada está la especie en el mundo.</p>
+    <ul>${cons("LC", "Preocupación menor")}${cons("NT", "Casi amenazada")}${cons("VU", "Vulnerable")}${cons("EN", "En peligro o peor")}${cons(null, "Sin dato")}</ul>
+    <button class="linkish" id="lg-iucn">Ver todas las categorías</button>
+    <p class="lg-h">Para qué sirve</p>
+    <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}</ul>
+    <p class="lg-h">Si se come</p>
+    <p class="lg-note">Aparece cuando la lámina no tiene cargado para qué sirve.</p>
+    <ul>${chip("eb-ok", "f-edible", "Comestible")}${chip("eb-half", "f-bowl-half", "En parte comestible")}${chip("eb-no", "f-bowl-no", "No se come")}</ul>
+    <p class="lg-h">Nueva</p>
+    <ul><li><span class="lg-nova"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>La subió otra persona y todavía no la abriste.</li></ul></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelector("#lg-iucn").onclick = () => { close(); openIucnInfo(); };
   document.body.appendChild(m);
 }
 

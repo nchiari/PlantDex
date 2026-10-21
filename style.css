@@ -736,3 +736,22 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .card .pstrip .pc-cons.ct-1 { border-color: var(--leaf); }
 .card .pstrip .pc-cons.ct-2 { border-color: #8fa47e; }
 .card .pstrip .pc-cons.ct-3, .card .pstrip .pc-cons.ct-4 { border-color: var(--gold); }
+/* leyenda de símbolos */
+.eh-side { display: flex; flex-direction: column; align-items: flex-end; }
+.eh-side .linkish { margin: 0; padding: 2px 0 0; font-size: 15px; }
+.modal-box.legend .lg-h { margin: 18px 0 4px; font: 600 10px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--leaf); }
+.modal-box.legend h3 + .lg-h { margin-top: 6px; }
+.modal-box.legend .lg-note { margin: 0 0 8px; font-size: 15px; color: var(--ink-soft); }
+.modal-box.legend ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.modal-box.legend li { display: flex; align-items: center; gap: 10px; line-height: 1.25; }
+.modal-box.legend li:has(.lg-nova) { grid-column: 1 / -1; }
+.modal-box.legend .linkish { margin: 8px 0 0; font-size: 15px; }
+.modal-box.legend .pchip, .modal-box.legend .pc-cons { flex: none; width: 26px; height: 26px; }
+.modal-box.legend .pc-cons { position: static; border-radius: 50%; box-shadow: none !important; border: 1px solid rgb(var(--line) / .35); }
+.modal-box.legend .pc-cons:not(.ct-3):not(.ct-4) { background: var(--parchment-2) !important; }
+.modal-box.legend .pc-cons.ct-1 { border-color: var(--leaf); } .modal-box.legend .pc-cons.ct-2 { border-color: #8fa47e; }
+.modal-box.legend .pc-cons.ct-3, .modal-box.legend .pc-cons.ct-4 { border-color: var(--gold); }
+.modal-box.legend .pchip svg { width: 15px; height: 15px; }
+.lg-nova { position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center; transform: rotate(-8deg); }
+.lg-nova svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lg-nova b { position: relative; font: 700 8px var(--caps); letter-spacing: .9px; text-transform: uppercase; color: #3d2c0c; }
