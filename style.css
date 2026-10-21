@@ -594,3 +594,74 @@ h3 { margin-top: 40px; margin-bottom: 16px; }
 .ach-txt b { font: 600 15px var(--caps); letter-spacing: .8px; margin-top: 2px; }
 .ach-txt i { font-size: 14.5px; color: var(--ink-soft); }
 .ach-x { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgb(var(--line) / .25); background: none; color: var(--ink-soft); font-size: 19px; line-height: 1; cursor: pointer; align-self: flex-start; }
+
+/* ---------- bienvenida guiada ---------- */
+body.onboarding .top { display: none; }
+body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padding-bottom: 110px; }
+.ob { min-height: calc(100vh - 140px); display: flex; flex-direction: column; }
+.ob-screen { flex: 1; transition: opacity .28s ease, transform .28s ease; }
+.ob-screen.out { opacity: 0; transform: translateY(10px); }
+.ob-screen:not(.out) { animation: obIn .38s ease both; }
+@keyframes obIn { from { opacity: 0; transform: translateY(10px); } }
+.ob-center { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ob-center .lead { margin: 10px 0 24px; max-width: 30em; }
+.ob-center h2 { margin-top: 18px; }
+.ob-back { align-self: flex-start; }
+.ob-welcome { padding-top: 7vh; }
+.ob-emblem { width: 140px; height: 140px; color: var(--leaf); margin-bottom: 14px; }
+:root[data-theme="dark"] .ob-emblem { color: var(--gold); }
+.ob-emblem.spin { width: 96px; height: 96px; animation: sway 1.6s infinite ease-in-out alternate; }
+.ob-title { font: 700 34px var(--caps); letter-spacing: 4px; margin: 0; color: var(--ink); }
+:root[data-theme="dark"] .ob-title { color: var(--gold-soft); }
+.ob-sub { font: italic 19px var(--text); color: var(--ink-soft); margin: 4px 0 6px; }
+.ob-cta { min-width: 220px; margin-top: 14px; }
+.ob-note { font-size: 15px; margin-top: 12px; }
+.ob-theme { width: 100%; max-width: 420px; }
+.ob-input { font-size: 22px; text-align: center; max-width: 320px; }
+.ob-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 420px; }
+.ob-app { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border: 1px solid rgb(var(--line) / .25); background: var(--parchment-2); text-decoration: none; color: var(--ink); }
+.ob-app span { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font: 700 20px var(--caps); color: var(--gold-soft); background: var(--deep-leaf); }
+.ob-app b { font: 600 12px var(--caps); letter-spacing: 1px; }
+.ob-app small { font-size: 13px; color: var(--ink-soft); font-style: italic; }
+.ob-choices { display: grid; gap: 12px; width: 100%; max-width: 440px; }
+.ob-choice { display: grid; grid-template-columns: 46px 1fr; grid-template-rows: auto auto; column-gap: 14px; text-align: left; align-items: center;
+  padding: 16px 16px; background: var(--parchment-2); color: var(--ink); border: 1px solid rgb(var(--line) / .3); cursor: pointer; font: inherit;
+  box-shadow: inset 0 0 0 4px var(--parchment-2), inset 0 0 0 5px rgb(var(--line) / .12); transition: border-color .15s, transform .15s; }
+.ob-choice:active { transform: scale(.98); }
+.ob-choice:hover { border-color: var(--gold); }
+.ob-choice svg { grid-row: span 2; width: 40px; height: 40px; color: var(--leaf); }
+.ob-choice b { font: 600 14px var(--caps); letter-spacing: 1.2px; }
+.ob-choice span { font-size: 16px; color: var(--ink-soft); line-height: 1.35; margin-top: 2px; }
+.info-btn.inline { display: inline-grid; width: 26px; height: 26px; vertical-align: -6px; margin-left: 4px; }
+.info-btn.inline svg { width: 17px; height: 17px; }
+.ob-invite { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 20px; background: var(--wash); border: 1px solid var(--gold); margin: 14px 0 6px; width: 100%; max-width: 420px; }
+.ob-invite svg { width: 40px; height: 40px; color: var(--leaf); }
+.ob-invite b { font: 600 15px var(--caps); letter-spacing: 1.2px; }
+.ob-invite span { color: var(--ink-soft); }
+.ob-list { text-align: left; width: 100%; max-width: 440px; margin-bottom: 6px; }
+.ob-paste input { min-width: 0; }
+.ob-center details, .ob-center label, .ob-center input:not(.ob-input), .ob-center .row { width: 100%; max-width: 440px; text-align: left; }
+.ob-loading { padding-top: 14vh; }
+.ob-bar { width: 220px; margin-top: 18px; }
+.ob-bar i { width: 0; transition: width 3.2s cubic-bezier(.4,.1,.2,1); }
+.ob-dots { display: flex; justify-content: center; align-items: center; gap: 7px; padding: 26px 0 8px; }
+.ob-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--line) / .18); transition: .25s; }
+.ob-dots i.done { background: var(--leaf-2); }
+.ob-dots i.on { width: 22px; border-radius: 99px; background: var(--gold); }
+.ob-dots span { font: 600 10px var(--caps); letter-spacing: 1.4px; color: var(--ink-soft); margin-left: 8px; text-transform: uppercase; }
+
+/* ---------- tutorial ---------- */
+.tour { position: fixed; inset: 0; z-index: 80; animation: fade .25s ease-out; }
+.tour.out { opacity: 0; transition: opacity .25s; }
+.tour-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgb(8 12 9 / .72), 0 0 0 2px var(--gold); transition: all .35s cubic-bezier(.3,.9,.3,1); pointer-events: none; }
+.tour-card { position: fixed; left: 16px; right: 16px; max-width: 420px; margin: 0 auto; padding: 16px 18px 12px; background: var(--parchment); color: var(--ink);
+  border: 1px solid var(--gold); box-shadow: 0 12px 30px #0006; transition: opacity .18s, transform .18s; }
+.tour-card.out { opacity: 0; transform: translateY(6px); }
+.tour-card small { font: 600 10px var(--caps); letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); }
+.tour-card b { display: block; font: 600 17px var(--caps); letter-spacing: 1px; margin: 4px 0 6px; }
+.tour-card p { margin: 0 0 10px; line-height: 1.5; }
+.tour-dots { display: flex; gap: 6px; margin-bottom: 6px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--line) / .2); }
+.tour-dots i.on { width: 18px; border-radius: 99px; background: var(--gold); }
+.tour-btns { display: flex; justify-content: space-between; gap: 10px; }
+.tour-btns .btn { padding: 10px 14px; flex: none; }

@@ -65,3 +65,25 @@ alter table public.plants add column if not exists parts jsonb default '{}'::jso
 
 -- v7: usos medicinales separados de comestibilidad y otros usos
 alter table public.plants add column if not exists medicinal_notes text;
+
+-- v8: herbario compartible. Todos los usuarios de esta nube ven todas las láminas y fotos;
+-- cada uno crea, edita y borra solo lo suyo. Solo entran quienes des de alta en Authentication → Users.
+alter table public.plants add column if not exists author_name text;
+drop policy if exists "own plants" on public.plants;
+drop policy if exists "read shared" on public.plants;
+drop policy if exists "insert own" on public.plants;
+drop policy if exists "update own" on public.plants;
+drop policy if exists "delete own" on public.plants;
+create policy "read shared" on public.plants for select to authenticated using (true);
+create policy "insert own" on public.plants for insert to authenticated with check (auth.uid() = user_id);
+create policy "update own" on public.plants for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "delete own" on public.plants for delete to authenticated using (auth.uid() = user_id);
+drop policy if exists "own photos" on storage.objects;
+drop policy if exists "read photos" on storage.objects;
+drop policy if exists "write own photos" on storage.objects;
+drop policy if exists "update own photos" on storage.objects;
+drop policy if exists "delete own photos" on storage.objects;
+create policy "read photos" on storage.objects for select to authenticated using (bucket_id = 'plant-photos');
+create policy "write own photos" on storage.objects for insert to authenticated with check (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "update own photos" on storage.objects for update to authenticated using (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "delete own photos" on storage.objects for delete to authenticated using (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);

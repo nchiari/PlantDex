@@ -57,14 +57,22 @@ darkQuery.addEventListener?.("change", () => cfg.theme === "auto" && applyTheme(
 // ?c=<base64url de {u, k}>: la URL del proyecto y su clave publishable (pública por diseño, protegida por RLS).
 const b64u = { enc: (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
   dec: (t) => JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g, "+").replace(/_/g, "/"))))) };
-const shareLink = () => SITE_URL() + "?c=" + b64u.enc({ u: cfg.sbUrl, k: cfg.sbKey });
+const shareLink = () => SITE_URL() + "?c=" + b64u.enc({ u: cfg.sbUrl, k: cfg.sbKey, o: cfg.name || "" });
+let pendingInvite = null; // invitación recibida por alguien que todavía no configuró la app
+const parseInvite = (raw) => {
+  const t = String(raw || "").trim();
+  const c = t.includes("?c=") ? new URL(t, location.href).searchParams.get("c") : t;
+  const { u, k, o } = b64u.dec(c);
+  if (!/^https:\/\/.+\.supabase\.co$/.test(u) || !k) throw new Error("invitación inválida");
+  return { u, k, o: o || "" };
+};
 function readConfigLink() {
   const c = new URLSearchParams(location.search).get("c");
   if (!c) return;
   history.replaceState(null, "", SITE_URL() + location.hash);
   try {
-    const { u, k } = b64u.dec(c);
-    if (!/^https:\/\/.+\.supabase\.co$/.test(u) || !k) throw 0;
+    const { u, k, o } = parseInvite(c);
+    if (!cfg.sbUrl) { pendingInvite = { u, k, o }; return; } // la bienvenida se encarga
     if (cfg.sbUrl === u && cfg.sbKey === k) return;
     if (cfg.sbUrl && !confirm("Este enlace conecta la app a otro herbario. ¿Cambiar?")) return;
     cfg = { ...cfg, sbUrl: u, sbKey: k }; saveCfg(cfg);
@@ -103,7 +111,9 @@ function route() {
   if (view === "settings") return renderSettings();
   if (!user) return renderLogin();
   $nav.hidden = false;
+  document.body.classList.remove("onboarding");
   checkAchievements();
+  if (cfg.tourPending && (view === "list" || !view)) setTimeout(() => cfg.tourPending && !document.querySelector(".tour") && startTour(), 700);
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -339,6 +349,8 @@ function renderSettings() {
     <h3>Supabase · tu nube</h3>
     <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
     <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
+    <h3>Vos</h3>
+    <label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre">
     <h3>Apariencia</h3>
     <label>Tema</label>
     <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
@@ -346,9 +358,15 @@ function renderSettings() {
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
-      <div class="share-box"><h3>Enlace de configuración</h3>
-        <p class="muted" style="margin-top:0">Abrilo en otro celular o navegador y la app queda conectada a este herbario: solo te pide el email. Contiene la dirección de tu nube y su clave pública, no tu contraseña.</p>
-        <button class="btn" id="sharecfg" style="width:100%">Compartir enlace</button></div>
+      <div class="share-box"><h3>Invitar a mi herbario</h3>
+        <p class="muted" style="margin-top:0">Para sumar a alguien (o abrir tu herbario en otro dispositivo):</p>
+        <ol class="setup ob-list">
+          <li><b>Dale de alta su email</b> en tu nube: en Supabase, <i>Authentication → Users → Add user → Create new user</i>, con su email y <i>Auto Confirm User</i> marcado.</li>
+          <li><b>Mandale tu enlace de invitación</b>. Al abrirlo, la app lo guía paso a paso.</li>
+        </ol>
+        <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
+        <p class="muted" style="font-size:14px">El enlace lleva la dirección de tu nube y su clave pública, no tu contraseña. Cada persona entra con su propio email.</p></div>
+      <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button><button class="btn ghost" id="switchbook">Cambiar de herbario</button></div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
 ` : ""}
   `;
@@ -358,12 +376,12 @@ function renderSettings() {
   }));
   $app.querySelector("#sharecfg")?.addEventListener("click", async () => {
     const url = shareLink();
-    try { if (navigator.share) return await navigator.share({ title: "Herbalorium", text: "Mi herbario en Herbalorium", url }); } catch { return; }
+    try { if (navigator.share) return await navigator.share({ title: "Herbalorium", text: `${cfg.name ? cfg.name + " te invita a su" : "Te invito a mi"} herbario en Herbalorium 🌿`, url }); } catch { return; }
     try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copiá este enlace:", url); }
   });
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { ...cfg, sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
+    cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name, sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
@@ -371,6 +389,14 @@ function renderSettings() {
     else go("list");
   };
   $app.querySelector("#logout")?.addEventListener("click", async () => { await sb.auth.signOut(); go("list"); });
+  $app.querySelector("#retour")?.addEventListener("click", () => { cfg.tourPending = true; saveCfg(cfg); go("list"); });
+  $app.querySelector("#switchbook")?.addEventListener("click", async () => {
+    if (!confirm("Vas a salir de este herbario y elegir otro. Tus láminas quedan en este herbario: si te cambiás, dejás de verlas. ¿Seguir?")) return;
+    try { await sb.auth.signOut(); } catch {}
+    cfg = { ...cfg, sbUrl: "", sbKey: "", onboarded: false }; saveCfg(cfg);
+    try { localStorage.removeItem(ACH_KEY); } catch {}
+    location.replace(SITE_URL());
+  });
   bindIucnBatch();
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
@@ -381,13 +407,91 @@ function renderSettings() {
 
 // ---------- primeros pasos: cada persona crea y conecta su propio Supabase ----------
 const SITE_URL = () => location.origin + location.pathname;
+// Bienvenida guiada: tema, IA, nombre, unirse o crear un herbario y conexión. Cada pantalla entra con un fundido.
+const OB = ["welcome", "theme", "ai", "name", "choice", "connect", "loading"];
+let ob = null;
+const AI_APPS = [
+  ["ChatGPT", "https://play.google.com/store/apps/details?id=com.openai.chatgpt", "Ch"],
+  ["Claude", "https://play.google.com/store/apps/details?id=com.anthropic.claude", "Cl"],
+  ["Gemini", "https://play.google.com/store/apps/details?id=com.google.android.apps.bard", "Ge"],
+];
 function renderSetup() {
   $nav.hidden = true;
+  document.body.classList.add("onboarding");
+  if (!ob) ob = { i: 0, path: pendingInvite ? "join" : null, invite: pendingInvite, name: cfg.name || "" };
+  $app.innerHTML = `<div class="ob"><div class="ob-screen" id="obs"></div><div class="ob-dots" id="obdots"></div></div>`;
+  obPaint();
+}
+function obGo(i) {
+  const scr = document.getElementById("obs"); if (!scr) return;
+  scr.classList.add("out");
+  setTimeout(() => { ob.i = i; obPaint(); window.scrollTo(0, 0); }, 260);
+}
+function obPaint() {
+  const scr = document.getElementById("obs"), step = OB[ob.i];
+  document.getElementById("obdots").innerHTML = OB.map((_, k) => `<i class="${k === ob.i ? "on" : k < ob.i ? "done" : ""}"></i>`).join("") + `<span>${ob.i + 1} de ${OB.length}</span>`;
+  const back = ob.i > 0 && step !== "loading" ? `<button class="back ob-back" id="obback">← Atrás</button>` : "";
+  scr.innerHTML = back + (OB_SCREENS[step]() || "");
+  scr.classList.remove("out");
+  scr.querySelector("#obback")?.addEventListener("click", () => obGo(ob.i - 1));
+  OB_BIND[step]?.(scr);
+}
+const OB_SCREENS = {
+  welcome: () => `<div class="ob-center ob-welcome">
+      <svg class="ob-emblem"><use href="#i-emblem"/></svg>
+      <h1 class="ob-title">Herbalorium</h1>
+      <p class="ob-sub">Herbarium vivum</p>
+      <p class="lead">Fotografiá plantas, descubrí qué son y armá tu propio libro de botánica: solo o con amigos.</p>
+      <button class="btn primary" id="obnext">Empezar</button></div>`,
+  theme: () => `<div class="ob-center"><h2>¿Cómo lo preferís?</h2>
+      <p class="lead">Elegí cómo se ve tu herbario. Podés cambiarlo cuando quieras en Ajustes.</p>
+      <div class="theme-pick ob-theme">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
+      <p class="muted ob-note">Automático sigue el tema de tu celular.</p>
+      <button class="btn primary ob-cta" id="obnext">Continuar</button></div>`,
+  ai: () => `<div class="ob-center"><h2>Vas a necesitar una IA</h2>
+      <p class="lead">Herbalorium no tiene inteligencia artificial propia: usa la que ya tengas. Le pasás las fotos con un toque, ella identifica la planta y vos pegás la respuesta. Alcanza con la versión gratis.</p>
+      <div class="ob-apps">${AI_APPS.map(([n, url, l]) => `<a class="ob-app" href="${url}" target="_blank" rel="noopener"><span>${l}</span><b>${n}</b><small>Descargar</small></a>`).join("")}</div>
+      <button class="btn primary ob-cta" id="obnext">Ya tengo una app de IA</button></div>`,
+  name: () => `<div class="ob-center"><h2>¿Cómo te llamás?</h2>
+      <p class="lead">Tu nombre va a aparecer en las láminas que cargues, para que se sepa quién encontró cada planta.</p>
+      <input id="obname" class="ob-input" placeholder="Tu nombre" maxlength="30" autocomplete="given-name" value="${esc(ob.name)}">
+      <button class="btn primary ob-cta" id="obnext" ${ob.name.trim() ? "" : "disabled"}>Continuar</button></div>`,
+  choice: () => `<div class="ob-center"><h2>¿Herbario propio o compartido?</h2>
+      <p class="lead">Podés sumarte al herbario de otra persona o empezar el tuyo. <button class="info-btn inline" id="obinfo" aria-label="Diferencias"><svg><use href="#f-info"/></svg></button></p>
+      <div class="ob-choices">
+        <button class="ob-choice" data-path="join"><svg><use href="#i-book"/></svg><b>Unirme a un herbario</b><span>Alguien ya lo creó y te invitó: vas a ver sus láminas y sumar las tuyas.</span></button>
+        <button class="ob-choice" data-path="new"><svg><use href="#f-herb"/></svg><b>Crear mi herbario</b><span>Empezás de cero, en tu propia nube gratuita. Lleva unos 10 minutos.</span></button>
+      </div></div>`,
+  connect: () => ob.path === "join" ? obJoinHTML() : obNewHTML(),
+  loading: () => `<div class="ob-center ob-loading"><svg class="ob-emblem spin"><use href="#i-emblem"/></svg>
+      <h2 id="obload">Preparando tu herbario…</h2><div class="ach-prog big ob-bar"><i id="obbar"></i></div></div>`,
+};
+function obJoinHTML() {
+  const inv = ob.invite;
+  if (inv) return `<div class="ob-center"><h2>Te invitaron</h2>
+      <div class="ob-invite"><svg><use href="#i-book"/></svg><b>${inv.o ? "El herbario de " + esc(inv.o) : "Un herbario compartido"}</b><span>Vas a ver sus láminas y sumar las tuyas.</span></div>
+      <p class="lead">Asegurate de que ${inv.o ? esc(inv.o) : "quien te invitó"} haya dado de alta <b>tu email</b> en su herbario: si no, no vas a poder entrar.</p>
+      <p class="muted" id="obmsg"></p>
+      <button class="btn primary ob-cta" id="objoin">Unirme</button>
+      <button class="btn ghost" id="obnew">Prefiero crear mi herbario</button></div>`;
+  return `<div class="ob-center"><h2>Unirme a un herbario</h2>
+      <p class="lead">Pedile a quien creó el herbario dos cosas:</p>
+      <ol class="setup ob-list">
+        <li>Su <b>enlace de invitación</b>. Lo encuentra en <i>Ajustes → Invitar a mi herbario</i>.</li>
+        <li>Que dé de alta <b>tu email</b> en su herbario. La app le explica cómo.</li>
+      </ol>
+      <label>Enlace de invitación</label>
+      <div class="row ob-paste"><input id="oblink" placeholder="https://herbalorium.pages.dev/?c=…"><button class="btn" id="obpaste" style="flex:none">Pegar</button></div>
+      <details><summary>O cargá los datos a mano</summary>
+        <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co">
+        <label>Publishable key</label><input id="sbKey" placeholder="sb_publishable_…"></details>
+      <p class="muted" id="obmsg"></p>
+      <button class="btn primary ob-cta" id="objoin">Unirme</button></div>`;
+}
+function obNewHTML() {
   const copyBtn = (id, label) => `<button class="btn" id="${id}" style="flex:none">${label}</button>`;
-  $app.innerHTML = `
-    <div class="empty" style="padding-bottom:6px"><div class="big">${PLANT_ART}</div>
-      <h2>Primeros pasos</h2>
-      <p class="lead">Tu herbario se guarda en tu propia nube gratuita. Se configura una sola vez y lleva unos 10 minutos.</p></div>
+  return `<div class="ob-center"><h2>Crear mi herbario</h2>
+      <p class="lead">Tu herbario vive en tu propia nube gratuita (Supabase). Se configura una sola vez.</p></div>
     <ol class="setup">
       <li><b>Creá tu nube.</b> Entrá a <a href="https://supabase.com/dashboard" target="_blank">supabase.com</a>, creá una cuenta y un proyecto nuevo (plan gratis, región Europa). No hace falta conectar GitHub.</li>
       <li><b>Prepará la base.</b> En tu proyecto andá a <i>SQL Editor → New query</i>, pegá el código y tocá <i>Run</i>.
@@ -397,40 +501,143 @@ function renderSetup() {
       <li><b>Conectá la app.</b> En <i>Project Settings → API Keys</i> (o el botón <i>Connect</i>) copiá la <i>Project URL</i> y la <i>publishable key</i>:
         <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co">
         <label>Publishable key</label><input id="sbKey" placeholder="sb_publishable_…"></li>
-
     </ol>
-    <button class="btn primary" id="connect" style="width:100%;margin-top:6px">Conectar mi herbario</button>
-    <p class="muted" id="setupmsg" style="text-align:center"></p>
-    <p class="muted" style="font-size:15px;text-align:center"><i>Cuando ya hayas entrado con tu email, conviene desactivar en Supabase «Allow new users to sign up» (Authentication → Sign In / Providers → Email) para que nadie más pueda usar tu nube.</i></p>`;
-  const copy = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast("No pude copiar automáticamente"); } };
-  $app.querySelector("#cpurl").onclick = () => copy(SITE_URL(), "Dirección copiada");
-  $app.querySelector("#cpsql").onclick = async () => {
-    try { const r = await fetch("supabase/schema.sql", { cache: "no-store" }); copy(await r.text(), "Código SQL copiado"); }
-    catch { toast("No pude bajar el código SQL"); }
-  };
-  $app.querySelector("#connect").onclick = async (ev) => {
-    const url = v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), key = v("sbKey"), msg = $app.querySelector("#setupmsg");
-    if (!/^https:\/\/.+\.supabase\.co$/.test(url) || !key) return (msg.textContent = "Revisá la Project URL y la key.");
-    ev.currentTarget.disabled = true; msg.textContent = "Probando la conexión…";
-    try {
-      const test = createClient(url, key);
-      const { error } = await test.from("plants").select("id").limit(1);
-      if (error && /relation|does not exist|schema cache/i.test(error.message)) throw new Error("La conexión anda, pero falta el paso 2: correr el código SQL.");
-      if (error && !/permission|JWT|row-level/i.test(error.message)) throw new Error(error.message);
-      cfg = { ...cfg, sbUrl: url, sbKey: key };
+    <p class="muted" id="obmsg" style="text-align:center"></p>
+    <button class="btn primary ob-cta" id="objoin" style="width:100%">Conectar mi herbario</button>
+    <p class="muted" style="font-size:15px;text-align:center"><i>Cuando ya hayas entrado con tu email, desactivá en Supabase «Allow new users to sign up» (Authentication → Sign In / Providers → Email). Así solo entran las personas que vos des de alta.</i></p>`;
+}
+// Prueba que la nube responda y tenga la tabla de láminas.
+async function testConnection(url, key) {
+  const { error } = await createClient(url, key).from("plants").select("id").limit(1);
+  if (error && /relation|does not exist|schema cache/i.test(error.message)) throw new Error("La conexión anda, pero a esa nube le falta el código SQL.");
+  if (error && !/permission|JWT|row-level/i.test(error.message)) throw new Error(error.message);
+}
+const OB_BIND = {
+  welcome: (scr) => { const next = () => ob.i === 0 && obGo(1); scr.querySelector("#obnext").onclick = next; setTimeout(next, 4200); },
+  theme: (scr) => {
+    scr.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
+      cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
+      scr.querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
+    }));
+    scr.querySelector("#obnext").onclick = () => obGo(2);
+  },
+  ai: (scr) => { scr.querySelector("#obnext").onclick = () => obGo(3); },
+  name: (scr) => {
+    const inp = scr.querySelector("#obname"), btn = scr.querySelector("#obnext");
+    inp.oninput = () => { ob.name = inp.value.replace(/\s+/g, " ").trimStart(); btn.disabled = !ob.name.trim(); };
+    inp.onkeydown = (e) => e.key === "Enter" && !btn.disabled && btn.click();
+    btn.onclick = () => { ob.name = ob.name.trim().split(" ")[0]; obGo(ob.invite ? 5 : 4); };
+    setTimeout(() => inp.focus(), 300);
+  },
+  choice: (scr) => {
+    scr.querySelector("#obinfo").onclick = openShareInfo;
+    scr.querySelectorAll(".ob-choice").forEach((b) => (b.onclick = () => { ob.path = b.dataset.path; obGo(5); }));
+  },
+  connect: (scr) => {
+    const msg = scr.querySelector("#obmsg");
+    scr.querySelector("#obnew")?.addEventListener("click", () => { ob.invite = null; ob.path = "new"; obGo(5); });
+    scr.querySelector("#obpaste")?.addEventListener("click", async () => { try { scr.querySelector("#oblink").value = await navigator.clipboard.readText(); } catch { toast("Mantené apretado el campo y elegí «Pegar»"); } });
+    const copy = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast("No pude copiar automáticamente"); } };
+    scr.querySelector("#cpurl")?.addEventListener("click", () => copy(SITE_URL(), "Dirección copiada"));
+    scr.querySelector("#cpsql")?.addEventListener("click", async () => {
+      try { const r = await fetch("supabase/schema.sql", { cache: "no-store" }); copy(await r.text(), "Código SQL copiado"); } catch { toast("No pude bajar el código SQL"); }
+    });
+    scr.querySelector("#objoin").onclick = async (ev) => {
+      let url, key;
+      try {
+        if (ob.invite) ({ u: url, k: key } = ob.invite);
+        else if (scr.querySelector("#oblink")?.value.trim()) ({ u: url, k: key } = parseInvite(scr.querySelector("#oblink").value));
+        else { url = v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""); key = v("sbKey"); }
+      } catch { return (msg.textContent = "Ese enlace de invitación no es válido."); }
+      if (!/^https:\/\/.+\.supabase\.co$/.test(url || "") || !key) return (msg.textContent = ob.path === "join" ? "Pegá el enlace de invitación." : "Revisá la Project URL y la key.");
+      ev.currentTarget.disabled = true; msg.textContent = "Probando la conexión…";
+      try { await testConnection(url, key); ob.conn = { url, key }; obGo(6); }
+      catch (e) { msg.textContent = e.message; ev.currentTarget.disabled = false; }
+    };
+  },
+  loading: () => {
+    const words = ["Preparando tu herbario…", "Afilando la pluma…", "Ordenando las láminas…", "Listo."];
+    const bar = document.getElementById("obbar"), h = document.getElementById("obload");
+    requestAnimationFrame(() => (bar.style.width = "100%"));
+    words.forEach((w, k) => setTimeout(() => h && (h.textContent = w), k * 900));
+    setTimeout(() => {
+      cfg = { ...cfg, sbUrl: ob.conn.url, sbKey: ob.conn.key, name: ob.name.trim(), onboarded: true, tourPending: true, joinedFrom: ob.path === "join" ? (ob.invite?.o || "") : null };
       saveCfg(cfg);
       location.replace(SITE_URL());
-    } catch (e) { msg.textContent = e.message; ev.currentTarget.disabled = false; }
+    }, 3400);
+  },
+};
+// Explica la diferencia entre unirse y crear (y qué pasa si después te cambiás).
+function openShareInfo() {
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Propio o compartido</h3>
+    <p><b>Unirte a un herbario</b> es entrar al libro de otra persona: ves todas sus láminas y las tuyas se suman al mismo libro, con tu nombre. Cada uno edita solo lo que cargó. Hace falta que esa persona te invite.</p>
+    <p><b>Crear tu herbario</b> es empezar tu propio libro, en tu propia nube gratuita. Después podés invitar a quien quieras.</p>
+    <p class="muted">Podés cambiar de herbario más adelante desde Ajustes, pero las láminas quedan en el herbario donde las publicaste: si te cambiás, dejás de verlas.</p></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => e.target === m && close();
+  m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+}
+
+// ---------- tutorial: enfoca cada sección y explica para qué sirve ----------
+const TOUR = [
+  ["#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
+  [".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
+  [".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Debajo aparecen filtros por tipo de planta."],
+  [".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola."],
+  ['.bottom [data-go="cal"]', "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
+  ['.bottom [data-go="stats"]', "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
+  ['.bottom [data-go="settings"]', "Ajustes", "Tema, invitar a otras personas a tu herbario y el resto de las opciones."],
+];
+function startTour() {
+  const steps = TOUR.filter(([sel]) => { const el = document.querySelector(sel); return el && el.offsetParent !== null; });
+  if (!steps.length) return;
+  let i = 0;
+  const ov = document.createElement("div");
+  ov.className = "tour";
+  ov.innerHTML = `<div class="tour-hole"></div><div class="tour-card"><small></small><b></b><p></p><div class="tour-dots"></div>
+    <div class="tour-btns"><button class="btn ghost" data-skip>Saltar</button><button class="btn primary" data-next>Siguiente</button></div></div>`;
+  document.body.appendChild(ov);
+  const hole = ov.querySelector(".tour-hole"), card = ov.querySelector(".tour-card");
+  const place = () => {
+    const el = document.querySelector(steps[i][0]); if (!el) return;
+    const r = el.getBoundingClientRect(), pad = 8;
+    Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
+    const below = r.top < innerHeight / 2;
+    card.style.top = below ? r.bottom + pad + 14 + "px" : "auto";
+    card.style.bottom = below ? "auto" : innerHeight - r.top + pad + 14 + "px";
   };
+  const show = () => {
+    const [sel, t, d] = steps[i];
+    const el = document.querySelector(sel);
+    if (el && !el.closest(".bottom")) el.scrollIntoView({ block: "center" });
+    card.classList.add("out");
+    setTimeout(() => {
+      card.querySelector("small").textContent = `${i + 1} de ${steps.length}`;
+      card.querySelector("b").textContent = t; card.querySelector("p").textContent = d;
+      card.querySelector(".tour-dots").innerHTML = steps.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("");
+      card.querySelector("[data-next]").textContent = i === steps.length - 1 ? "Empezar" : "Siguiente";
+      place(); card.classList.remove("out");
+    }, 180);
+  };
+  const end = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 250); cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place); };
+  ov.querySelector("[data-skip]").onclick = end;
+  ov.querySelector("[data-next]").onclick = () => (i < steps.length - 1 ? (i++, show()) : end());
+  addEventListener("resize", place);
+  show();
 }
 
 function renderLogin() {
   $nav.hidden = true;
+  document.body.classList.remove("onboarding");
   $app.innerHTML = `
     <div class="empty">
       <div class="big">${PLANT_ART}</div>
-      <h2>Herbarium Vivum</h2>
-      <p class="lead"><i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi.</p>
+      <h2>${cfg.name ? "Hola, " + esc(cfg.name) : "Herbarium Vivum"}</h2>
+      <p class="lead">${cfg.onboarded && cfg.joinedFrom != null ? `Último paso: entrá con el email que diste de alta${cfg.joinedFrom ? " con " + esc(cfg.joinedFrom) : ""}.` : cfg.onboarded ? "Último paso: entrá con tu email. Te llega un link para abrir la app." : "<i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi."}</p>
       <label>Tu email</label>
       <input id="email" type="email" placeholder="tu@email.com" style="margin:0 0 22px;text-align:center">
       <button class="btn red" id="send" style="width:100%">Enviar el link</button>
@@ -636,6 +843,7 @@ function factSheet(p) {
     row("f-globe", "Origen", p.origin),
     row("f-flower", "Florece", monthRanges(p.flower_months)),
     row("f-fruit", "Fruto", monthRanges(p.fruit_months)),
+    row("i-quill", "Añadida por", p.author_name),
     row("f-pin", "Hallada", found, p.lat ? ` <a class="maplink" href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>` : ""),
   ].join("");
   return rows ? `<h3>Ficha</h3><dl class="facts2">${rows}</dl>` : "";
@@ -686,8 +894,8 @@ async function renderDetail(id) {
     </div>
     <div class="disclaimer">Una foto puede engañar. Antes de comer algo silvestre, confirmalo con alguien que sepa.</div>
     <div class="row" style="margin-top:18px">
-      <button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
-      <button class="btn ghost" id="del">Arrancar la lámina</button>
+      ${!p.user_id || p.user_id === user.id ? `<button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
+      <button class="btn ghost" id="del">Arrancar la lámina</button>` : `<p class="muted" style="text-align:center;width:100%">Solo ${esc(p.author_name || "quien la cargó")} puede editar esta lámina.</p>`}
     </div>
     <div class="row" style="margin-top:14px">
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
@@ -732,7 +940,7 @@ async function renderDetail(id) {
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
   if (figs.length) showFig(0);
-  $app.querySelector("#del").onclick = async () => {
+  if ($app.querySelector("#del")) $app.querySelector("#del").onclick = async () => {
     if (!confirm(`¿Arrancar la lámina de ${p.common_name}? Se borra para siempre.`)) return;
     if (p.photos?.length) await sb.storage.from(BUCKET).remove(p.photos);
     const { error } = await sb.from("plants").delete().eq("id", p.id);
@@ -1057,7 +1265,8 @@ function renderForm(existing) {
           paths.push(path); urlCache.set(path, f.url);
         }
         row.photos = paths;
-        row.number = Math.max(0, ...plants.map((x) => x.number)) + 1;
+        row.number = Math.max(0, ...plants.filter((x) => x.user_id === user.id).map((x) => x.number)) + 1;
+        row.author_name = cfg.name || null;
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants = sortPlants([...plants, data]);
