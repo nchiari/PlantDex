@@ -533,7 +533,7 @@ async function testConnection(url, key) {
   if (error && !/permission|JWT|row-level/i.test(error.message)) throw new Error(error.message);
 }
 const OB_BIND = {
-  welcome: (scr) => { const next = () => ob.i === 0 && obGo(1); scr.querySelector("#obnext").onclick = next; setTimeout(next, 4200); },
+  welcome: (scr) => { scr.querySelector("#obnext").onclick = () => obGo(1); },
   theme: (scr) => {
     scr.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
       cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
