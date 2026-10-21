@@ -347,6 +347,8 @@ const PLANT_ART = `<svg viewBox="0 0 200 260" fill="none" stroke="currentColor" 
 const EMBLEM = `<svg viewBox="0 0 64 64"><use href="#i-emblem"/></svg>`;
 
 // ---------- vistas ----------
+// Inicial del avatar: primera letra del nombre (o del email), en mayúscula.
+const initialOf = (name) => [...((name || "").trim() || user?.email || "?")][0].toUpperCase();
 function renderSettings() {
   $nav.hidden = !user;
   const owner = !user || amOwner; // sin sesión (configuración inicial) se muestra todo
@@ -354,7 +356,8 @@ function renderSettings() {
   $app.innerHTML = `
     <h2>Ajustes</h2>
     <h3>Vos</h3>
-    <label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre">
+    <label>Tu nombre (aparece en las láminas que cargás)</label>
+    <div class="me-row"><span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
     <h3>Apariencia</h3>
     <label>Tema</label>
     <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
@@ -382,6 +385,7 @@ function renderSettings() {
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
+  $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
     cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
     $app.querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
