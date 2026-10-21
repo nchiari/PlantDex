@@ -87,3 +87,19 @@ create policy "read photos" on storage.objects for select to authenticated using
 create policy "write own photos" on storage.objects for insert to authenticated with check (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "update own photos" on storage.objects for update to authenticated using (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "delete own photos" on storage.objects for delete to authenticated using (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- v9: hallazgos repetidos de una misma especie (otra persona u otra salida) sin duplicar la lámina
+create table if not exists public.sightings (
+  id uuid primary key default gen_random_uuid(),
+  plant_id uuid not null references public.plants on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  author_name text, photos text[] default '{}', found_at date, location_name text,
+  lat double precision, lng double precision, created_at timestamptz default now()
+);
+alter table public.sightings enable row level security;
+drop policy if exists "read sightings" on public.sightings;
+drop policy if exists "insert own sightings" on public.sightings;
+drop policy if exists "delete own sightings" on public.sightings;
+create policy "read sightings" on public.sightings for select to authenticated using (true);
+create policy "insert own sightings" on public.sightings for insert to authenticated with check (auth.uid() = user_id);
+create policy "delete own sightings" on public.sightings for delete to authenticated using (auth.uid() = user_id);

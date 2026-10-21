@@ -129,6 +129,9 @@ async function loadPlants() {
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data);
+  // Hallazgos de la misma especie hechos por otras personas (o por vos en otra salida). Si la tabla no existe, se ignora.
+  const { data: sg } = await sb.from("sightings").select("*").order("created_at");
+  plants.forEach((p) => (p.sightings = (sg || []).filter((x) => x.plant_id === p.id)));
   await signUrls(plants.flatMap((p) => p.photos?.slice(0, 1) || []));
 }
 
@@ -567,6 +570,22 @@ const OB_BIND = {
     }, 3400);
   },
 };
+// Por qué la identificación pasa por una IA.
+function openWhyAI() {
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>¿Por qué usamos IA?</h3>
+    <p><b>Reconocer una planta en una foto no se puede hacer con una simple búsqueda.</b> Hay unas 390.000 especies de plantas conocidas, y para identificarlas a partir de una imagen hace falta un sistema entrenado con millones de fotos: eso es, justamente, una inteligencia artificial.</p>
+    <p><b>Además hay que cruzar datos.</b> La IA mira las fotos, pero también el lugar y la fecha del hallazgo, para descartar plantas que no crecen ahí o que no florecen en esa época.</p>
+    <p><b>Montarlo por nuestra cuenta costaría mucho:</b> servidores, modelos y una base de datos gigante. Usar la IA que ya tenés en el celular lo resuelve rápido y gratis.</p>
+    <p><b>No necesitás pagar nada.</b> Las versiones gratuitas de ChatGPT, Claude o Gemini alcanzan. Lo único: tienen un límite de imágenes por día, que para un paseo normal sobra.</p></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => e.target === m && close();
+  m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+}
+
 // Explica la diferencia entre unirse y crear (y qué pasa si después te cambiás).
 function openShareInfo() {
   const m = document.createElement("div");
@@ -849,15 +868,24 @@ function factSheet(p) {
   return rows ? `<h3>Ficha</h3><dl class="facts2">${rows}</dl>` : "";
 }
 
+// Quién subió esta especie al herbario y cuándo (fecha de subida, no de la foto).
+function findsTable(p) {
+  const fmt = (t) => (t ? new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—");
+  const rows = [{ who: p.author_name, when: p.created_at, first: true }, ...(p.sightings || []).map((x) => ({ who: x.author_name, when: x.created_at }))];
+  return `<div class="finds"><h3>Hallazgos</h3><table><thead><tr><th>Quién</th><th>Subida</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.who || "—")}${r.first ? ' <span class="first">primera</span>' : ""}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
 async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
   if (!p) return go("list");
-  await signUrls(p.photos || []);
+  await signUrls([...(p.photos || []), ...(p.sightings || []).flatMap((x) => x.photos || [])]);
   const ill = cfg.illustrations && p.scientific_name ? await findIllustration(p.scientific_name) : null;
   // Figuras: primero la lámina antigua (si hay), después las fotos propias.
   const figs = [
     ...(ill ? [{ src: ill.url, cap: `Lámina antigua · ${esc(ill.credit)} · <a href="${ill.page}" target="_blank">${esc(ill.license)}</a>`, illu: true }] : []),
     ...(p.photos || []).map((x, i) => ({ src: urlCache.get(x), cap: i === 0 ? "Foto principal" : "Foto de campo", photo: i })).filter((f) => f.src),
+    ...(p.sightings || []).flatMap((x) => (x.photos || []).map((ph) => ({ src: urlCache.get(ph), cap: `Foto de ${esc(x.author_name || "otro hallazgo")}` }))).filter((f) => f.src),
   ];
     // Sección desplegable: se abre/cierra tocando el título.
   const fold = (title, body) => body ? `<details class="fold"><summary><span>${title}</span><svg><use href="#f-chev"/></svg></summary><div class="fold-body">${body}</div></details>` : "";
@@ -900,7 +928,8 @@ async function renderDetail(id) {
     <div class="row" style="margin-top:14px">
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
-    </div>`;
+    </div>
+    ${findsTable(p)}`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
   const showUse = (u) => {
     const it = p.parts?.[u], note = $app.querySelector("#partnote"); if (!it || !note) return;
@@ -1086,7 +1115,7 @@ function renderNew() {
 
   const box = $app.querySelector("#mode");
   if (m === "chat") {
-    box.innerHTML = `
+    box.innerHTML = `<button class="link-btn" id="whyai">¿Por qué usamos IA?</button>
       <ol class="steps">
         <li>Tocá <b>Enviar a la IA</b> y elegí ChatGPT o Claude: se abre con las fotos adjuntas y el prompt ya copiado.</li>
         <li>Pegá el prompt en el chat y enviá.</li>
@@ -1111,6 +1140,7 @@ function renderNew() {
     box.querySelector("#copy").onclick = async () => {
       try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
     };
+    box.querySelector("#whyai").onclick = openWhyAI;
     box.querySelector("#pasteit").onclick = async () => {
       try {
         const t = await navigator.clipboard.readText();
@@ -1257,12 +1287,22 @@ function renderForm(existing) {
         plants = sortPlants(plants.map((x) => (x.id === data.id ? data : x)));
         draft = null; location.hash = "plant/" + data.id;
       } else {
+        const dup = row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
+        if (dup && !confirm(`${dup.common_name} ya está en el herbario${dup.author_name ? " (la subió " + dup.author_name + ")" : ""}. ¿Sumar tu hallazgo y tus fotos a esa lámina en vez de crear otra?`)) { btn.disabled = false; btn.textContent = "Asentar en el herbario"; return; }
         const paths = [];
         for (const f of draft.files) {
           const path = `${user.id}/${crypto.randomUUID()}.jpg`;
           const { error } = await sb.storage.from(BUCKET).upload(path, f.blob, { contentType: "image/jpeg" });
           if (error) throw error;
           paths.push(path); urlCache.set(path, f.url);
+        }
+        if (dup) {
+          const s = { plant_id: dup.id, author_name: cfg.name || null, photos: paths, found_at: row.found_at, location_name: row.location_name, lat: row.lat, lng: row.lng };
+          const { data, error } = await sb.from("sightings").insert(s).select().single();
+          if (error) throw error;
+          (dup.sightings ||= []).push(data);
+          clearDraft(); toast(`Tu hallazgo se sumó a ${dup.common_name}`);
+          location.hash = "plant/" + dup.id; return;
         }
         row.photos = paths;
         row.number = Math.max(0, ...plants.filter((x) => x.user_id === user.id).map((x) => x.number)) + 1;

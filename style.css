@@ -665,3 +665,13 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .tour-dots i.on { width: 18px; border-radius: 99px; background: var(--gold); }
 .tour-btns { display: flex; justify-content: space-between; gap: 10px; }
 .tour-btns .btn { padding: 10px 14px; flex: none; }
+
+/* tabla de hallazgos y enlace «¿Por qué usamos IA?» */
+.finds { margin-top: 44px; opacity: .9; }
+.finds h3 { margin-top: 0; }
+.finds table { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+.finds th { font: 600 9.5px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft); text-align: left; padding: 6px 4px; border-bottom: 1px solid rgb(var(--line) / .25); }
+.finds td { padding: 9px 4px; border-bottom: 1px solid rgb(var(--line) / .12); color: var(--ink); }
+.finds td:last-child, .finds th:last-child { text-align: right; color: var(--ink-soft); }
+.finds .first { font: 600 8.5px var(--caps); letter-spacing: 1px; text-transform: uppercase; color: var(--gold); border: 1px solid currentColor; border-radius: 99px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
+.link-btn { background: none; border: 0; padding: 4px 0 10px; cursor: pointer; font: italic 16px var(--text); color: var(--leaf); text-decoration: underline; text-underline-offset: 3px; display: block; margin: 0 auto 4px; }
