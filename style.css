@@ -676,3 +676,4 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .finds .first { font: 600 8.5px var(--caps); letter-spacing: 1px; text-transform: uppercase; color: var(--gold); border: 1px solid currentColor; border-radius: 99px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
 .link-btn { background: none; border: 0; padding: 4px 0 10px; cursor: pointer; font: italic 16px var(--text); color: var(--leaf); text-decoration: underline; text-underline-offset: 3px; display: block; margin: 0 auto 4px; }
 .owner-db { margin-top: 28px; } .owner-db summary { margin-bottom: 4px; }
+.modal-box.ask .row { margin-top: 20px; }

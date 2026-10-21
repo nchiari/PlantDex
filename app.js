@@ -66,7 +66,7 @@ const parseInvite = (raw) => {
   if (!/^https:\/\/.+\.supabase\.co$/.test(u) || !k) throw new Error("invitación inválida");
   return { u, k, o: o || "" };
 };
-function readConfigLink() {
+async function readConfigLink() {
   const c = new URLSearchParams(location.search).get("c");
   if (!c) return;
   history.replaceState(null, "", SITE_URL() + location.hash);
@@ -74,7 +74,7 @@ function readConfigLink() {
     const { u, k, o } = parseInvite(c);
     if (!cfg.sbUrl) { pendingInvite = { u, k, o }; return; } // la bienvenida se encarga
     if (cfg.sbUrl === u && cfg.sbKey === k) return;
-    if (cfg.sbUrl && !confirm("Este enlace conecta la app a otro herbario. ¿Cambiar?")) return;
+    if (cfg.sbUrl && !(await ask({ title: "Otro herbario", text: `Este enlace te lleva ${o ? "al herbario de " + esc(o) : "a otro herbario"}. Si te cambiás, dejás de ver el actual.`, ok: "Cambiar de herbario", cancel: "Quedarme" }))) return;
     cfg = { ...cfg, sbUrl: u, sbKey: k }; saveCfg(cfg);
     setTimeout(() => toast("Herbario configurado. Entrá con tu email."), 300);
   } catch { setTimeout(() => toast("El enlace de configuración no es válido"), 300); }
@@ -82,7 +82,7 @@ function readConfigLink() {
 
 async function boot() {
   applyTheme();
-  readConfigLink();
+  await readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-settings").onclick = () => go("settings");
   document.getElementById("btn-home").onclick = () => go("list");
@@ -405,7 +405,7 @@ function renderSettings() {
   $app.querySelector("#logout")?.addEventListener("click", async () => { await sb.auth.signOut(); go("list"); });
   $app.querySelector("#retour")?.addEventListener("click", () => { cfg.tourPending = true; saveCfg(cfg); go("list"); });
   $app.querySelector("#switchbook")?.addEventListener("click", async () => {
-    if (!confirm("Vas a salir de este herbario y elegir otro. Tus láminas quedan en este herbario: si te cambiás, dejás de verlas. ¿Seguir?")) return;
+    if (!(await ask({ title: "Cambiar de herbario", text: "Vas a salir de este herbario y elegir otro. Tus láminas se quedan acá: si te cambiás, dejás de verlas.", ok: "Cambiar", cancel: "Quedarme" }))) return;
     try { await sb.auth.signOut(); } catch {}
     cfg = { ...cfg, sbUrl: "", sbKey: "", onboarded: false }; saveCfg(cfg);
     try { localStorage.removeItem(ACH_KEY); } catch {}
@@ -596,6 +596,23 @@ function openWhyAI() {
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   document.body.appendChild(m);
+}
+
+// Pregunta con la estética del herbario (en lugar del cartel del navegador). Resuelve true si acepta.
+function ask({ title, text, ok = "Aceptar", cancel = "Cancelar" }) {
+  return new Promise((res) => {
+    const m = document.createElement("div");
+    m.className = "modal";
+    m.innerHTML = `<div class="modal-box ask" role="alertdialog" aria-modal="true"><h3>${title}</h3><p>${text}</p>
+      <div class="row"><button class="btn ghost" data-a="0">${cancel}</button><button class="btn primary" data-a="1">${ok}</button></div></div>`;
+    const done = (v) => { m.remove(); document.removeEventListener("keydown", key); res(v); };
+    const key = (e) => e.key === "Escape" && done(false);
+    m.onclick = (e) => { if (e.target === m) done(false); };
+    m.querySelectorAll("[data-a]").forEach((b) => (b.onclick = () => done(b.dataset.a === "1")));
+    document.addEventListener("keydown", key);
+    document.body.appendChild(m);
+    m.querySelector("[data-a='1']").focus();
+  });
 }
 
 // Salir de un herbario ajeno: borra tu cuenta en esa nube (para volver hace falta otra invitación)
@@ -1022,7 +1039,7 @@ async function renderDetail(id) {
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
   if (figs.length) showFig(0);
   if ($app.querySelector("#del")) $app.querySelector("#del").onclick = async () => {
-    if (!confirm(`¿Arrancar la lámina de ${p.common_name}? Se borra para siempre.`)) return;
+    if (!(await ask({ title: "Arrancar la lámina", text: `La lámina de <b>${esc(p.common_name)}</b> se borra para siempre, con sus fotos.`, ok: "Arrancarla", cancel: "Dejarla" }))) return;
     if (p.photos?.length) await sb.storage.from(BUCKET).remove(p.photos);
     const { error } = await sb.from("plants").delete().eq("id", p.id);
     if (error) return toast(error.message);
@@ -1330,7 +1347,15 @@ function renderForm(existing) {
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
-    if (!existing && !draft.files.length && !confirm("Esta lámina no tiene fotos. ¿La guardo igual? (Después podés agregarlas al editarla.)")) return;
+    // ¿Ya está esta especie? Si la registraste vos, no se repite; si fue otra persona, tu hallazgo se suma a su lámina.
+    const dup = !existing && row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
+    if (dup && (dup.user_id === user.id || (dup.sightings || []).some((s) => s.user_id === user.id))) {
+      const see = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b> en el herbario${dup.user_id === user.id ? "" : `, en la lámina de ${esc(dup.author_name || "otra persona")}`}. No hace falta asentarla de nuevo.`, ok: "Ver la lámina", cancel: "Volver" });
+      if (see) { clearDraft(); location.hash = "plant/" + dup.id; }
+      return;
+    }
+    if (dup && !(await ask({ title: "Ya está en el herbario", text: `<b>${esc(dup.common_name)}</b> ya la asentó ${esc(dup.author_name || "otra persona")}. Tu hallazgo y tus fotos se suman a esa lámina, con tu nombre, en vez de crear otra igual.`, ok: "Sumar mi hallazgo", cancel: "Volver" }))) return;
+    if (!existing && !draft.files.length && !(await ask({ title: "Sin fotos", text: "Esta lámina no tiene fotos. Podés guardarla igual y agregarlas después, cuando la edites.", ok: "Guardar igual", cancel: "Volver" }))) return;
     btn.disabled = true; btn.textContent = "Entintando…";
     try {
       if (existing) {
@@ -1339,8 +1364,6 @@ function renderForm(existing) {
         plants = sortPlants(plants.map((x) => (x.id === data.id ? data : x)));
         draft = null; location.hash = "plant/" + data.id;
       } else {
-        const dup = row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
-        if (dup && !confirm(`${dup.common_name} ya está en el herbario${dup.author_name ? " (la subió " + dup.author_name + ")" : ""}. ¿Sumar tu hallazgo y tus fotos a esa lámina en vez de crear otra?`)) { btn.disabled = false; btn.textContent = "Asentar en el herbario"; return; }
         const paths = [];
         for (const f of draft.files) {
           const path = `${user.id}/${crypto.randomUUID()}.jpg`;
