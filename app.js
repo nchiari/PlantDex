@@ -668,20 +668,6 @@ function openNews(all = false) {
   document.body.appendChild(m);
 }
 
-// Sello de lacre que se estampa al asentar una lámina o sumar un hallazgo: feedback de "quedó guardado".
-function stampSeal(label, name) {
-  const ov = document.createElement("div");
-  ov.className = "stamp";
-  ov.setAttribute("role", "status");
-  ov.innerHTML = `<div class="stamp-ink"></div><div class="stamp-seal"><svg><use href="#i-seal-blank"/></svg><svg class="stamp-mark"><use href="#i-emblem"/></svg></div>
-    <p class="stamp-l">${esc(label)}</p><p class="stamp-n">${esc(name || "")}</p>`;
-  document.body.appendChild(ov);
-  try { navigator.vibrate?.(18); } catch {}
-  const bye = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 400); };
-  ov.onclick = bye;
-  setTimeout(bye, 1600);
-}
-
 // Pregunta con la estética del herbario (en lugar del cartel del navegador). Resuelve true si acepta.
 function ask({ title, text, ok = "Aceptar", cancel = "Cancelar" }) {
   return new Promise((res) => {
@@ -1581,7 +1567,7 @@ function renderForm(existing) {
           const { data, error } = await sb.from("sightings").insert(s).select().single();
           if (error) throw error;
           (dup.sightings ||= []).push(data);
-          clearDraft(); stampSeal("Hallazgo sumado", dup.common_name);
+          clearDraft(); toast(`Tu hallazgo se sumó a ${dup.common_name}`);
           location.hash = "plant/" + dup.id; return;
         }
         row.photos = paths;
@@ -1590,7 +1576,7 @@ function renderForm(existing) {
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants = sortPlants([...plants, data]);
-        clearDraft(); stampSeal("Asentada", data.common_name);
+        clearDraft(); toast(`${data.common_name} asentada en el herbario`);
         location.hash = "plant/" + data.id;
       }
     } catch (e) {
