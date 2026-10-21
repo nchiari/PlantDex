@@ -687,3 +687,11 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
   padding-top: 2px;
 }
 .avatar.sm { width: 26px; height: 26px; font-size: 13px; padding-top: 1px; box-shadow: inset 0 0 0 2px var(--deep-leaf), inset 0 0 0 3px var(--gold); }
+/* enlace discreto con forma de botón */
+.linkish { background: none; border: 0; padding: 6px 0; margin-top: 14px; font: italic 16px var(--text); color: var(--leaf, var(--ink-soft)); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(var(--line) / .35); cursor: pointer; }
+/* novedades */
+.modal-box.news ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.modal-box.news li { position: relative; padding: 0 0 12px 22px; line-height: 1.45; }
+.modal-box.news li::before { content: "❧"; position: absolute; left: 0; top: 0; color: var(--gold); }
+.modal-box.news .news-date { font: 600 10px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft); margin: 14px 0 4px; }
+.modal-box.news .row { margin-top: 10px; }

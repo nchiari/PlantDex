@@ -84,7 +84,6 @@ async function boot() {
   applyTheme();
   await readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
-  document.getElementById("btn-settings").onclick = () => go("settings");
   document.getElementById("btn-home").onclick = () => go("list");
   $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go === "new" ? openSheet() : go(b.dataset.go))));
   window.addEventListener("hashchange", route);
@@ -114,6 +113,7 @@ function route() {
   document.body.classList.remove("onboarding");
   checkAchievements();
   if (cfg.tourPending && (view === "list" || !view)) setTimeout(() => cfg.tourPending && !document.querySelector(".tour") && startTour(), 700);
+  else if ((cfg.newsSeen || 0) < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -381,7 +381,7 @@ function renderSettings() {
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
-    ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}</p>
+    ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
@@ -416,6 +416,7 @@ function renderSettings() {
     location.replace(SITE_URL());
   });
   $app.querySelector("#leavebook")?.addEventListener("click", openLeave);
+  $app.querySelector("#news")?.addEventListener("click", () => openNews(true));
   bindIucnBatch();
   $app.querySelector("#export")?.addEventListener("click", () => {
     const a = document.createElement("a");
@@ -580,7 +581,7 @@ const OB_BIND = {
     requestAnimationFrame(() => (bar.style.width = "100%"));
     words.forEach((w, k) => setTimeout(() => h && (h.textContent = w), k * 900));
     setTimeout(() => {
-      cfg = { ...cfg, sbUrl: ob.conn.url, sbKey: ob.conn.key, name: ob.name.trim(), onboarded: true, tourPending: true, joinedFrom: ob.path === "join" ? (ob.invite?.o || "") : null };
+      cfg = { ...cfg, sbUrl: ob.conn.url, sbKey: ob.conn.key, name: ob.name.trim(), onboarded: true, tourPending: true, newsSeen: NEWS[0].v, joinedFrom: ob.path === "join" ? (ob.invite?.o || "") : null };
       saveCfg(cfg);
       location.replace(SITE_URL());
     }, 3400);
@@ -599,6 +600,33 @@ function openWhyAI() {
   const close = () => m.remove();
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+}
+
+// ---------- novedades: lo que cambió desde la última vez que entraste ----------
+// La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
+const NEWS = [
+  { v: 1, date: "2026-10-21", items: [
+    "<b>Tu perfil.</b> En Ajustes, tu nombre ahora tiene su medallón con tu inicial.",
+    "<b>Hallazgos.</b> Al final de cada lámina se ve quién encontró esa planta y cuándo.",
+    "<b>Sin láminas repetidas.</b> Si subís una planta que ya está en el herbario, tu hallazgo se suma a esa lámina. Y si ya la tenías, te avisa.",
+    "<b>Historia y origen juntos</b>, para que cada lámina tenga menos secciones que abrir.",
+  ] },
+];
+function openNews(all = false) {
+  const seen = all ? 0 : cfg.newsSeen || 0;
+  const list = NEWS.filter((n) => n.v > seen);
+  const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Novedades del herbario</h3>
+    ${list.map((n) => `${list.length > 1 || all ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
+    <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
+  const close = () => { m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg); };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelector("#news-ok").onclick = close;
   document.body.appendChild(m);
 }
 
@@ -733,7 +761,13 @@ function renderLogin() {
       <label>Tu email</label>
       <input id="email" type="email" placeholder="tu@email.com" style="margin:0 0 22px;text-align:center">
       <button class="btn red" id="send" style="width:100%">Enviar el link</button>
+      ${cfg.onboarded ? `<button class="linkish" id="restart">¿Herbario equivocado? Empezar de nuevo</button>` : ""}
     </div>`;
+  $app.querySelector("#restart")?.addEventListener("click", async () => {
+    if (!(await ask({ title: "Empezar de nuevo", text: "Volvés a la bienvenida para elegir o unirte a otro herbario.", ok: "Empezar de nuevo", cancel: "Quedarme" }))) return;
+    cfg = { ...cfg, sbUrl: "", sbKey: "", onboarded: false, joinedFrom: null }; saveCfg(cfg);
+    location.replace(SITE_URL());
+  });
   $app.querySelector("#send").onclick = async () => {
     const email = v("email"); if (!email) return;
     const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
