@@ -922,11 +922,10 @@ function card(p) {
   const img = coverOf(p), ill = !!illuOf(p);
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
-    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${novaTag(p)}</div>
-    ${consBadge(p.iucn)}
-    ${edibleBadge(p)}
+    <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
+    ${isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : ""}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
-    ${partsStrip(p)}
+    ${cardStrip(p)}
   </div>`;
 }
 
@@ -1013,9 +1012,12 @@ function ensureUses(p) {
 }
 const usesOf = (p) => (ensureUses(p), USE_ORDER.filter((u) => p.parts?.[u]));
 // Tira compacta para la carta: los usos que tiene la planta.
-const partsStrip = (p) => {
-  const list = usesOf(p);
-  return list.length ? `<div class="pstrip">${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>` : "";
+// Fila de la tarjeta, debajo del nombre: conservación, comestibilidad (si no la dicen ya los usos) y usos.
+const cardStrip = (p) => {
+  const uses = usesOf(p), [icon, label, cls] = markOf(p);
+  const said = (cls === "tox" && uses.includes("toxica")) || ((cls === "ok" || cls === "half") && uses.includes("comer"));
+  const eat = said || cls === "unk" ? "" : `<span class="pchip eb-${cls}" title="${label}"><svg><use href="#${icon}"/></svg></span>`;
+  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${eat}${uses.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>`;
 };
 // Panel de la ficha: 4 botones de uso; al tocar uno, explica qué parte se usa y cómo.
 function partsPanel(p) {
