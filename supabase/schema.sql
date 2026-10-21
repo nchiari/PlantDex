@@ -103,3 +103,11 @@ drop policy if exists "delete own sightings" on public.sightings;
 create policy "read sightings" on public.sightings for select to authenticated using (true);
 create policy "insert own sightings" on public.sightings for insert to authenticated with check (auth.uid() = user_id);
 create policy "delete own sightings" on public.sightings for delete to authenticated using (auth.uid() = user_id);
+
+-- v10: ¿sos el dueño del herbario? (el primer usuario de esta nube). La app oculta los datos de conexión a los demás.
+create or replace function public.is_owner() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select auth.uid() is not null and auth.uid() = (select id from auth.users order by created_at asc limit 1);
+$$;
+revoke all on function public.is_owner() from public, anon;
+grant execute on function public.is_owner() to authenticated;

@@ -34,7 +34,8 @@ Cada persona usa **su propia nube gratuita (Supabase)**: nadie comparte datos ni
 - En ⚙ podés exportar un backup en JSON.
 
 ## Privacidad
-- Las fotos están en un bucket privado y la base tiene Row Level Security: solo tu usuario las ve.
+- Las fotos están en un bucket privado y la base tiene Row Level Security: solo entran los usuarios que des de alta en tu Supabase. Todos ven el herbario completo, pero cada uno edita y borra solo lo suyo.
+- Los datos de conexión con la base solo se muestran en Ajustes al dueño del herbario (el primer usuario). La seguridad real la da RLS, no ocultar la clave.
 - Las claves quedan guardadas en el navegador de cada dispositivo y no se suben al repo.
 
 > ⚠ La identificación por foto puede fallar. Nunca comas una planta silvestre sin confirmarlo con alguien que sepa.

@@ -125,7 +125,11 @@ function route() {
 // ---------- datos ----------
 const byName = new Intl.Collator("es", { sensitivity: "base" });
 const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name || "", b.common_name || ""));
+let amOwner = false;
 async function loadPlants() {
+  // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
+  const own = await sb.rpc("is_owner");
+  amOwner = own.error ? true : !!own.data;
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data);
@@ -345,13 +349,10 @@ const EMBLEM = `<svg viewBox="0 0 64 64"><use href="#i-emblem"/></svg>`;
 // ---------- vistas ----------
 function renderSettings() {
   $nav.hidden = !user;
+  const owner = !user || amOwner; // sin sesión (configuración inicial) se muestra todo
+  const book = cfg.joinedFrom ? `el herbario de ${esc(cfg.joinedFrom)}` : "un herbario compartido";
   $app.innerHTML = `
     <h2>Ajustes</h2>
-    ${user ? iucnBatchBox() : ""}
-    <p class="muted">Las claves se guardan solo en este dispositivo. En el README está cómo sacar cada una, todas gratis.</p>
-    <h3>Supabase · tu nube</h3>
-    <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
-    <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
     <h3>Vos</h3>
     <label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre">
     <h3>Apariencia</h3>
@@ -360,7 +361,8 @@ function renderSettings() {
     <label class="toggle"><input type="checkbox" id="engrave" ${cfg.engrave ? "checked" : ""}> Fotos con filtro de grabado antiguo</label>
     <label class="toggle"><input type="checkbox" id="illustrations" ${cfg.illustrations ? "checked" : ""}> Usar láminas antiguas de Wikimedia Commons como imagen principal</label>
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
-    ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}</p>
+    ${user ? iucnBatchBox() : ""}
+    ${user ? (owner ? `
       <div class="share-box"><h3>Invitar a mi herbario</h3>
         <p class="muted" style="margin-top:0">Para sumar a alguien (o abrir tu herbario en otro dispositivo):</p>
         <ol class="setup ob-list">
@@ -368,10 +370,17 @@ function renderSettings() {
           <li><b>Mandale tu enlace de invitación</b>. Al abrirlo, la app lo guía paso a paso.</li>
         </ol>
         <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
-        <p class="muted" style="font-size:14px">El enlace lleva la dirección de tu nube y su clave pública, no tu contraseña. Cada persona entra con su propio email.</p></div>
+        <p class="muted" style="font-size:14px">Cada persona entra con su propio email y solo puede editar lo que carga.</p></div>` : `
+      <div class="share-box"><h3>Tu herbario</h3>
+        <p class="muted" style="margin-top:0">Estás en ${book}. Para sumar a otra persona, pedíselo a quien lo creó.</p>
+        <button class="btn" id="sharecfg" style="width:100%">Abrir en otro dispositivo</button></div>`) : ""}
+    ${owner ? `<details class="owner-db" ${user ? "" : "open"}><summary>Conexión con la base ${user ? "· solo la ves vos" : ""}</summary>
+      <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
+      <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
+      <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
+    ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}</p>
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button><button class="btn ghost" id="switchbook">Cambiar de herbario</button></div>
-      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>
-` : ""}
+      <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
     cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
@@ -384,7 +393,9 @@ function renderSettings() {
   });
   $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
-    cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name, sbUrl: v("sbUrl").replace(/\/(rest\/v1\/?)?$/, ""), sbKey: v("sbKey"), engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
+    const sbUrlEl = document.getElementById("sbUrl");
+    cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name,
+      sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
