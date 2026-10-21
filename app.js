@@ -627,6 +627,11 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el celular y en su cuenta.
 const NEWS = [
+  { v: 2, date: "2026-10-21", items: [
+    "<b>Sello Nova.</b> Las láminas nuevas que suben los demás llevan un sello dorado hasta que las abrís.",
+    "<b>Borrar fotos.</b> Tocá una foto tuya en la lámina y elegí «Borrar foto». También podés borrarla desde Editar, con la ✕.",
+    "<b>Tarjetas más claras.</b> El estado de conservación y si se come o es tóxica ahora están debajo del nombre.",
+  ] },
   { v: 1, date: "2026-10-21", items: [
     "<b>Tu perfil.</b> En Ajustes, tu nombre ahora tiene su medallón con tu inicial.",
     "<b>Hallazgos.</b> Al final de cada lámina se ve quién encontró esa planta y cuándo.",
@@ -645,7 +650,7 @@ function openNews(all = false) {
   m.className = "modal";
   m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Novedades del herbario</h3>
-    ${list.map((n) => `${list.length > 1 || all ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
+    ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
     <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
   const close = () => {
     m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg);
