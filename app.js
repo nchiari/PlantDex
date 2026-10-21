@@ -998,11 +998,11 @@ async function renderDetail(id) {
       ${!p.user_id || p.user_id === user.id ? `<button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
       <button class="btn ghost" id="del">Arrancar la lámina</button>` : `<p class="muted" style="text-align:center;width:100%">Solo ${esc(p.author_name || "quien la cargó")} puede editar esta lámina.</p>`}
     </div>
-    <div class="row" style="margin-top:14px">
+    ${findsTable(p)}
+    <div class="row pager">
       ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
-    </div>
-    ${findsTable(p)}`;
+    </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
   const showUse = (u) => {
     const it = p.parts?.[u], note = $app.querySelector("#partnote"); if (!it || !note) return;
