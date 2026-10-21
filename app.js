@@ -80,6 +80,25 @@ async function readConfigLink() {
   } catch { setTimeout(() => toast("El enlace de configuración no es válido"), 300); }
 }
 
+// ---------- versión nueva publicada: al volver a la app se recarga sola ----------
+// Compara el ?v= de app.js con el del index.html publicado. Si se está cargando o editando una lámina, espera a que cambie de pantalla.
+const MY_V = new URL(import.meta.url).searchParams.get("v");
+let updateReady = false;
+async function checkUpdate() {
+  if (updateReady || !MY_V) return;
+  try {
+    const html = await (await fetch(SITE_URL() + "?_=" + Date.now(), { cache: "no-store" })).text();
+    const v = html.match(/app\.js\?v=([\w.-]+)/)?.[1];
+    if (v && v !== MY_V) { updateReady = true; reloadIfIdle(); }
+  } catch {}
+}
+function reloadIfIdle() {
+  const view = location.hash.slice(1).split("/")[0];
+  if (updateReady && !["new", "edit"].includes(view) && !document.querySelector(".modal, .tour")) location.reload();
+}
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && checkUpdate());
+window.addEventListener("hashchange", reloadIfIdle);
+
 async function boot() {
   applyTheme();
   await readConfigLink();
