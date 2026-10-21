@@ -998,9 +998,6 @@ function openLegend() {
     <button class="linkish" id="lg-iucn">Ver todas las categorías</button>
     <p class="lg-h">Para qué sirve</p>
     <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}</ul>
-    <p class="lg-h">Si se come</p>
-    <p class="lg-note">Aparece cuando la lámina no tiene cargado para qué sirve.</p>
-    <ul>${chip("eb-ok", "f-edible", "Comestible")}${chip("eb-half", "f-bowl-half", "En parte comestible")}${chip("eb-no", "f-bowl-no", "No se come")}</ul>
     <p class="lg-h">Nueva</p>
     <ul><li><span class="lg-nova"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>La subió otra persona y todavía no la abriste.</li></ul></div>`;
   const close = () => m.remove();
@@ -1045,12 +1042,12 @@ function ensureUses(p) {
 }
 const usesOf = (p) => (ensureUses(p), USE_ORDER.filter((u) => p.parts?.[u]));
 // Tira compacta para la carta: los usos que tiene la planta.
-// Fila de la tarjeta, debajo del nombre: conservación, comestibilidad (si no la dicen ya los usos) y usos.
+// Fila de la tarjeta, debajo del nombre: conservación y usos. Si es tóxica, la calavera está siempre, aunque falten los usos.
 const cardStrip = (p) => {
-  const uses = usesOf(p), [icon, label, cls] = markOf(p);
-  const said = (cls === "tox" && uses.includes("toxica")) || ((cls === "ok" || cls === "half") && uses.includes("comer"));
-  const eat = said || cls === "unk" ? "" : `<span class="pchip eb-${cls}" title="${label}"><svg><use href="#${icon}"/></svg></span>`;
-  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${eat}${uses.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>`;
+  const uses = usesOf(p);
+  if (markOf(p)[2] === "tox" && !uses.includes("toxica")) uses.push("toxica");
+  const list = USE_ORDER.filter((u) => uses.includes(u));
+  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>`;
 };
 // Panel de la ficha: 4 botones de uso; al tocar uno, explica qué parte se usa y cómo.
 function partsPanel(p) {
