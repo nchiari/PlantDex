@@ -923,7 +923,7 @@ function card(p) {
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
     <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
-    ${isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : ""}
+    ${isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>` : ""}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
     ${cardStrip(p)}
   </div>`;
