@@ -631,6 +631,7 @@ const NEWS = [
     "<b>Tu perfil.</b> En Ajustes, tu nombre ahora tiene su medallón con tu inicial.",
     "<b>Hallazgos.</b> Al final de cada lámina se ve quién encontró esa planta y cuándo.",
     "<b>Sin láminas repetidas.</b> Si subís una planta que ya está en el herbario, tu hallazgo se suma a esa lámina. Y si ya la tenías, te avisa.",
+    "<b>Filtros nuevos.</b> En el herbario, tocá Filtrar para combinar tipos de planta o ver lo que encontró cada persona.",
     "<b>Historia y origen juntos</b>, para que cada lámina tenga menos secciones que abrir.",
   ] },
 ];
