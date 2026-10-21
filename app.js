@@ -885,11 +885,35 @@ function consBadge(code, cls = "cons") {
 }
 
 // Fila del modo índice: número romano, miniatura, nombres e indicador de comestibilidad.
+// ---------- sello Nova: láminas de otras personas que todavía no abriste ----------
+// Cuenta desde que creaste tu cuenta; lo abierto queda en el celular y en tu cuenta (no se repite entre dispositivos).
+const NOVA_KEY = "plantdex.nova";
+let novaSeen = null;
+const novaSet = () => {
+  if (!novaSeen) {
+    let local = []; try { local = JSON.parse(localStorage.getItem(NOVA_KEY) || "[]"); } catch {}
+    novaSeen = new Set([...local, ...(user?.user_metadata?.nova_seen || [])]);
+  }
+  return novaSeen;
+};
+const isNova = (p) => !!user && p.user_id && p.user_id !== user.id && p.created_at > (user.created_at || "") && !novaSet().has(p.id);
+let novaSync = null;
+function markNovaSeen(p) {
+  if (!isNova(p)) return;
+  novaSet().add(p.id);
+  // Solo se guardan las que podrían llevar sello, así la lista no crece de más.
+  const keep = plants.filter((x) => x.user_id !== user.id && x.created_at > (user.created_at || "") && novaSeen.has(x.id)).map((x) => x.id);
+  try { localStorage.setItem(NOVA_KEY, JSON.stringify(keep)); } catch {}
+  clearTimeout(novaSync);
+  novaSync = setTimeout(() => Promise.resolve().then(() => sb.auth.updateUser({ data: { nova_seen: keep } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {}), 1500);
+}
+const novaTag = (p) => (isNova(p) ? `<span class="nova" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : "");
+
 function row(p) {
   const img = coverOf(p), ill = !!illuOf(p), mark = markOf(p);
   return `<li data-id="${p.id}">
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
-    <span class="ix-txt"><b>${esc(p.common_name)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
+    <span class="ix-txt"><b>${esc(p.common_name)}${novaTag(p)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
     ${consBadge(p.iucn, "cons ix-cons")}${edibleBadge(p, "dog ix-mark")}
   </li>`;
 }
@@ -898,7 +922,7 @@ function card(p) {
   const img = coverOf(p), ill = !!illuOf(p);
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
-    <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
+    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${novaTag(p)}</div>
     ${consBadge(p.iucn)}
     ${edibleBadge(p)}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
@@ -1043,6 +1067,7 @@ function findsTable(p) {
 async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
   if (!p) return go("list");
+  markNovaSeen(p);
   await signUrls([...(p.photos || []), ...(p.sightings || []).flatMap((x) => x.photos || [])]);
   const ill = cfg.illustrations && p.scientific_name ? await findIllustration(p.scientific_name) : null;
   // Figuras: primero la lámina antigua (si hay), después las fotos propias.
