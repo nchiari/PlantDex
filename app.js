@@ -1048,8 +1048,8 @@ async function renderDetail(id) {
   // Figuras: primero la lámina antigua (si hay), después las fotos propias.
   const figs = [
     ...(ill ? [{ src: ill.url, cap: `Lámina antigua · ${esc(ill.credit)} · <a href="${ill.page}" target="_blank">${esc(ill.license)}</a>`, illu: true }] : []),
-    ...(p.photos || []).map((x, i) => ({ src: urlCache.get(x), cap: i === 0 ? "Foto principal" : "Foto de campo", photo: i })).filter((f) => f.src),
-    ...(p.sightings || []).flatMap((x) => (x.photos || []).map((ph) => ({ src: urlCache.get(ph), cap: `Foto de ${esc(x.author_name || "otro hallazgo")}` }))).filter((f) => f.src),
+    ...(p.photos || []).map((x, i) => ({ src: urlCache.get(x), cap: i === 0 ? "Foto principal" : "Foto de campo", photo: i, path: x, own: p.user_id === user.id })).filter((f) => f.src),
+    ...(p.sightings || []).flatMap((x) => (x.photos || []).map((ph) => ({ src: urlCache.get(ph), cap: `Foto de ${esc(x.author_name || "otro hallazgo")}`, path: ph, sighting: x, own: x.user_id === user.id }))).filter((f) => f.src),
   ];
     // Sección desplegable: se abre/cierra tocando el título.
   const fold = (title, body) => body ? `<details class="fold"><summary><span>${title}</span><svg><use href="#f-chev"/></svg></summary><div class="fold-body">${body}</div></details>` : "";
@@ -1116,8 +1116,10 @@ async function renderDetail(id) {
     $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
     $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));
     const act = $app.querySelector("#figact");
-    act.innerHTML = f.photo > 0 ? `<button class="btn ghost" id="mkmain">Usar como foto principal</button>`
-      : f.illu ? `<button class="btn ghost" id="noillu">No es esta planta: quitar lámina</button>` : "";
+    act.innerHTML = f.illu ? `<button class="btn ghost" id="noillu">No es esta planta: quitar lámina</button>`
+      : [f.own && f.photo > 0 ? `<button class="btn ghost" id="mkmain">Usar como foto principal</button>` : "",
+         f.own ? `<button class="btn ghost" id="delphoto">Borrar foto</button>` : ""].join("");
+    act.querySelector("#delphoto")?.addEventListener("click", async () => { if (await deletePhoto(p, f.path, f.sighting)) renderDetail(p.id); });
     act.querySelector("#mkmain")?.addEventListener("click", async () => {
       const photos = [p.photos[f.photo], ...p.photos.filter((_, k) => k !== f.photo)];
       const { error } = await sb.from("plants").update({ photos }).eq("id", p.id);
@@ -1357,6 +1359,28 @@ function placeCtx() {
 }
 
 // Sube fotos nuevas a una lámina ya guardada y las suma al final.
+// Borra una foto propia: de la lámina o de un hallazgo tuyo. Primero se saca de la ficha y después el archivo.
+async function deletePhoto(p, path, sighting = null) {
+  const last = !sighting && (p.photos || []).length === 1;
+  if (!(await ask({ title: "Borrar foto", text: last ? "Es la única foto de esta lámina. Si la borrás, la lámina queda con la ilustración antigua o sin imagen." : "La foto se borra para siempre del herbario.", ok: "Borrarla", cancel: "Dejarla" }))) return false;
+  const owner = sighting || p, table = sighting ? "sightings" : "plants";
+  const photos = (owner.photos || []).filter((x) => x !== path);
+  const { data, error } = await sb.from(table).update({ photos }).eq("id", owner.id).select("id");
+  if (error) { toast("No se pudo borrar: " + error.message); return false; }
+  if (!data?.length) { toast(sighting ? "Falta actualizar la base: corré en Supabase el SQL de «v12»" : "No se pudo borrar la foto"); return false; }
+  owner.photos = photos;
+  if (!sighting && draft?.data) draft.data.photos = photos;
+  try { await sb.storage.from(BUCKET).remove([path]); } catch {}
+  urlCache.delete(path); toast("Foto borrada");
+  return true;
+}
+// Fotos de la lámina en el editor, cada una con su ✕.
+function paintEdPhotos(p) {
+  const box = document.getElementById("edphotos"); if (!box) return;
+  box.innerHTML = (p.photos || []).map((ph) => `<div><img src="${urlCache.get(ph) || ""}"><button type="button" data-delph="${esc(ph)}" aria-label="Borrar foto">✕</button></div>`).join("");
+  box.querySelectorAll("[data-delph]").forEach((b) => (b.onclick = async () => { if (await deletePhoto(p, b.dataset.delph)) paintEdPhotos(p); }));
+}
+
 function addPhotosTo(p, source) {
   const input = document.getElementById(source === "camera" ? "file-input" : "file-input-gallery");
   input.value = "";
@@ -1376,8 +1400,7 @@ function addPhotosTo(p, source) {
       const { error } = await sb.from("plants").update({ photos }).eq("id", p.id);
       if (error) throw error;
       p.photos = photos; draft.data.photos = photos;
-      const box = document.getElementById("edphotos");
-      if (box) box.innerHTML = photos.map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("");
+      paintEdPhotos(p);
       toast(added.length === 1 ? "Foto agregada" : `${added.length} fotos agregadas`);
     } catch (e) { toast("Error al subir: " + e.message); }
   };
@@ -1399,7 +1422,7 @@ function renderForm(existing) {
   $app.innerHTML = `
     <button class="back" id="bk">← Volver</button>
     <h2>${existing ? "Corregir lámina" : "Redactar la lámina"}</h2>
-    ${existing ? `<label>Fotos</label><div class="preview" id="edphotos">${(existing.photos || []).map((ph) => `<div><img src="${urlCache.get(ph) || ""}"></div>`).join("")}</div>
+    ${existing ? `<label>Fotos</label><div class="preview" id="edphotos"></div>
       <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
     <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
     <label>Otros nombres</label><input id="other_names" placeholder="España: … · Latinoamérica: … · Inglés: …" value="${esc(d.other_names || "")}">
@@ -1425,6 +1448,7 @@ function renderForm(existing) {
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
   if (existing) {
+    paintEdPhotos(existing);
     $app.querySelector("#addcam").onclick = () => addPhotosTo(existing, "camera");
     $app.querySelector("#addgal").onclick = () => addPhotosTo(existing, "gallery");
   }

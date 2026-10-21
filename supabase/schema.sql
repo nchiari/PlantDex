@@ -133,3 +133,7 @@ begin
 end $$;
 revoke all on function public.leave_herbarium(boolean) from public, anon;
 grant execute on function public.leave_herbarium(boolean) to authenticated;
+
+-- v12: cada uno puede editar sus hallazgos (por ejemplo, borrar una foto propia).
+drop policy if exists "update own sightings" on public.sightings;
+create policy "update own sightings" on public.sightings for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
