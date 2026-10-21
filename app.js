@@ -1070,7 +1070,6 @@ async function renderDetail(id) {
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
     <div class="row fig-actions" id="figact"></div>
-    ${!ill && cfg.illustrations && p.scientific_name ? `<div class="row fig-actions"><button class="btn ghost" id="reillu">Restaurar lámina antigua</button></div>` : ""}
     ${partsPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     ${factSheet(p)}
@@ -1103,8 +1102,9 @@ async function renderDetail(id) {
   };
   $app.querySelectorAll(".use.on").forEach((b) => (b.onclick = () => showUse(b.dataset.use)));
   if (usesOf(p).length) showUse(usesOf(p)[0]);
-  $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
-    ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
+  const canReillu = !ill && cfg.illustrations && p.scientific_name;
+  const bindReillu = () => $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
+    ev.currentTarget.disabled = true; ev.currentTarget.lastChild.textContent = "Buscando…";
     delete illuCache[illuKey(p.scientific_name)]; saveIllu();
     const found = await findIllustration(p.scientific_name);
     if (!found) toast("No encontré una lámina antigua para esta especie");
@@ -1116,9 +1116,15 @@ async function renderDetail(id) {
     $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
     $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));
     const act = $app.querySelector("#figact");
-    act.innerHTML = f.illu ? `<button class="btn ghost" id="noillu">No es esta planta: quitar lámina</button>`
-      : [f.own && f.photo > 0 ? `<button class="btn ghost" id="mkmain">Usar como foto principal</button>` : "",
-         f.own ? `<button class="btn ghost" id="delphoto">Borrar foto</button>` : ""].join("");
+    // Acciones de la figura: una sola fila de botoncitos con ícono.
+    const pill = (id, icon, label, title) => `<button class="fig-pill" id="${id}" title="${title}"><svg><use href="#${icon}"/></svg>${label}</button>`;
+    act.innerHTML = [
+      f.illu ? pill("noillu", "i-x", "No es esta planta", "Quitar la lámina antigua") : "",
+      f.own && f.photo > 0 ? pill("mkmain", "i-star", "Principal", "Usar como foto principal") : "",
+      f.own ? pill("delphoto", "i-trash", "Borrar", "Borrar esta foto") : "",
+      canReillu ? pill("reillu", "i-restore", "Lámina antigua", "Buscar de nuevo la lámina antigua") : "",
+    ].join("");
+    bindReillu();
     act.querySelector("#delphoto")?.addEventListener("click", async () => { if (await deletePhoto(p, f.path, f.sighting)) renderDetail(p.id); });
     act.querySelector("#mkmain")?.addEventListener("click", async () => {
       const photos = [p.photos[f.photo], ...p.photos.filter((_, k) => k !== f.photo)];
@@ -1134,6 +1140,7 @@ async function renderDetail(id) {
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
   if (figs.length) showFig(0);
+  else if (canReillu) { $app.querySelector("#figact").innerHTML = `<button class="fig-pill" id="reillu"><svg><use href="#i-restore"/></svg>Lámina antigua</button>`; bindReillu(); }
   if ($app.querySelector("#del")) $app.querySelector("#del").onclick = async () => {
     if (!(await ask({ title: "Arrancar la lámina", text: `La lámina de <b>${esc(p.common_name)}</b> se borra para siempre, con sus fotos.`, ok: "Arrancarla", cancel: "Dejarla" }))) return;
     if (p.photos?.length) await sb.storage.from(BUCKET).remove(p.photos);
