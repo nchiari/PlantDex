@@ -754,3 +754,37 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .lg-nova b { position: relative; font: 700 8px var(--caps); letter-spacing: .9px; text-transform: uppercase; color: #3d2c0c; }
 /* después de las secciones desplegables el aviso no lleva otra raya: ya la cierra la última sección */
 .folds + .disclaimer { border-top: 0; padding-top: 0; }
+/* sello que se estampa al asentar una lámina */
+.stamp { position: fixed; inset: 0; z-index: 90; display: grid; place-content: center; justify-items: center; gap: 0;
+  background: rgb(10 15 11 / .55); backdrop-filter: blur(1.5px); animation: fade .2s ease-out; }
+.stamp.out { opacity: 0; transition: opacity .4s; }
+.stamp-seal { position: relative; width: 132px; height: 132px; filter: drop-shadow(0 6px 10px rgb(0 0 0 / .35)); animation: stamp-drop .55s cubic-bezier(.3,1.5,.5,1) both; }
+.stamp-ink { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; margin: -96px 0 0 -66px; border-radius: 50%;
+  border: 3px solid var(--leaf); opacity: 0; animation: stamp-ring .7s ease-out .32s both; }
+.stamp-l { margin: 18px 0 0; font: 600 15px var(--caps); letter-spacing: 4px; text-transform: uppercase; color: #f3eedb;
+  text-shadow: 0 1px 6px rgb(0 0 0 / .5); animation: stamp-text .4s ease-out .42s both; }
+.stamp-n { margin: 4px 0 0; font: italic 22px var(--text); color: #f3eedb; text-shadow: 0 1px 6px rgb(0 0 0 / .5); animation: stamp-text .4s ease-out .5s both; }
+@keyframes stamp-drop { 0% { transform: translateY(-60vh) scale(2.2) rotate(-28deg); opacity: 0; } 55% { opacity: 1; } 75% { transform: translateY(0) scale(.92) rotate(4deg); } 100% { transform: translateY(0) scale(1) rotate(0); } }
+@keyframes stamp-ring { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes stamp-text { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.stamp-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stamp-seal .stamp-mark { inset: 25%; width: 50%; height: 50%; color: #f3eedb; }
+.stamp-ink { border-color: #9fbf86; }
+@media (prefers-reduced-motion: reduce) { .stamp-seal, .stamp-ink, .stamp-l, .stamp-n { animation: none; } .stamp-ink { display: none; } }
+/* misiones de exploración */
+.mission { display: flex; gap: 14px; align-items: center; margin: 14px 0 18px; padding: 12px 14px; background: var(--parchment-2);
+  border: 1px solid rgb(var(--line) / .25); box-shadow: inset 0 0 0 3px var(--parchment-2), inset 0 0 0 4px rgb(var(--line) / .12); }
+.mission img { flex: none; width: 64px; height: 80px; object-fit: cover; border-radius: 99px 99px 2px 2px; border: 1px solid rgb(var(--line) / .35); }
+.ms-txt { display: flex; flex-direction: column; min-width: 0; }
+.ms-txt small { font: 600 9.5px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gold); }
+.ms-txt b { font: 500 19px/1.2 var(--text); color: var(--ink); margin-top: 2px; }
+.ms-txt i { font-size: 15px; color: var(--ink-soft); }
+.ms-meta { font-size: 14px; color: var(--ink-soft); margin-top: 3px; }
+.ms-links { display: flex; flex-wrap: wrap; gap: 0 14px; margin-top: 4px; }
+.ms-links a, .ms-links .linkish { font: italic 15px var(--text); color: var(--leaf); margin: 0; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(var(--line) / .35); }
+.ms-hint { margin: 12px 0 16px; font: italic 15.5px/1.5 var(--text); color: var(--ink-soft); }
+.ms-hint .linkish { margin: 0; padding: 0; font-size: inherit; }
+.zone-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgb(var(--line) / .2); }
+.zone-row .linkish { margin: 0; padding: 0; flex: none; }
+.zone-note { font-size: 14px; margin: 6px 0 0; }
+.devbuild .brand .sub { color: var(--gold); font-style: normal; font: 600 11px var(--caps); letter-spacing: 2px; text-transform: uppercase; }

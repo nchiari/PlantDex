@@ -102,6 +102,8 @@ window.addEventListener("hashchange", reloadIfIdle);
 
 async function boot() {
   applyTheme();
+  // En la versión de prueba (rama dev de Cloudflare) el encabezado lo avisa, para no confundirla con la real.
+  if (/^dev\./.test(location.hostname)) { document.body.classList.add("devbuild"); document.querySelector(".brand .sub").textContent = "Versión de prueba"; }
   await readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-home").onclick = () => go("list");
@@ -384,6 +386,10 @@ function renderSettings() {
     <h3>Vos</h3>
     <label>Tu nombre (aparece en las láminas que cargás)</label>
     <div class="me-row"><span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
+    ${user ? `<label>Tu zona</label>
+    <div class="zone-row"><span id="zonename" class="${zoneOf() ? "" : "muted"}">${esc(zoneOf()?.name || "Sin marcar")}</span><button class="linkish" id="setzone">${zoneOf() ? "Cambiar a donde estoy" : "Usar mi ubicación"}</button></div>
+    <p class="muted zone-note">Sirve para proponerte plantas que se vieron cerca. Se guarda aproximada, a un kilómetro.</p>
+    <label class="toggle"><input type="checkbox" id="missions" ${cfg.missionsOff ? "" : "checked"}> Misiones de exploración en el herbario</label>` : ""}
     <h3>Apariencia</h3>
     <label>Tema</label>
     <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
@@ -412,6 +418,17 @@ function renderSettings() {
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
+  $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
+  $app.querySelector("#setzone")?.addEventListener("click", (ev) => {
+    const b = ev.currentTarget;
+    if (!navigator.geolocation) return toast("Este dispositivo no da la ubicación");
+    b.disabled = true; b.textContent = "Buscando…";
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const z = await setZone(pos.coords.latitude, pos.coords.longitude);
+      $app.querySelector("#zonename").textContent = z.name; $app.querySelector("#zonename").classList.remove("muted");
+      b.disabled = false; b.textContent = "Cambiar a donde estoy"; toast("Zona guardada");
+    }, () => { b.disabled = false; b.textContent = "Usar mi ubicación"; toast("No pude leer la ubicación: revisá el permiso"); }, { timeout: 10000 });
+  });
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
     cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
     $app.querySelectorAll("[data-theme-pick]").forEach((x) => x.classList.toggle("on", x === b));
@@ -668,6 +685,20 @@ function openNews(all = false) {
   document.body.appendChild(m);
 }
 
+// Sello de lacre que se estampa al asentar una lámina o sumar un hallazgo: feedback de "quedó guardado".
+function stampSeal(label, name) {
+  const ov = document.createElement("div");
+  ov.className = "stamp";
+  ov.setAttribute("role", "status");
+  ov.innerHTML = `<div class="stamp-ink"></div><div class="stamp-seal"><svg><use href="#i-seal-blank"/></svg><svg class="stamp-mark"><use href="#i-emblem"/></svg></div>
+    <p class="stamp-l">${esc(label)}</p><p class="stamp-n">${esc(name || "")}</p>`;
+  document.body.appendChild(ov);
+  try { navigator.vibrate?.(18); } catch {}
+  const bye = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 400); };
+  ov.onclick = bye;
+  setTimeout(bye, 1600);
+}
+
 // Pregunta con la estética del herbario (en lugar del cartel del navegador). Resuelve true si acepta.
 function ask({ title, text, ok = "Aceptar", cancel = "Cancelar" }) {
   return new Promise((res) => {
@@ -857,6 +888,7 @@ function renderList() {
         ${people.length > 1 ? `<p class="fl-h">Encontrada por</p><div class="chips">${people.map(chipW).join("")}</div>` : ""}
         ${active ? `<button class="linkish" id="fclear">Quitar filtros</button>` : ""}
       </div>` : active ? `<div class="chips active-f">${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
+    ${!filter.q && !active ? `<div id="mission"></div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
@@ -875,6 +907,7 @@ function renderList() {
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
+  hydrateMission();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
@@ -901,6 +934,108 @@ function consBadge(code, cls = "cons") {
 }
 
 // Fila del modo índice: número romano, miniatura, nombres e indicador de comestibilidad.
+// ---------- misiones de exploración ----------
+// Cada persona marca su zona; la app busca en iNaturalist qué plantas silvestres se registraron cerca en este mes
+// (observaciones confirmadas por la comunidad) y propone una que nadie del herbario tenga todavía.
+// Se cumple sola al asentar esa especie; la siguiente llega a los 2 días. Se puede cambiar cuando quieras.
+const MISSION_GAP = 2 * 86400e3, NEAR_KEY = "plantdex.near";
+const zoneOf = () => cfg.zone || user?.user_metadata?.zone || null;
+const syncMeta = (data) => Promise.resolve().then(() => sb.auth.updateUser({ data })).then(({ data: d }) => d?.user && (user = d.user)).catch(() => {});
+async function setZone(lat, lng) {
+  const la = Math.round(lat * 100) / 100, ln = Math.round(lng * 100) / 100; // ~1 km: alcanza para buscar y no guarda tu casa exacta
+  let name = "", cc = "";
+  try {
+    const a = (await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=es&lat=${la}&lon=${ln}`)).json()).address || {};
+    name = [a.suburb || a.village || a.town || a.city_district || a.city || a.municipality, a.city && (a.suburb || a.city_district) ? a.city : a.state].filter(Boolean).join(", ");
+    cc = a.country_code || "";
+  } catch {}
+  const z = { lat: la, lng: ln, name: name || `${la}, ${ln}`, cc };
+  cfg.zone = z; saveCfg(cfg); syncMeta({ zone: z });
+  return z;
+}
+const missionOf = () => cfg.mission !== undefined ? cfg.mission : user?.user_metadata?.mission || null;
+const saveMission = (m) => { cfg.mission = m; saveCfg(cfg); syncMeta({ mission: m }); };
+// Especies de plantas silvestres registradas cerca (radio 8 km), de la más vista a la menos. Se guarda una semana.
+async function speciesNear(z, month) {
+  const key = `${z.lat},${z.lng},${month || "all"}`;
+  let cache = {}; try { cache = JSON.parse(localStorage.getItem(NEAR_KEY) || "{}"); } catch {}
+  if (cache[key] && Date.now() - cache[key].t < 7 * 86400e3) return cache[key].list;
+  const locale = z.cc === "ar" ? "es-AR" : z.cc === "mx" ? "es-MX" : "es";
+  const url = `https://api.inaturalist.org/v1/observations/species_counts?lat=${z.lat}&lng=${z.lng}&radius=8&iconic_taxa=Plantae&quality_grade=research&captive=false&hrank=species&lrank=species${month ? "&month=" + month : ""}&locale=${locale}&per_page=200`;
+  const r = await fetch(url); if (!r.ok) throw new Error("iNaturalist no respondió");
+  const list = ((await r.json()).results || []).map(({ count, taxon: t }) => ({
+    id: t.id, name: t.name, common: t.preferred_common_name || "", count,
+    photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", credit: t.default_photo?.attribution || "",
+  }));
+  cache[key] = { t: Date.now(), list };
+  try { localStorage.setItem(NEAR_KEY, JSON.stringify(Object.fromEntries(Object.entries(cache).slice(-6)))); } catch {}
+  return list;
+}
+async function newMission() {
+  const z = zoneOf(); if (!z) return null;
+  const month = new Date().getMonth() + 1;
+  const have = new Set(plants.map((p) => illuKey(p.scientific_name)).filter(Boolean));
+  const skip = new Set(cfg.missionSkip || []);
+  const free = (l) => l.filter((x) => !have.has(illuKey(x.name)) && !skip.has(x.id));
+  let pool = free(await speciesNear(z, month)).map((x) => ({ ...x, month }));
+  if (pool.length < 3) pool = [...pool, ...free(await speciesNear(z, null)).filter((x) => !pool.some((y) => y.id === x.id))]; // si en este mes hay pocas, de todo el año
+  return pool[0] ? { ...pool[0], given: Date.now() } : null;
+}
+// Si la especie asentada era la de tu misión, queda cumplida. Devuelve true para festejarlo con el sello.
+function missionCheck(sci) {
+  const m = missionOf();
+  if (!m || m.done || !sci || illuKey(sci) !== illuKey(m.name)) return false;
+  saveMission({ ...m, done: Date.now() });
+  return true;
+}
+async function hydrateMission() {
+  const box = $app.querySelector("#mission"); if (!box || cfg.missionsOff) return;
+  const z = zoneOf();
+  if (!z) {
+    if (cfg.missionHintOff) return;
+    box.innerHTML = `<p class="ms-hint">Marcá tu zona en <button class="linkish" id="ms-zone">Ajustes</button> y te propongo plantas que se vieron cerca para salir a buscar. <button class="linkish" id="ms-nohint" aria-label="No mostrar">✕</button></p>`;
+    box.querySelector("#ms-zone").onclick = () => go("settings");
+    box.querySelector("#ms-nohint").onclick = () => { cfg.missionHintOff = true; saveCfg(cfg); box.innerHTML = ""; };
+    return;
+  }
+  let m = missionOf();
+  // ¿Alguien del herbario ya la tiene? Si fuiste vos, está cumplida; si fue otra persona, te la ganó.
+  if (m && !m.done) {
+    const hit = plants.find((p) => illuKey(p.scientific_name) === illuKey(m.name));
+    if (hit) {
+      const mine = hit.user_id === user.id || (hit.sightings || []).some((x) => x.user_id === user.id);
+      m = mine ? { ...m, done: Date.now() } : { ...m, lostTo: hit.author_name || "Otra persona" };
+      if (mine) saveMission(m);
+    }
+  }
+  if (!m || (m.done && Date.now() - m.done >= MISSION_GAP)) {
+    try { m = await newMission(); } catch { return; } // sin conexión con iNaturalist: no se muestra nada
+    if (!m) return;
+    saveMission(m);
+  }
+  if (!$app.contains(box)) return;
+  const zoneShort = esc(z.name.split(",")[0]);
+  if (m.done) {
+    const next = new Date(m.done + MISSION_GAP).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+    box.innerHTML = `<p class="ms-hint"><b>Misión cumplida:</b> ${esc(m.common || m.name)}. La próxima llega el ${next}.</p>`;
+    return;
+  }
+  if (m.lostTo) {
+    box.innerHTML = `<p class="ms-hint"><b>${esc(m.lostTo)}</b> encontró primero ${esc(m.common || m.name)}. <button class="linkish" id="ms-next">Dame otra</button></p>`;
+    box.querySelector("#ms-next").onclick = async () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
+    return;
+  }
+  const when = m.month ? `en ${MONTHS_LONG[m.month - 1].toLowerCase()}` : "durante el año";
+  box.innerHTML = `<div class="mission">
+    ${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy" title="${esc(m.credit)}">` : ""}
+    <div class="ms-txt"><small>Misión · cerca de ${zoneShort}</small>
+      <b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}
+      <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
+      <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
+    </div></div>`;
+  box.querySelector("#ms-skip").onclick = () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
+}
+
 // ---------- sello Nova: láminas de otras personas que todavía no abriste ----------
 // Cuenta desde que creaste tu cuenta; lo abierto queda en el celular y en tu cuenta (no se repite entre dispositivos).
 const NOVA_KEY = "plantdex.nova";
@@ -1567,7 +1702,7 @@ function renderForm(existing) {
           const { data, error } = await sb.from("sightings").insert(s).select().single();
           if (error) throw error;
           (dup.sightings ||= []).push(data);
-          clearDraft(); toast(`Tu hallazgo se sumó a ${dup.common_name}`);
+          clearDraft(); stampSeal(missionCheck(dup.scientific_name) ? "Misión cumplida" : "Hallazgo sumado", dup.common_name);
           location.hash = "plant/" + dup.id; return;
         }
         row.photos = paths;
@@ -1576,7 +1711,7 @@ function renderForm(existing) {
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants = sortPlants([...plants, data]);
-        clearDraft(); toast(`${data.common_name} asentada en el herbario`);
+        clearDraft(); stampSeal(missionCheck(data.scientific_name) ? "Misión cumplida" : "Asentada", data.common_name);
         location.hash = "plant/" + data.id;
       }
     } catch (e) {
