@@ -178,7 +178,7 @@ const missingIucn = () => plants.filter((p) => !p.iucn && p.scientific_name);
 let iucnAll = false; // true: volver a consultar todas, no solo las que faltan
 const iucnTargets = () => (iucnAll ? plants.filter((p) => p.scientific_name) : missingIucn());
 const iucnBatchPrompt = () => `Para cada especie, decime su estado de conservación GLOBAL en la Lista Roja de la UICN (LC, NT, VU, EN, CR, EW, EX, DD o NE si no fue evaluada; no inventes).
-Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. El JSON, así: {"Género especie": "LC", ...}
+Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. Dentro de los textos, nada de citas, referencias, notas al pie ni marcas de fuentes. El JSON, así: {"Género especie": "LC", ...}
 ${iucnTargets().map((p) => "- " + p.scientific_name).join("\n")}`;
 function iucnBatchBox() {
   if (!plants.length) return "";
@@ -296,7 +296,7 @@ Lugar del hallazgo: ${place || "desconocido"}. Usalo SOLO para ayudarte a identi
 
 TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usás un término botánico, explicalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
 
-Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después.
+Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. Dentro de los textos, nada de citas, referencias, notas al pie ni marcas de fuentes.
 El JSON tiene que ser válido y con esta forma exacta:
 {
  "common_name": "nombre común en español de España",
@@ -322,10 +322,16 @@ El JSON tiene que ser válido y con esta forma exacta:
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
 En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
 
+// Marcas de citas que algunas IA dejan pegadas al copiar: Gemini [span_0](start_span), [cite: 1], [cite_start];
+// ChatGPT 【4†fuente】 o "turn0search0"; y llamadas numéricas tipo [1] o [2, 3].
+const CITE_MARKS = /\[span_\d+\]\((?:start|end)_span\)|\[cite(?:_start|_end)?(?::[^\]]*)?\]|【[^】]*】|[\ue200-\ue202]|\bcite(?:turn\d+\w+?\d+)+|\bturn\d+(?:search|news|view|image)\d+|\[\d+(?:\s*[,–-]\s*\d+)*\]/gi;
+const cleanCites = (t) => String(t).replace(CITE_MARKS, "").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?)])/g, "$1").trim();
+// Limpia todos los textos de la respuesta, también los que van dentro de los usos.
+const cleanDeep = (v) => (typeof v === "string" ? cleanCites(v) : Array.isArray(v) ? v.map(cleanDeep) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cleanDeep(x)])) : v);
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("No encontré un JSON en la respuesta");
-  const out = JSON.parse(m[0]);
+  const out = cleanDeep(JSON.parse(m[0]));
   const months = (a) => (Array.isArray(a) ? a.map(Number).filter((n) => n >= 1 && n <= 12) : []);
   out.types = (out.types || []).map((t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()).filter((t) => TYPES.includes(t));
   out.flower_months = months(out.flower_months);
@@ -942,7 +948,7 @@ function card(p) {
 // Texto con énfasis: **clave** → negrita, y las advertencias se resaltan solas.
 const WARN_WORDS = /\b(t[óo]xic[oa]s?|toxicidad|venenos[oa]s?|mortal(es)?|letal(es)?|no (se )?(debe|deben)? ?(consumir|comer|ingerir)|no comestibles?|nunca [a-záéíóú]+|precauci[óo]n|peligros[oa]s?|irritante|cianog[ée]nic[oa]s?|alucin[óo]gen[oa]s?)\b/gi;
 function rich(txt) {
-  return esc(txt)
+  return esc(cleanCites(txt))
     .replace(WARN_WORDS, (m) => `<mark class="warn-t">${m}</mark>`)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*\*/g, "");
