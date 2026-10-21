@@ -113,7 +113,7 @@ function route() {
   document.body.classList.remove("onboarding");
   checkAchievements();
   if (cfg.tourPending && (view === "list" || !view)) setTimeout(() => cfg.tourPending && !document.querySelector(".tour") && startTour(), 700);
-  else if ((cfg.newsSeen || 0) < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
+  else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -605,6 +605,7 @@ function openWhyAI() {
 
 // ---------- novedades: lo que cambió desde la última vez que entraste ----------
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
+// Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el celular y en su cuenta.
 const NEWS = [
   { v: 1, date: "2026-10-21", items: [
     "<b>Tu perfil.</b> En Ajustes, tu nombre ahora tiene su medallón con tu inicial.",
@@ -613,8 +614,10 @@ const NEWS = [
     "<b>Historia y origen juntos</b>, para que cada lámina tenga menos secciones que abrir.",
   ] },
 ];
+// Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
+const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, user?.created_at > NEWS[0].date + "T23:59" ? NEWS[0].v : 0);
 function openNews(all = false) {
-  const seen = all ? 0 : cfg.newsSeen || 0;
+  const seen = all ? 0 : newsSeen();
   const list = NEWS.filter((n) => n.v > seen);
   const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
   const m = document.createElement("div");
@@ -623,7 +626,10 @@ function openNews(all = false) {
     <h3>Novedades del herbario</h3>
     ${list.map((n) => `${list.length > 1 || all ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
     <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
-  const close = () => { m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg); };
+  const close = () => {
+    m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg);
+    if ((user?.user_metadata?.news_seen || 0) < NEWS[0].v) Promise.resolve().then(() => sb.auth.updateUser({ data: { news_seen: NEWS[0].v } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {});
+  };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   m.querySelector("#news-ok").onclick = close;
