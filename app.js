@@ -152,7 +152,7 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "prueba", misiones: "prueba" };
+const FEATURES = { sello: "prueba", misiones: "prueba", dudas: "prueba" };
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -299,12 +299,23 @@ async function resizeImage(file, max = 1400) {
 }
 
 // ---------- IA ----------
+// Mes y año del hallazgo, para que la IA sepa qué está en flor o en fruto en esa época.
+const foundWhen = () => { const f = draft?.data?.found_at; return f ? new Date(f + "T12:00").toLocaleDateString("es-ES", { month: "long", year: "numeric" }) : ""; };
 const buildPrompt = (hint = "", place = "") => `Sos un botánico divulgador, de esos que hacen que cualquiera se interese por las plantas. Identificá la planta, hongo o fruto de las fotos.
-Lugar del hallazgo: ${place || "desconocido"}. Usalo SOLO para ayudarte a identificarla y para saber en qué hemisferio está (meses de flor y fruto). Los textos NO deben mencionar las fotos, el ejemplar fotografiado ni el lugar del hallazgo: hablá de la especie en general.
+Lugar del hallazgo: ${place || "desconocido"}.${foundWhen() ? ` Fecha del hallazgo: ${foundWhen()}.` : ""} Usalo SOLO para ayudarte a identificarla (qué crece ahí y qué está en flor o en fruto en esa época) y para saber en qué hemisferio está (meses de flor y fruto). Los textos NO deben mencionar las fotos, el ejemplar fotografiado ni el lugar del hallazgo: hablá de la especie en general.
 
 TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usás un término botánico, explicalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
 
-Tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. Dentro de los textos, nada de citas, referencias, notas al pie ni marcas de fuentes.
+${feat("dudas") ? `ANTES DE RESPONDER, ¿ESTÁS SEGURO? Evaluá con honestidad si podés identificar la especie con seguridad razonable con lo que tenés (fotos, lugar, fecha y pista).
+- Si estás razonablemente seguro, respondé directamente con la ficha, como se indica más abajo.
+- Si dudás entre dos o más especies, o si a las fotos les falta algo clave para decidir (la flor, el fruto, el revés de la hoja, el tallo, el porte completo), NO des la ficha todavía. Respondé en pocas líneas, en tono cercano:
+  1) Las 2 o 3 candidatas más probables (nombre común y científico) y en qué se diferencian, en palabras simples.
+  2) Hasta 3 pedidos concretos y fáciles de cumplir en el campo para decidir: una foto puntual (ej. "la flor de cerca", "el revés de una hoja", "el tallo") o una pregunta simple (ej. "¿huele a algo si frotás una hoja?", "¿el tallo es cuadrado?", "¿qué altura tiene?").
+  Terminá con esta línea: "Contestame esto y te paso la ficha para Herbalorium."
+- Cuando con las respuestas ya estés razonablemente seguro, recién ahí respondé con la ficha.
+- Nunca adivines para cumplir: si algo no se ve en las fotos, preguntalo. Si después de preguntar todavía no podés decidir, elegí la más probable y contá la duda en el campo "doubt".
+
+` : ""}Cuando des la ficha, tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. Dentro de los textos, nada de citas, referencias, notas al pie ni marcas de fuentes.
 El JSON tiene que ser válido y con esta forma exacta:
 {
  "common_name": "nombre común en español de España",
@@ -325,7 +336,8 @@ El JSON tiene que ser válido y con esta forma exacta:
  "curiosity": "un fun fact de verdad, de esos que hacen decir '¡no lo sabía!': su aparición en la cultura popular (películas, libros, refranes, expresiones del idioma, marcas, deportes), una leyenda, una anécdota histórica rara o un uso inesperado. NO repitas datos de botánica básica (machos y hembras, cómo se reproduce, cuántas semillas da) ni lo que ya contaste en history. 1-3 frases",
  "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
  "fruit_months": [meses 1-12 en que suele dar fruto o cosecharse, mismo criterio],
- "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"
+ "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
+ "doubt": "vacío (\"\") si estás seguro. Si te quedó alguna duda: con qué otra especie se puede confundir y en qué fijarse para diferenciarlas, en 1-2 frases"` : ""}
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
 En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marcá con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
@@ -343,7 +355,7 @@ const sciName = (t) => { const x = String(t || "").trim().replace(/\s+/g, " "); 
 const fixNames = (p) => { if (p) { if (p.common_name) p.common_name = capName(p.common_name); if (p.scientific_name) p.scientific_name = sciName(p.scientific_name); } return p; };
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
-  if (!m) throw new Error("No encontré un JSON en la respuesta");
+  if (!m) { const e = new Error("No encontré la ficha en la respuesta"); e.noJson = true; throw e; }
   const out = cleanDeep(JSON.parse(m[0]));
   const months = (a) => (Array.isArray(a) ? a.map(Number).filter((n) => n >= 1 && n <= 12) : []);
   out.types = (out.types || []).map((t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()).filter((t) => TYPES.includes(t));
@@ -352,6 +364,8 @@ function normalizeAI(raw) {
   delete out.confidence;
   out.iucn = normIucn(out.iucn);
   fixNames(out);
+  if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Ojo, puede confundirse: ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
+  delete out.doubt;
   out.parts = normParts(out.parts);
   delete out.rarity;
   return out;
@@ -1734,7 +1748,10 @@ function renderNew() {
     };
     box.querySelector("#useit").onclick = () => {
       try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; saveDraft(); renderForm(null); }
-      catch (e) { toast("No entendí la respuesta: " + e.message); }
+      catch (e) {
+        if (e.noJson && v("paste").trim()) ask({ title: "La IA todavía tiene dudas", text: "Parece que te hizo preguntas o te pidió más fotos en vez de darte la ficha. Contestale en el mismo chat (podés mandarle fotos nuevas) y, cuando te dé el bloque para Herbalorium, pegalo acá.", ok: "Entendido", cancel: "Cerrar" });
+        else toast("No entendí la respuesta: " + e.message);
+      }
     };
   } else {
     box.innerHTML = `<p class="muted">Completás vos cada campo. Ideal si ya sabés qué es.</p>
