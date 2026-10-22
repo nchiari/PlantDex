@@ -889,3 +889,17 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 /* misión difícil: sellito dorado junto a la zona */
 .ms-hard { display: inline-block; margin-left: 6px; padding: 1px 8px 0; border-radius: 99px; vertical-align: 1px;
   font: 700 8.5px var(--caps); letter-spacing: 1.4px; color: #3d2c0c; background: linear-gradient(135deg, #f0d68c, #c9a24a); box-shadow: 0 0 0 1px rgb(143 109 42 / .5); }
+/* pedidos para entrar y puntito en Ajustes */
+.bottom [data-go="settings"] { position: relative; }
+.bottom [data-go="settings"].has-dot::after { content: ""; position: absolute; top: 6px; left: calc(50% + 10px); width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--parchment); animation: dot-pulse 1.6s ease-in-out infinite; }
+.requests { border-color: var(--gold); }
+.req { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgb(var(--line) / .14); }
+.req:first-of-type { border-top: 0; }
+.req .avatar.sm { width: 34px; height: 34px; font-size: 16px; }
+.req-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.req-txt b { font: 500 17px var(--text); }
+.req-txt span { font-size: 14.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+.req-txt small { font-size: 13px; color: var(--ink-soft); font-style: italic; }
+.req-btns { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.req-btns .btn { padding: 8px 12px; font-size: 11px; }
+.req-btns .linkish { margin: 0; padding: 2px 0; font-size: 14px; }

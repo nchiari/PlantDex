@@ -143,6 +143,7 @@ function route() {
   const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
   $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
   if (!sb) return renderSetup();
+  if (user && !amMember) return renderWaiting();
   if (view === "settings") return renderSettings();
   if (!user) return renderLogin();
   $nav.hidden = false;
@@ -153,6 +154,7 @@ function route() {
   else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
+  navDotSettings();
   if (feat("misiones") && zoneOf() && !route.missionChecked) { route.missionChecked = true; ensureMission().then(navDot).catch(() => {}); } else navDot();
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
@@ -165,7 +167,7 @@ function route() {
 // ---------- datos ----------
 const byName = new Intl.Collator("es", { sensitivity: "base" });
 const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name || "", b.common_name || ""));
-let amOwner = false;
+let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
 const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos" };
@@ -174,6 +176,11 @@ async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
   const own = await sb.rpc("is_owner");
   amOwner = own.error ? true : !!own.data;
+  // Miembro = cuenta aceptada por el dueño. Si la función no existe (herbario viejo), se asume aceptada.
+  const mem = amOwner ? { data: true } : await sb.rpc("is_member");
+  amMember = mem.error ? true : !!mem.data;
+  if (!amMember) { plants = []; return; }
+  if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data.map(fixNames));
@@ -517,17 +524,17 @@ function renderSettings() {
     <div class="row" style="margin-top:22px"><button class="btn primary" id="save">Guardar</button></div>
     ${user ? iucnBatchBox() : ""}
     ${user ? (owner ? `
+      <div id="requests"></div>
       <div class="share-box"><h3>Invitar a mi herbario</h3>
-        <p class="muted" style="margin-top:0">Para sumar a alguien (o abrir tu herbario en otro dispositivo):</p>
         <ol class="setup ob-list">
-          <li><b>Dale de alta su email</b> en tu nube: en Supabase, <i>Authentication → Users → Add user → Create new user</i>, con su email y <i>Auto Confirm User</i> marcado.</li>
           <li><b>Mandale tu enlace de invitación</b>. Al abrirlo, la app lo guía paso a paso.</li>
+          <li>Cuando entre con su email, <b>te aparece su pedido acá</b>. Lo aceptás y listo.</li>
         </ol>
         <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
         <p class="muted" style="font-size:14px">Cada persona entra con su propio email y solo puede editar lo que carga.</p></div>` : `
       <div class="share-box"><h3>Tu herbario</h3>
-        <p class="muted" style="margin-top:0">Estás en ${book}. Para sumar a otra persona, pedíselo a quien lo creó.</p>
-        <button class="btn" id="sharecfg" style="width:100%">Abrir en otro dispositivo</button></div>`) : ""}
+        <p class="muted" style="margin-top:0">Estás en ${book}. Para sumar a alguien, pasale este enlace: cuando entre, el dueño del herbario recibe su pedido y decide. También sirve para abrirlo en otro dispositivo.</p>
+        <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button></div>`) : ""}
     ${owner ? `<details class="owner-db" ${user ? "" : "open"}><summary>Conexión con la base ${user ? "· solo la ves vos" : ""}</summary>
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
@@ -553,6 +560,7 @@ function renderSettings() {
     try { const seen = JSON.parse(localStorage.getItem(ACH_KEY) || "[]").filter((id) => !/^x\d/.test(id)); localStorage.setItem(ACH_KEY, JSON.stringify(seen)); } catch {}
     location.replace(SITE_URL());
   });
+  if (amOwner && user) paintRequests();
   $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
     illuCache = Object.fromEntries([...illuRemoved].map((k) => [k, false])); saveIllu();
@@ -711,16 +719,12 @@ function obJoinHTML() {
   const inv = ob.invite;
   if (inv) return `<div class="ob-center"><h2>Te invitaron</h2>
       <div class="ob-invite"><svg><use href="#i-book"/></svg><b>${inv.o ? "El herbario de " + esc(inv.o) : "Un herbario compartido"}</b><span>Vas a ver sus láminas y sumar las tuyas.</span></div>
-      <p class="lead">Asegurate de que ${inv.o ? esc(inv.o) : "quien te invitó"} haya dado de alta <b>tu email</b> en su herbario: si no, no vas a poder entrar.</p>
+      <p class="lead">Entrás con tu email y <b>el dueño del herbario recibe tu pedido</b>. Cuando lo acepte, vas a ver todas las láminas.</p>
       <p class="muted" id="obmsg"></p>
       <button class="btn primary ob-cta" id="objoin">Unirme</button>
       <button class="btn ghost" id="obnew">Prefiero crear mi herbario</button></div>`;
   return `<div class="ob-center"><h2>Unirme a un herbario</h2>
-      <p class="lead">Pedile a quien creó el herbario dos cosas:</p>
-      <ol class="setup ob-list">
-        <li>Su <b>enlace de invitación</b>. Lo encuentra en <i>Ajustes → Invitar a mi herbario</i>.</li>
-        <li>Que dé de alta <b>tu email</b> en su herbario. La app le explica cómo.</li>
-      </ol>
+      <p class="lead">Pedile a alguien del herbario su <b>enlace de invitación</b> (está en <i>Ajustes</i>). Después entrás con tu email y el dueño del herbario acepta tu pedido.</p>
       <label>Enlace de invitación</label>
       <div class="row ob-paste"><input id="oblink" placeholder="https://herbalorium.pages.dev/?c=…"><button class="btn" id="obpaste" style="flex:none">Pegar</button></div>
       <details><summary>O cargá los datos a mano</summary>
@@ -745,7 +749,7 @@ function obNewHTML() {
     </ol>
     <p class="muted" id="obmsg" style="text-align:center"></p>
     <button class="btn primary ob-cta" id="objoin" style="width:100%">Conectar mi herbario</button>
-    <p class="muted" style="font-size:15px;text-align:center"><i>Cuando ya hayas entrado con tu email, desactivá en Supabase «Allow new users to sign up» (Authentication → Sign In / Providers → Email). Así solo entran las personas que vos des de alta.</i></p>`;
+    <p class="muted" style="font-size:15px;text-align:center"><i>Dejá activado en Supabase «Allow new users to sign up» (Authentication → Sign In / Providers → Email): así quien reciba tu invitación puede pedirte entrar, y vos lo aceptás desde Ajustes.</i></p>`;
 }
 // Prueba que la nube responda y tenga la tabla de láminas.
 async function testConnection(url, key) {
@@ -1118,6 +1122,52 @@ function startTour() {
   show();
 }
 
+// Pedidos para entrar (solo el dueño): aceptar o rechazar a quien llegó con una invitación.
+async function paintRequests() {
+  const box = $app.querySelector("#requests"); if (!box) return;
+  const { data, error } = await sb.from("members").select("user_id,name,email,invited_by,created_at").eq("status", "pending").order("created_at");
+  if (error || !data?.length) { box.innerHTML = ""; pendingRequests = 0; navDotSettings(); return; }
+  pendingRequests = data.length; navDotSettings();
+  const when = (t) => new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+  box.innerHTML = `<div class="share-box requests"><h3>Pedidos para entrar</h3>
+    ${data.map((r) => `<div class="req" data-u="${r.user_id}"><span class="avatar sm" aria-hidden="true">${esc([...(r.name || r.email || "?")][0].toUpperCase())}</span>
+      <div class="req-txt"><b>${esc(r.name || "Sin nombre")}</b><span>${esc(r.email || "")}</span><small>${r.invited_by ? `Invitado por ${esc(r.invited_by)} · ` : ""}${when(r.created_at)}</small></div>
+      <div class="req-btns"><button class="btn primary" data-ok>Aceptar</button><button class="linkish" data-no>Rechazar</button></div></div>`).join("")}</div>`;
+  box.querySelectorAll(".req").forEach((row) => {
+    const decide = async (status) => {
+      const r = data.find((x) => x.user_id === row.dataset.u);
+      if (status === "rejected" && !(await ask({ title: "Rechazar pedido", text: `${esc(r.name || r.email)} no va a poder entrar al herbario.`, ok: "Rechazar", cancel: "Volver" }))) return;
+      const { error: e } = await sb.from("members").update({ status, decided_at: new Date().toISOString() }).eq("user_id", r.user_id);
+      if (e) return toast("No se pudo: " + e.message);
+      toast(status === "accepted" ? `Listo: ${r.name || r.email} ya puede entrar` : "Pedido rechazado");
+      paintRequests();
+    };
+    row.querySelector("[data-ok]").onclick = () => decide("accepted");
+    row.querySelector("[data-no]").onclick = () => decide("rejected");
+  });
+}
+const navDotSettings = () => $nav.querySelector('[data-go="settings"]')?.classList.toggle("has-dot", amOwner && pendingRequests > 0);
+
+// Cuenta creada desde una invitación pero todavía no aceptada por el dueño del herbario.
+async function renderWaiting() {
+  $nav.hidden = true;
+  document.body.classList.remove("onboarding");
+  const { data: me } = await sb.from("members").select("status,name").eq("user_id", user.id).maybeSingle();
+  const no = me?.status === "rejected";
+  const hi = me?.name || cfg.name;
+  $app.innerHTML = `<div class="empty"><div class="big">${PLANT_ART}</div>
+    <h2>${hi ? "Hola, " + esc(hi) : "Casi adentro"}</h2>
+    <p class="lead">${no ? "El dueño del herbario no aceptó tu pedido para entrar. Si creés que es un error, hablalo con quien te invitó."
+      : "Tu pedido para entrar ya está en camino. <b>El dueño del herbario tiene que aceptarlo</b>; cuando lo haga, vas a poder ver todas las láminas y sumar las tuyas."}</p>
+    ${no ? "" : `<button class="btn primary" id="wcheck" style="width:100%">Ya me aceptaron</button>`}
+    <button class="linkish" id="wout">Cerrar sesión</button></div>`;
+  $app.querySelector("#wcheck")?.addEventListener("click", async (ev) => {
+    ev.currentTarget.disabled = true; await loadPlants();
+    if (amMember) { toast("¡Bienvenido al herbario!"); go("list"); } else { ev.currentTarget.disabled = false; toast("Todavía no: el pedido sigue esperando"); }
+  });
+  $app.querySelector("#wout").onclick = async () => { await sb.auth.signOut(); go("list"); };
+}
+
 function renderLogin() {
   $nav.hidden = true;
   document.body.classList.remove("onboarding");
@@ -1125,7 +1175,7 @@ function renderLogin() {
     <div class="empty">
       <div class="big">${PLANT_ART}</div>
       <h2>${cfg.name ? "Hola, " + esc(cfg.name) : "Herbarium Vivum"}</h2>
-      <p class="lead">${cfg.onboarded && cfg.joinedFrom != null ? `Último paso: entrá con el email que diste de alta${cfg.joinedFrom ? " con " + esc(cfg.joinedFrom) : ""}.` : cfg.onboarded ? "Último paso: entrá con tu email. Te llega un link para abrir la app." : "<i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi."}</p>
+      <p class="lead">${cfg.onboarded && cfg.joinedFrom != null ? "Último paso: entrá con tu email. Te llega un link y el dueño del herbario recibe tu pedido para entrar." : cfg.onboarded ? "Último paso: entrá con tu email. Te llega un link para abrir la app." : "<i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi."}</p>
       <label>Tu email</label>
       <input id="email" type="email" placeholder="tu@email.com" style="margin:0 0 22px;text-align:center">
       <button class="btn red" id="send" style="width:100%">Enviar el link</button>
@@ -1138,7 +1188,8 @@ function renderLogin() {
   });
   $app.querySelector("#send").onclick = async () => {
     const email = v("email"); if (!email) return;
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname, data: { name: cfg.name || "", invited_by: cfg.joinedFrom || "" } } });
+    if (error && /signups? not allowed|sign ?ups? (are )?disabled/i.test(error.message)) return toast("Este herbario todavía no recibe cuentas nuevas: pedile al dueño del herbario que lo habilite.");
     toast(error ? "Error: " + error.message : "Listo, revisá tu correo");
   };
 }

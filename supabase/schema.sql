@@ -137,3 +137,63 @@ grant execute on function public.leave_herbarium(boolean) to authenticated;
 -- v12: cada uno puede editar sus hallazgos (por ejemplo, borrar una foto propia).
 drop policy if exists "update own sightings" on public.sightings;
 create policy "update own sightings" on public.sightings for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- v13: pedidos para entrar. Cualquiera puede crear su cuenta desde una invitación, pero solo ve y toca el herbario
+-- cuando el dueño la acepta. Las cuentas que ya existían quedan aceptadas.
+create table if not exists public.members (
+  user_id uuid primary key references auth.users on delete cascade,
+  email text, name text, invited_by text,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected')),
+  created_at timestamptz default now(), decided_at timestamptz
+);
+alter table public.members enable row level security;
+insert into public.members (user_id, email, name, status, decided_at)
+  select id, email, nullif(raw_user_meta_data->>'name', ''), 'accepted', now() from auth.users
+  on conflict (user_id) do nothing;
+
+create or replace function public.is_member() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select auth.uid() is not null and (public.is_owner()
+    or exists (select 1 from public.members m where m.user_id = auth.uid() and m.status = 'accepted'));
+$$;
+revoke all on function public.is_member() from public, anon;
+grant execute on function public.is_member() to authenticated;
+
+-- Cada cuenta nueva entra como pedido pendiente, con el nombre y quién la invitó (vienen de la app al pedir el link).
+create or replace function public.on_new_user() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.members (user_id, email, name, invited_by)
+  values (new.id, new.email, nullif(new.raw_user_meta_data->>'name', ''), nullif(new.raw_user_meta_data->>'invited_by', ''))
+  on conflict (user_id) do nothing;
+  return new;
+end $$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.on_new_user();
+
+drop policy if exists "read own or owner" on public.members;
+drop policy if exists "owner decides" on public.members;
+create policy "read own or owner" on public.members for select to authenticated using (user_id = auth.uid() or public.is_owner());
+create policy "owner decides" on public.members for update to authenticated using (public.is_owner()) with check (public.is_owner());
+
+-- Láminas, hallazgos y fotos: solo para miembros aceptados.
+drop policy if exists "read shared" on public.plants;
+drop policy if exists "insert own" on public.plants;
+drop policy if exists "update own" on public.plants;
+drop policy if exists "delete own" on public.plants;
+create policy "read shared" on public.plants for select to authenticated using (public.is_member());
+create policy "insert own" on public.plants for insert to authenticated with check (auth.uid() = user_id and public.is_member());
+create policy "update own" on public.plants for update to authenticated using (auth.uid() = user_id and public.is_member()) with check (auth.uid() = user_id);
+create policy "delete own" on public.plants for delete to authenticated using (auth.uid() = user_id and public.is_member());
+drop policy if exists "read sightings" on public.sightings;
+drop policy if exists "insert own sightings" on public.sightings;
+drop policy if exists "update own sightings" on public.sightings;
+drop policy if exists "delete own sightings" on public.sightings;
+create policy "read sightings" on public.sightings for select to authenticated using (public.is_member());
+create policy "insert own sightings" on public.sightings for insert to authenticated with check (auth.uid() = user_id and public.is_member());
+create policy "update own sightings" on public.sightings for update to authenticated using (auth.uid() = user_id and public.is_member()) with check (auth.uid() = user_id);
+create policy "delete own sightings" on public.sightings for delete to authenticated using (auth.uid() = user_id and public.is_member());
+drop policy if exists "read photos" on storage.objects;
+drop policy if exists "write own photos" on storage.objects;
+create policy "read photos" on storage.objects for select to authenticated using (bucket_id = 'plant-photos' and public.is_member());
+create policy "write own photos" on storage.objects for insert to authenticated with check (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text and public.is_member());
