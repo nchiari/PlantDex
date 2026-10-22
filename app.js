@@ -1088,8 +1088,13 @@ function openMissionsIntro() {
     <svg class="fi-art" viewBox="0 0 120 120" aria-hidden="true"><use href="#i-compass"/></svg>
     <p class="fi-kicker">Novum</p>
     <h3 id="fi-t">Misiones de exploración</h3>
-    <p>Cada tanto te propongo <b>una planta que se vio cerca de tu casa</b> y que todavía no está en el herbario. Salís a buscarla, la asentás y la misión queda cumplida.</p>
-    <p class="fi-small">Las encontrás en Progreso, junto a tus logros. Para empezar, marcá tu zona.</p>
+    <div class="fi-letter">
+      ${cfg.name ? `<p class="fi-to">${esc(cfg.name)}:</p>` : ""}
+      <p>Todo naturalista empezó igual: con un mapa a medio dibujar y las ganas de saber qué crece a la vuelta de casa.</p>
+      <p>Desde hoy, este herbario te va a encargar misiones. Cada una es <b>una planta que alguien vio cerca tuyo</b> y que todavía no tiene su lámina. Salís a buscarla, la asentás, y la misión queda cumplida. Unos días después, te espera la siguiente.</p>
+      <p class="fi-sign">— Herbarium vivum</p>
+    </div>
+    <p class="fi-small">Las misiones viven en Progreso. Para empezar, marcá desde dónde explorás.</p>
     <div class="fi-btns"><button class="btn primary" id="fi-go">Marcar mi zona</button><button class="linkish" id="fi-no">Ahora no</button></div></div>`;
   const done = () => { cfg.missionsIntro = true; saveCfg(cfg); syncMeta({ missions_intro: true }); m.classList.add("out"); setTimeout(() => m.remove(), 250); };
   m.querySelector("#fi-go").onclick = () => { done(); goZone(); };
