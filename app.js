@@ -100,6 +100,21 @@ function reloadIfIdle() {
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && checkUpdate());
 window.addEventListener("hashchange", reloadIfIdle);
 
+// Lo personal (nombre, zona, misiones, novedades y láminas vistas) se guarda en la cuenta de cada persona y,
+// para abrir rápido, también una copia en el navegador. Si en este dispositivo entra otra persona, se descarta
+// la copia de la anterior y se usan los datos de la cuenta nueva.
+function adoptUser() {
+  if (!user || cfg.uid === user.id) return;
+  const meta = user.user_metadata || {};
+  if (cfg.uid) {
+    for (const k of ["zone", "mission", "missionsDone", "missionSkip", "missionSeen", "missionCelebrated", "missionsIntro", "newsSeen", "focusZone"]) delete cfg[k];
+    cfg.name = meta.name || "";
+    try { localStorage.removeItem(NOVA_KEY); localStorage.removeItem(ACH_KEY); } catch {}
+    novaSeen = null;
+  } else if (cfg.name && !meta.name) syncMeta({ name: cfg.name }); // primera vez: la cuenta adopta el nombre de este dispositivo
+  cfg.uid = user.id; saveCfg(cfg);
+}
+
 async function boot() {
   applyTheme();
   await readConfigLink();
@@ -112,7 +127,8 @@ async function boot() {
   sb = createClient(cfg.sbUrl, cfg.sbKey);
   const { data } = await sb.auth.getSession();
   user = data.session?.user ?? null;
-  sb.auth.onAuthStateChange((_e, s) => { const was = user; user = s?.user ?? null; if (!!was !== !!user) { if (user) loadPlants().then(route); else route(); } });
+  adoptUser();
+  sb.auth.onAuthStateChange((_e, s) => { const was = user; user = s?.user ?? null; if (!!was !== !!user) { if (user) { adoptUser(); loadPlants().then(route); } else route(); } });
   if (user) await loadPlants();
   await restoreDraft();
   route();
@@ -516,6 +532,7 @@ function renderSettings() {
     cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name,
       sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
     saveCfg(cfg);
+    if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
     document.body.classList.toggle("engrave", cfg.engrave);
     toast("Guardado");
     if (prevSb !== cfg.sbUrl + cfg.sbKey) location.replace(location.pathname);
@@ -696,7 +713,7 @@ const OB_BIND = {
     requestAnimationFrame(() => (bar.style.width = "100%"));
     words.forEach((w, k) => setTimeout(() => h && (h.textContent = w), k * 900));
     setTimeout(() => {
-      cfg = { ...cfg, sbUrl: ob.conn.url, sbKey: ob.conn.key, name: ob.name.trim(), onboarded: true, tourPending: true, newsSeen: NEWS[0].v, joinedFrom: ob.path === "join" ? (ob.invite?.o || "") : null };
+      cfg = { ...cfg, uid: null, sbUrl: ob.conn.url, sbKey: ob.conn.key, name: ob.name.trim(), onboarded: true, tourPending: true, newsSeen: NEWS[0].v, joinedFrom: ob.path === "join" ? (ob.invite?.o || "") : null };
       saveCfg(cfg);
       location.replace(SITE_URL());
     }, 3400);
