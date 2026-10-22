@@ -1280,11 +1280,14 @@ async function newMission() {
   let pool = free(await speciesNear(z, month)).map((x) => ({ ...x, month }));
   if (pool.length < 3) pool = [...pool, ...free(await speciesNear(z, null)).filter((x) => !pool.some((y) => y.id === x.id))]; // si en este mes hay pocas, de todo el año
   if (!pool.length) return null;
-  // Sorteo con peso: las más registradas cerca salen más seguido (son más fáciles de encontrar), pero cualquiera puede tocar.
-  const w = pool.map((x) => Math.sqrt(x.count || 1)), total = w.reduce((a, b) => a + b, 0);
+  // Sorteo por niveles, calculados con las especies de la zona (de la más vista a la menos vista):
+  // el 30 % más visto es "común" (peso 12), el 40 % del medio "habitual" (peso 4) y el 30 % menos visto "difícil" (peso 1).
+  const ranked = [...pool].sort((a, b) => (b.count || 0) - (a.count || 0));
+  const tierOf = (idx) => (ranked.length < 4 ? 0 : idx < ranked.length * 0.3 ? 0 : idx < ranked.length * 0.7 ? 1 : 2);
+  const w = ranked.map((_, idx) => [12, 4, 1][tierOf(idx)]), total = w.reduce((a, b) => a + b, 0);
   let r = Math.random() * total, i = 0;
-  while (i < pool.length - 1 && (r -= w[i]) > 0) i++;
-  return { ...pool[i], given: Date.now() };
+  while (i < ranked.length - 1 && (r -= w[i]) > 0) i++;
+  return { ...ranked[i], hard: tierOf(i) === 2, given: Date.now() };
 }
 // Si la especie asentada era la de tu misión, queda cumplida. Devuelve true para festejarlo con el sello.
 function missionCheck(sci) {
@@ -1384,9 +1387,9 @@ async function hydrateMission() {
   const when = m.month ? `en ${MONTHS_LONG[m.month - 1].toLowerCase()}` : "durante el año";
   box.innerHTML = `<div class="mission">
     ${m.photo ? `<button class="ms-ph" id="ms-ph" aria-label="Ver la foto más grande"><img src="${esc(m.photo)}" alt="" loading="lazy"></button>` : ""}
-    <div class="ms-txt"><small>Cerca de ${zoneShort}</small>
+    <div class="ms-txt"><small>Cerca de ${zoneShort}${m.hard ? ` <span class="ms-hard" title="Poco vista en tu zona">Difícil</span>` : ""}</small>
       <button class="ms-name" id="ms-name"><b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}</button>
-      <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
+      <span class="ms-meta">${m.hard ? `Poco vista: se registró solo ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.` : `Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.`}</span>
       <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
     </div></div>`;
   box.querySelector("#ms-ph")?.addEventListener("click", () => openMissionViewer(m));

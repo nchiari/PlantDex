@@ -886,3 +886,6 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .vi-t { color: #f3eedb; }
 .vi-t.muted { color: rgb(243 238 219 / .65); }
 .vi-more { color: #c9d8b4; }
+/* misión difícil: sellito dorado junto a la zona */
+.ms-hard { display: inline-block; margin-left: 6px; padding: 1px 8px 0; border-radius: 99px; vertical-align: 1px;
+  font: 700 8.5px var(--caps); letter-spacing: 1.4px; color: #3d2c0c; background: linear-gradient(135deg, #f0d68c, #c9a24a); box-shadow: 0 0 0 1px rgb(143 109 42 / .5); }
