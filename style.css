@@ -787,3 +787,29 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .zone-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgb(var(--line) / .2); }
 .zone-row .linkish { margin: 0; padding: 0; flex: none; }
 .zone-note { font-size: 14px; margin: 6px 0 0; }
+/* presentación de una función nueva: ventana centrada, distinta de las que suben desde abajo */
+.modal.feature-intro { display: flex; align-items: center; justify-content: center; padding: 22px; background: rgb(10 15 11 / .6); align-items: center; }
+.modal.feature-intro.out { opacity: 0; transition: opacity .25s; }
+.fi-box { position: relative; width: min(100%, 380px); text-align: center; padding: 30px 26px 22px; background: var(--parchment);
+  border: 1px solid var(--gold); box-shadow: inset 0 0 0 5px var(--parchment), inset 0 0 0 6px rgb(var(--line) / .25), 0 18px 40px rgb(0 0 0 / .35);
+  animation: fi-in .45s cubic-bezier(.2,1.2,.4,1) both; }
+.fi-art { display: block; margin: 0 auto; width: 96px; height: 96px; color: var(--gold); animation: fi-spin 1.2s cubic-bezier(.2,1,.3,1) both; }
+.fi-kicker { margin: 10px 0 0; font: 600 10px var(--caps); letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+.fi-box h3 { margin: 4px 0 12px; justify-content: center; font: 700 22px var(--initial); letter-spacing: .5px; color: var(--ink); }
+.fi-box h3::before, .fi-box h3::after { display: none; }
+.fi-box p { margin: 0 0 10px; line-height: 1.5; }
+.fi-box .fi-small { font-size: 15px; color: var(--ink-soft); font-style: italic; }
+.fi-btns { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 16px; }
+.fi-btns .btn { width: 100%; }
+.fi-btns .linkish { margin: 4px 0 0; }
+@keyframes fi-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes fi-spin { from { transform: rotate(-120deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fi-box, .fi-art { animation: none; } }
+/* buscador de zona */
+.zone-pick { position: relative; }
+.zone-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: var(--parchment); border: 1px solid rgb(var(--line) / .3); box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
+.zone-list button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid rgb(var(--line) / .12); padding: 11px 14px; font: 16px var(--text); color: var(--ink); cursor: pointer; }
+.zone-list button:last-child { border-bottom: 0; }
+.zone-list p { margin: 0; padding: 11px 14px; font-size: 15px; }
+.zone-gps { margin: 8px 0 0; font-size: 15px; }
+.ms-empty { justify-content: flex-start; }

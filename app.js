@@ -134,6 +134,9 @@ function route() {
   checkAchievements();
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
+  else if (feat("misiones") && !missionsIntroSeen() && !zoneOf()) setTimeout(() => !document.querySelector(".tour, .modal") && !missionsIntroSeen() && openMissionsIntro(), 900);
+  // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
+  $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -389,9 +392,10 @@ function renderSettings() {
     <label>Tu nombre (aparece en las láminas que cargás)</label>
     <div class="me-row"><span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
     ${user && feat("misiones") ? `<label>Tu zona</label>
-    <div class="zone-row"><span id="zonename" class="${zoneOf() ? "" : "muted"}">${esc(zoneOf()?.name || "Sin marcar")}</span><button class="linkish" id="setzone">${zoneOf() ? "Cambiar a donde estoy" : "Usar mi ubicación"}</button></div>
+    <div class="zone-pick"><input id="zoneq" autocomplete="off" placeholder="Escribí tu barrio, pueblo o ciudad" value="${esc(zoneOf()?.name || "")}"><div class="zone-list" id="zonelist" hidden></div></div>
+    <button class="linkish zone-gps" id="setzone">Usar mi ubicación actual</button>
     <p class="muted zone-note">Sirve para proponerte plantas que se vieron cerca. Se guarda aproximada, a un kilómetro.</p>
-    <label class="toggle"><input type="checkbox" id="missions" ${cfg.missionsOff ? "" : "checked"}> Misiones de exploración en el herbario</label>` : ""}
+    <label class="toggle"><input type="checkbox" id="missions" ${cfg.missionsOff ? "" : "checked"}> Misiones de exploración</label>` : ""}
     <h3>Apariencia</h3>
     <label>Tema</label>
     <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
@@ -421,15 +425,35 @@ function renderSettings() {
   `;
   $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
+  const $zq = $app.querySelector("#zoneq"), $zl = $app.querySelector("#zonelist");
+  if ($zq) {
+    let tmr = null, seq = 0;
+    const pickZone = (z) => { saveZone(z.lat, z.lng, z.name, z.cc); $zq.value = z.name; $zl.hidden = true; $zq.blur(); toast("Zona guardada"); };
+    $zq.oninput = () => {
+      clearTimeout(tmr);
+      const q = $zq.value.trim(); if (q.length < 3) { $zl.hidden = true; return; }
+      tmr = setTimeout(async () => {
+        const my = ++seq; let list = [];
+        try { list = await zoneSuggest(q); } catch { list = null; }
+        if (my !== seq) return;
+        $zl.innerHTML = list === null ? `<p class="muted">No pude buscar lugares. Probá con tu ubicación actual.</p>`
+          : list.length ? list.map((z, i) => `<button type="button" data-i="${i}">${esc(z.name)}</button>`).join("") : `<p class="muted">No encontré ese lugar.</p>`;
+        $zl.hidden = false;
+        $zl.querySelectorAll("[data-i]").forEach((b) => (b.onclick = () => pickZone(list[+b.dataset.i])));
+      }, 350);
+    };
+    $zq.onblur = () => setTimeout(() => ($zl.hidden = true), 200);
+    if (cfg.focusZone) { delete cfg.focusZone; saveCfg(cfg); setTimeout(() => { $zq.scrollIntoView({ block: "center" }); $zq.focus(); }, 150); }
+  }
   $app.querySelector("#setzone")?.addEventListener("click", (ev) => {
     const b = ev.currentTarget;
     if (!navigator.geolocation) return toast("Este dispositivo no da la ubicación");
     b.disabled = true; b.textContent = "Buscando…";
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const z = await setZone(pos.coords.latitude, pos.coords.longitude);
-      $app.querySelector("#zonename").textContent = z.name; $app.querySelector("#zonename").classList.remove("muted");
-      b.disabled = false; b.textContent = "Cambiar a donde estoy"; toast("Zona guardada");
-    }, () => { b.disabled = false; b.textContent = "Usar mi ubicación"; toast("No pude leer la ubicación: revisá el permiso"); }, { timeout: 10000 });
+      if ($zq) $zq.value = z.name;
+      b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("Zona guardada");
+    }, () => { b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("No pude leer la ubicación: revisá el permiso"); }, { timeout: 10000 });
   });
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
     cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
@@ -793,7 +817,7 @@ const waitFor = async (sel, ms = 2500) => {
 };
 function startTour() {
   if (document.querySelector(".tour")) return;
-  const steps = [...TOUR];
+  const steps = TOUR.map((t) => (t[0] === "stats" && feat("misiones") ? ["stats", "#app h2", "Progreso", "Tu misión de exploración y más de 60 logros que se desbloquean a medida que tu herbario crece."] : t));
   // El paso de los símbolos se apoya en las tarjetas: durante el tutorial se muestra la vista con imágenes.
   const prevView = cfg.view;
   if (prevView === "list") { cfg.view = "grid"; if (currentView() === "list") renderList(); }
@@ -890,7 +914,6 @@ function renderList() {
         ${people.length > 1 ? `<p class="fl-h">Encontrada por</p><div class="chips">${people.map(chipW).join("")}</div>` : ""}
         ${active ? `<button class="linkish" id="fclear">Quitar filtros</button>` : ""}
       </div>` : active ? `<div class="chips active-f">${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
-    ${!filter.q && !active ? `<div id="mission"></div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
@@ -909,7 +932,6 @@ function renderList() {
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
-  hydrateMission();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
@@ -943,17 +965,36 @@ function consBadge(code, cls = "cons") {
 const MISSION_GAP = 2 * 86400e3, NEAR_KEY = "plantdex.near";
 const zoneOf = () => cfg.zone || user?.user_metadata?.zone || null;
 const syncMeta = (data) => Promise.resolve().then(() => sb.auth.updateUser({ data })).then(({ data: d }) => d?.user && (user = d.user)).catch(() => {});
+// Guarda la zona redondeada a ~1 km: alcanza para buscar y no guarda tu casa exacta.
+function saveZone(lat, lng, name, cc) {
+  const la = Math.round(lat * 100) / 100, ln = Math.round(lng * 100) / 100;
+  const z = { lat: la, lng: ln, name: name || `${la}, ${ln}`, cc: cc || "" };
+  cfg.zone = z; saveCfg(cfg); syncMeta({ zone: z });
+  // Zona nueva: la misión pendiente se recalcula para el lugar nuevo.
+  const m = missionOf(); if (m && !m.done) saveMission(null);
+  return z;
+}
+// Sugerencias de lugares mientras escribís (Photon, sobre los mapas abiertos de OpenStreetMap: gratis y sin clave).
+async function zoneSuggest(q) {
+  const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=12`);
+  const places = ["city", "town", "village", "district", "locality", "suburb", "county", "neighbourhood", "hamlet"];
+  return ((await r.json()).features || [])
+    .filter((f) => places.includes(f.properties.type) || places.includes(f.properties.osm_value))
+    .slice(0, 6).map(({ properties: p, geometry: g }) => ({
+      lat: g.coordinates[1], lng: g.coordinates[0], cc: (p.countrycode || "").toLowerCase(),
+      name: [...new Set([p.name, p.city !== p.name ? p.city : "", p.state, p.country].filter(Boolean))].join(", "),
+    }));
+}
+const goZone = () => { cfg.focusZone = true; go("settings"); };
 async function setZone(lat, lng) {
-  const la = Math.round(lat * 100) / 100, ln = Math.round(lng * 100) / 100; // ~1 km: alcanza para buscar y no guarda tu casa exacta
+  const la = Math.round(lat * 100) / 100, ln = Math.round(lng * 100) / 100;
   let name = "", cc = "";
   try {
     const a = (await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=es&lat=${la}&lon=${ln}`)).json()).address || {};
     name = [a.suburb || a.village || a.town || a.city_district || a.city || a.municipality, a.city && (a.suburb || a.city_district) ? a.city : a.state].filter(Boolean).join(", ");
     cc = a.country_code || "";
   } catch {}
-  const z = { lat: la, lng: ln, name: name || `${la}, ${ln}`, cc };
-  cfg.zone = z; saveCfg(cfg); syncMeta({ zone: z });
-  return z;
+  return saveZone(la, ln, name, cc);
 }
 const missionOf = () => cfg.mission !== undefined ? cfg.mission : user?.user_metadata?.mission || null;
 const saveMission = (m) => { cfg.mission = m; saveCfg(cfg); syncMeta({ mission: m }); };
@@ -994,10 +1035,10 @@ async function hydrateMission() {
   const box = $app.querySelector("#mission"); if (!box || cfg.missionsOff || !feat("misiones")) return;
   const z = zoneOf();
   if (!z) {
-    if (cfg.missionHintOff) return;
-    box.innerHTML = `<p class="ms-hint">Marcá tu zona en <button class="linkish" id="ms-zone">Ajustes</button> y te propongo plantas que se vieron cerca para salir a buscar. <button class="linkish" id="ms-nohint" aria-label="No mostrar">✕</button></p>`;
-    box.querySelector("#ms-zone").onclick = () => go("settings");
-    box.querySelector("#ms-nohint").onclick = () => { cfg.missionHintOff = true; saveCfg(cfg); box.innerHTML = ""; };
+    box.innerHTML = `<div class="mission ms-empty"><div class="ms-txt"><small>Tu primera misión</small>
+      <span class="ms-meta">Marcá tu zona y te propongo plantas que se vieron cerca para salir a buscar.</span>
+      <span class="ms-links"><button class="linkish" id="ms-zone">Marcar mi zona</button></span></div></div>`;
+    box.querySelector("#ms-zone").onclick = () => goZone();
     return;
   }
   let m = missionOf();
@@ -1016,7 +1057,7 @@ async function hydrateMission() {
     saveMission(m);
   }
   if (!$app.contains(box)) return;
-  const zoneShort = esc(z.name.split(",")[0]);
+  const zoneShort = esc(z.name.split(/[,(]/)[0].trim());
   if (m.done) {
     const next = new Date(m.done + MISSION_GAP).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
     box.innerHTML = `<p class="ms-hint"><b>Misión cumplida:</b> ${esc(m.common || m.name)}. La próxima llega el ${next}.</p>`;
@@ -1030,12 +1071,30 @@ async function hydrateMission() {
   const when = m.month ? `en ${MONTHS_LONG[m.month - 1].toLowerCase()}` : "durante el año";
   box.innerHTML = `<div class="mission">
     ${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy" title="${esc(m.credit)}">` : ""}
-    <div class="ms-txt"><small>Misión · cerca de ${zoneShort}</small>
+    <div class="ms-txt"><small>Cerca de ${zoneShort}</small>
       <b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}
       <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
       <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
     </div></div>`;
   box.querySelector("#ms-skip").onclick = () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
+}
+
+// Presentación de las misiones: aparece una vez, centrada, con su propio diseño (es una función importante).
+const missionsIntroSeen = () => !!(cfg.missionsIntro || user?.user_metadata?.missions_intro);
+function openMissionsIntro() {
+  const m = document.createElement("div");
+  m.className = "modal feature-intro";
+  m.innerHTML = `<div class="fi-box" role="dialog" aria-modal="true" aria-labelledby="fi-t">
+    <svg class="fi-art" viewBox="0 0 120 120" aria-hidden="true"><use href="#i-compass"/></svg>
+    <p class="fi-kicker">Novum</p>
+    <h3 id="fi-t">Misiones de exploración</h3>
+    <p>Cada tanto te propongo <b>una planta que se vio cerca de tu casa</b> y que todavía no está en el herbario. Salís a buscarla, la asentás y la misión queda cumplida.</p>
+    <p class="fi-small">Las encontrás en Progreso, junto a tus logros. Para empezar, marcá tu zona.</p>
+    <div class="fi-btns"><button class="btn primary" id="fi-go">Marcar mi zona</button><button class="linkish" id="fi-no">Ahora no</button></div></div>`;
+  const done = () => { cfg.missionsIntro = true; saveCfg(cfg); syncMeta({ missions_intro: true }); m.classList.add("out"); setTimeout(() => m.remove(), 250); };
+  m.querySelector("#fi-go").onclick = () => { done(); goZone(); };
+  m.querySelector("#fi-no").onclick = done;
+  document.body.appendChild(m);
 }
 
 // ---------- sello Nova: láminas de otras personas que todavía no abriste ----------
@@ -1889,6 +1948,7 @@ function renderStats() {
   $app.innerHTML = `
     <h2>Progressus</h2>
     <p class="muted"><i>Herbarium numquam finitur.</i> El herbario nunca se termina.</p>
+    ${feat("misiones") ? `<h3>Misión</h3><div id="mission"></div><h3>Logros</h3>` : ""}
     <div class="stat-grid">
       <div class="stat"><b>${n}</b>láminas</div>
       <div class="stat"><b>${S.families}</b>familias</div>
@@ -1899,6 +1959,7 @@ function renderStats() {
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
     ${cats.map((cat) => { const list = ACH.filter((a) => a[1] === cat); const got = list.filter((a) => unlocked.has(a[0])).length;
       return `<h3>${cat} <span class="cat-count">${got}/${list.length}</span></h3><div class="badge-list">${list.map(badge).join("")}</div>`; }).join("")}`;
+  hydrateMission();
 }
 
 Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (x ? (draft = x) : clearDraft()) });
