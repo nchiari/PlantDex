@@ -1279,7 +1279,12 @@ async function newMission() {
   const free = (l) => l.filter((x) => !have.has(illuKey(x.name)) && !skip.has(x.id));
   let pool = free(await speciesNear(z, month)).map((x) => ({ ...x, month }));
   if (pool.length < 3) pool = [...pool, ...free(await speciesNear(z, null)).filter((x) => !pool.some((y) => y.id === x.id))]; // si en este mes hay pocas, de todo el año
-  return pool[0] ? { ...pool[0], given: Date.now() } : null;
+  if (!pool.length) return null;
+  // Sorteo con peso: las más registradas cerca salen más seguido (son más fáciles de encontrar), pero cualquiera puede tocar.
+  const w = pool.map((x) => Math.sqrt(x.count || 1)), total = w.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total, i = 0;
+  while (i < pool.length - 1 && (r -= w[i]) > 0) i++;
+  return { ...pool[i], given: Date.now() };
 }
 // Si la especie asentada era la de tu misión, queda cumplida. Devuelve true para festejarlo con el sello.
 function missionCheck(sci) {
