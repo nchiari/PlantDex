@@ -168,7 +168,7 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "prueba" };
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -260,12 +260,52 @@ const ILLU_QUERIES = [
   "intitle:Köhler", "intitle:Illustration", "intitle:Batava", "intitle:Sturm", "intitle:Nordens",
   "Lindman", "intitle:Sowerby", '"English Botany"', "Curtis botanical", "drawing OR plate OR engraving OR tafel",
 ];
+// Búsqueda ampliada: además del título, las categorías de Commons ("X - botanical illustrations") y los nombres
+// antiguos de la especie (sinónimos de GBIF), porque muchas láminas del siglo XIX la nombran distinto.
+// Se intenta una sola vez por especie; las que quitaste a mano ("No es esta planta") no se vuelven a buscar.
+const ILLU_TRIED_KEY = "plantdex.illu-x";
+let illuTried = new Set(); try { illuTried = new Set(JSON.parse(localStorage.getItem(ILLU_TRIED_KEY) || "[]")); } catch {}
+const saveTried = () => { try { localStorage.setItem(ILLU_TRIED_KEY, JSON.stringify([...illuTried].slice(-500))); } catch {} };
+const illuRetry = (key) => feat("laminas") && illuCache[key] === false && !illuTried.has(key);
+const titleCase = (n) => n.charAt(0).toUpperCase() + n.slice(1);
+async function categoryIllustration(name) {
+  const q = new URLSearchParams({
+    action: "query", format: "json", origin: "*", generator: "categorymembers", gcmtitle: `Category:${titleCase(name)} - botanical illustrations`,
+    gcmtype: "file", gcmlimit: "30", prop: "imageinfo", iiprop: "url|extmetadata|mime", iiurlwidth: "700",
+  });
+  const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const files = Object.values((await res.json()).query?.pages || {}).filter((pg) => pg.imageinfo?.[0]?.thumburl && /image\/(jpeg|png|tiff)/.test(pg.imageinfo[0].mime || "image/jpeg"));
+  return files.find((pg) => ILLU_SOURCES.test(pg.title)) || files[0] || null;
+}
+// Búsqueda por título (la de siempre) para un nombre dado: primero las floras preferidas.
+async function titleIllustration(name) {
+  const q = new URLSearchParams({
+    action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "8",
+    gsrsearch: `intitle:"${name}" filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
+  });
+  const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const list = Object.values((await res.json()).query?.pages || {}).filter((pg) => pg.imageinfo?.[0]?.thumburl && pg.title.toLowerCase().includes(name));
+  return list.find((pg) => ILLU_SOURCES.test(pg.title)) || null;
+}
+// Nombres antiguos de la especie según GBIF (solo especies, sin la actual).
+async function oldNames(sci) {
+  const key = illuKey(sci);
+  const m = await (await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(key)}`)).json();
+  const id = m.acceptedUsageKey || m.usageKey; if (!id) return [];
+  const names = [m.status === "SYNONYM" && m.species ? m.species : ""];
+  const syn = await (await fetch(`https://api.gbif.org/v1/species/${id}/synonyms?limit=40`)).json();
+  (syn.results || []).forEach((r) => names.push(r.canonicalName || ""));
+  return [...new Set(names.map((n) => illuKey(n)).filter((n) => n && n.split(" ").length === 2 && n !== key))].slice(0, 8);
+}
 async function findIllustration(sci) {
   const key = illuKey(sci);
   if (!key || key.split(" ").length < 2) return null;
-  if (key in illuCache) return illuCache[key];
-  let pick = null;
-  try {
+  if (key in illuCache && !illuRetry(key)) return illuCache[key];
+  const firstTime = !(key in illuCache);
+  let pick = null, via = "";
+  if (firstTime) try {
     const search = async (extra) => {
       const q = new URLSearchParams({
         action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "5",
@@ -284,10 +324,20 @@ async function findIllustration(sci) {
       pick = i < ILLU_QUERIES.length - 1 ? list[0] : list.find((pg) => ILLU_SOURCES.test(pg.title));
     }
   } catch { return null; }
+  if (!pick && feat("laminas")) {
+    try {
+      pick = await categoryIllustration(key);
+      if (!pick) for (const n of await oldNames(sci)) {
+        pick = (await categoryIllustration(n).catch(() => null)) || (await titleIllustration(n).catch(() => null));
+        if (pick) { via = n; break; }
+      }
+    } catch { if (firstTime) return null; return illuCache[key] ?? null; } // sin conexión: se reintenta otro día
+    illuTried.add(key); saveTried();
+  }
   const info = pick?.imageinfo[0], md = info?.extmetadata || {};
   illuCache[key] = pick ? {
     url: info.thumburl, page: info.descriptionurl,
-    credit: [strip(md.Artist?.value), strip(md.ObjectName?.value) || pick.title.replace(/^File:|\.\w+$/g, "")].filter(Boolean).join(" · ").slice(0, 160),
+    credit: [strip(md.Artist?.value), strip(md.ObjectName?.value) || pick.title.replace(/^File:|\.\w+$/g, ""), via ? `como ${titleCase(via)}` : ""].filter(Boolean).join(" · ").slice(0, 180),
     license: strip(md.LicenseShortName?.value) || "Dominio público",
   } : false;
   saveIllu();
@@ -299,7 +349,7 @@ async function hydrateIllustrations() {
   if (!cfg.illustrations) return;
   for (const el of document.querySelectorAll("[data-sci]")) {
     const sci = el.dataset.sci;
-    if (!sci || illuKey(sci) in illuCache) continue;
+    if (!sci || (illuKey(sci) in illuCache && !illuRetry(illuKey(sci)))) continue;
     const ill = await findIllustration(sci);
     if (ill) document.querySelectorAll(`[data-sci="${CSS.escape(sci)}"]`).forEach((n) => { n.style.backgroundImage = `url('${ill.url}')`; n.classList.add("illu"); });
   }
@@ -1598,7 +1648,7 @@ async function renderDetail(id) {
   const canReillu = !ill && cfg.illustrations && p.scientific_name;
   const bindReillu = () => $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
-    delete illuCache[illuKey(p.scientific_name)]; saveIllu();
+    delete illuCache[illuKey(p.scientific_name)]; saveIllu(); illuTried.delete(illuKey(p.scientific_name)); saveTried();
     const found = await findIllustration(p.scientific_name);
     if (!found) toast("No encontré una lámina antigua para esta especie");
     renderDetail(p.id);
@@ -1634,7 +1684,7 @@ async function renderDetail(id) {
     });
     act.querySelector("#noillu")?.addEventListener("click", () => {
       const key = illuKey(p.scientific_name), prev = illuCache[key];
-      illuCache[key] = false; saveIllu(); renderDetail(p.id);
+      illuCache[key] = false; saveIllu(); illuTried.add(key); saveTried(); renderDetail(p.id);
       toast("Lámina quitada", ["Deshacer", () => { illuCache[key] = prev; saveIllu(); renderDetail(p.id); }]);
     });
   };
