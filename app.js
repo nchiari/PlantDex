@@ -168,7 +168,7 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos" };
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
