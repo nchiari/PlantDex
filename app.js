@@ -756,24 +756,40 @@ function stampSeal(label, name) {
   setTimeout(bye, 1600);
 }
 
-// Visor de foto a pantalla completa. Muestra primero la versión chica (ya cargada) y la cambia por la grande cuando llega.
-function openViewer(src, fallback, title, sub = "", credit = "") {
+// Visor de fotos a pantalla completa. Recibe una lista de fotos {src, small, title, sub, credit} y la que se abre primero;
+// se pasa de una a otra deslizando o con las flechas. Muestra la versión chica (ya cargada) y la cambia por la grande cuando llega.
+function openViewer(items, start = 0) {
+  let i = start;
   const v = document.createElement("div");
   v.className = "viewer";
   v.innerHTML = `<button class="viewer-x" aria-label="Cerrar">×</button>
-    <img src="${esc(fallback || src)}" alt="${esc(title)}">
-    <div class="viewer-cap"><b>${esc(title)}</b>${sub ? `<i>${esc(sub)}</i>` : ""}${credit ? `<small>Foto: ${esc(credit)} · iNaturalist</small>` : ""}</div>`;
-  const img = v.querySelector("img");
-  if (src && src !== fallback) { const big = new Image(); big.onload = () => (img.src = src); big.src = src; }
+    ${items.length > 1 ? `<button class="viewer-nav prev" aria-label="Anterior">‹</button><button class="viewer-nav next" aria-label="Siguiente">›</button>` : ""}
+    <img alt=""><div class="viewer-cap"></div>`;
+  const img = v.querySelector("img"), cap = v.querySelector(".viewer-cap");
+  const show = () => {
+    const it = items[i];
+    img.src = it.small || it.src; img.alt = it.title || "";
+    if (it.src && it.src !== it.small) { const big = new Image(); big.onload = () => items[i] === it && (img.src = it.src); big.src = it.src; }
+    cap.innerHTML = `<b>${esc(it.title || "")}</b>${it.sub ? `<i>${esc(it.sub)}</i>` : ""}${it.credit ? `<small>${esc(it.credit)}</small>` : ""}${items.length > 1 ? `<small>${i + 1} de ${items.length}</small>` : ""}`;
+  };
+  const step = (d) => { i = (i + d + items.length) % items.length; show(); };
   // El botón "atrás" del celular cierra el visor en vez de salir de la pantalla.
   history.pushState({ viewer: 1 }, "");
   let closed = false;
   const close = (fromBack) => { if (closed) return; closed = true; v.classList.add("out"); setTimeout(() => v.remove(), 220); removeEventListener("popstate", onBack); document.removeEventListener("keydown", onKey); if (!fromBack) history.back(); };
   const onBack = () => close(true);
-  const onKey = (e) => e.key === "Escape" && close();
+  const onKey = (e) => (e.key === "Escape" ? close() : e.key === "ArrowLeft" ? step(-1) : e.key === "ArrowRight" ? step(1) : null);
   addEventListener("popstate", onBack);
   document.addEventListener("keydown", onKey);
-  v.onclick = () => close();
+  v.querySelector(".prev")?.addEventListener("click", (e) => { e.stopPropagation(); step(-1); });
+  v.querySelector(".next")?.addEventListener("click", (e) => { e.stopPropagation(); step(1); });
+  // Deslizar para pasar de foto; un toque sin deslizar cierra.
+  let x0 = null, moved = false;
+  v.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; moved = false; }, { passive: true });
+  v.addEventListener("touchmove", (e) => { if (x0 !== null && Math.abs(e.touches[0].clientX - x0) > 12) moved = true; }, { passive: true });
+  v.addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (items.length > 1 && Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
+  v.onclick = () => { if (moved) { moved = false; return; } close(); };
+  show();
   document.body.appendChild(v);
 }
 
@@ -1153,7 +1169,7 @@ async function hydrateMission() {
       <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
       <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
     </div></div>`;
-  box.querySelector("#ms-ph")?.addEventListener("click", () => openViewer(m.photo.replace(/\/(square|small|medium)\.(\w+)(\?.*)?$/, "/large.$2"), m.photo, m.common || m.name, m.common ? m.name : "", m.credit));
+  box.querySelector("#ms-ph")?.addEventListener("click", () => openViewer([{ src: m.photo.replace(/\/(square|small|medium)\.(\w+)(\?.*)?$/, "/large.$2"), small: m.photo, title: m.common || m.name, sub: m.common ? m.name : "", credit: m.credit ? `Foto: ${m.credit} · iNaturalist` : "" }]));
   box.querySelector("#ms-skip").onclick = () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
 }
 
@@ -1455,8 +1471,15 @@ async function renderDetail(id) {
     if (!found) toast("No encontré una lámina antigua para esta especie");
     renderDetail(p.id);
   });
+  let curFig = 0;
+  const plainTxt = (h) => String(h || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  $app.querySelector("#hero")?.addEventListener("click", () => openViewer(figs.map((f) => ({
+    src: f.src, small: f.src, title: p.common_name, sub: f.illu ? "Lámina antigua" : plainTxt(f.cap),
+    credit: f.illu && ill ? `${ill.credit} · ${ill.license} · Wikimedia Commons` : "",
+  })), curFig));
   const showFig = (i) => {
     const f = figs[i]; if (!f) return;
+    curFig = i;
     const hero = $app.querySelector("#hero"); hero.src = f.src; hero.classList.toggle("illu", !!f.illu);
     $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
     $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));

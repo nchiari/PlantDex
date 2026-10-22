@@ -831,7 +831,7 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 @media (prefers-reduced-motion: reduce) { .fi-art { animation: none; } }
 /* visor de foto a pantalla completa */
 .ms-ph { flex: none; padding: 0; border: 0; background: none; cursor: zoom-in; }
-.viewer { position: fixed; inset: 0; z-index: 95; background: rgb(8 11 9 / .94); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 56px 12px 18px; animation: fade .2s ease-out; cursor: zoom-out; }
+.viewer { position: fixed; inset: 0; z-index: 95; background: rgb(8 11 9 / .97); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 56px 12px 18px; animation: fade .2s ease-out; cursor: zoom-out; }
 .viewer.out { opacity: 0; transition: opacity .22s; }
 .viewer img { max-width: 100%; max-height: calc(100dvh - 170px); object-fit: contain; box-shadow: 0 10px 30px rgb(0 0 0 / .5); }
 .viewer-cap { margin-top: 14px; text-align: center; color: #f3eedb; display: flex; flex-direction: column; gap: 2px; }
@@ -839,3 +839,6 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .viewer-cap i { font: italic 16px var(--text); opacity: .8; }
 .viewer-cap small { margin-top: 6px; font: 12.5px var(--text); opacity: .6; }
 .viewer-x { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 14px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgb(243 238 219 / .4); background: none; color: #f3eedb; font-size: 24px; line-height: 1; cursor: pointer; }
+.hero img#hero { cursor: zoom-in; }
+.viewer-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; background: rgb(0 0 0 / .25); color: #f3eedb; font-size: 36px; line-height: 1; cursor: pointer; z-index: 1; }
+.viewer-nav.prev { left: 0; border-radius: 0 6px 6px 0; } .viewer-nav.next { right: 0; border-radius: 6px 0 0 6px; }
