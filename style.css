@@ -874,3 +874,15 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .ms-done .ms-txt small { color: var(--leaf); }
 .ms-done .ms-meta b { color: var(--ink); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .bottom [data-go="stats"].has-dot::after, .bottom [data-go="stats"].has-dot svg, .mission-win .win-compass { animation: none; } }
+/* visor: todo centrado en la pantalla y los textos sin caja, debajo de la foto */
+.viewer > .viewer-stage { margin-top: auto; }
+.viewer > .viewer-card { margin-bottom: auto; }
+.viewer-card { background: none; border: 0; box-shadow: none; padding: 4px 8px 0; color: #f3eedb; }
+.viewer-cap b { color: #f3eedb; }
+.viewer-cap i { color: #c9d8b4; }
+.viewer-cap small { color: rgb(243 238 219 / .6); }
+.viewer-info { border-top-color: rgb(243 238 219 / .18); }
+.vi-h { color: #e2c271; }
+.vi-t { color: #f3eedb; }
+.vi-t.muted { color: rgb(243 238 219 / .65); }
+.vi-more { color: #c9d8b4; }
