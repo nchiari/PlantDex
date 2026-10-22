@@ -442,7 +442,7 @@ function renderSettings() {
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
     ${user && amOwner ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
-      <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona y la misión. Sirve para ver todo como alguien que entra por primera vez.</p>
+      <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
       <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
@@ -453,10 +453,11 @@ function renderSettings() {
     const btn = ev.currentTarget;
     if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
     btn.disabled = true;
-    for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone", "missionSeen"]) delete cfg[k];
+    for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone", "missionSeen", "missionsDone", "missionCelebrated"]) delete cfg[k];
     saveCfg(cfg);
     try { localStorage.removeItem(NEAR_KEY); } catch {}
-    await syncMeta({ zone: null, mission: null, missions_intro: null });
+    await syncMeta({ zone: null, mission: null, missions_intro: null, missions_done: null });
+    try { const seen = JSON.parse(localStorage.getItem(ACH_KEY) || "[]").filter((id) => !/^x\d/.test(id)); localStorage.setItem(ACH_KEY, JSON.stringify(seen)); } catch {}
     location.replace(SITE_URL());
   });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
@@ -757,7 +758,22 @@ function openNews(all = false) {
 }
 
 // Sello de lacre que se estampa al asentar una lámina o sumar un hallazgo: feedback de "quedó guardado".
-function stampSeal(label, name) {
+// Celebración de misión cumplida: aparece después del sello de "asentada".
+function missionCelebration(name) {
+  const m = missionOf();
+  const ov = document.createElement("div");
+  ov.className = "stamp mission-win";
+  ov.setAttribute("role", "status");
+  ov.innerHTML = `<svg class="win-compass" viewBox="0 0 120 120"><use href="#i-compass"/></svg>
+    <p class="stamp-l">Misión cumplida</p><p class="stamp-n">${esc(name || "")}</p>
+    ${m?.done ? `<p class="win-next">Tu próxima misión llega ${untilNext(m)}. Mirala en Progreso.</p>` : ""}`;
+  document.body.appendChild(ov);
+  try { navigator.vibrate?.([20, 60, 20]); } catch {}
+  const bye = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 400); navDot(); };
+  ov.onclick = bye;
+  setTimeout(bye, 2800);
+}
+function stampSeal(label, name, then) {
   const ov = document.createElement("div");
   ov.className = "stamp";
   ov.setAttribute("role", "status");
@@ -765,7 +781,8 @@ function stampSeal(label, name) {
     <p class="stamp-l">${esc(label)}</p><p class="stamp-n">${esc(name || "")}</p>`;
   document.body.appendChild(ov);
   try { navigator.vibrate?.(18); } catch {}
-  const bye = () => { ov.classList.add("out"); setTimeout(() => ov.remove(), 400); };
+  let gone = false;
+  const bye = () => { if (gone) return; gone = true; ov.classList.add("out"); setTimeout(() => { ov.remove(); then?.(); }, 400); };
   ov.onclick = bye;
   setTimeout(bye, 1600);
 }
@@ -1153,9 +1170,27 @@ async function newMission() {
 function missionCheck(sci) {
   const m = missionOf();
   if (!m || m.done || !sci || illuKey(sci) !== illuKey(m.name)) return false;
-  saveMission({ ...m, done: Date.now() });
+  finishMission(m);
   return true;
 }
+// Historial de misiones cumplidas (para los logros de exploración). Va en el celular y en la cuenta.
+const missionsDone = () => { const a = cfg.missionsDone || user?.user_metadata?.missions_done || []; return Array.isArray(a) ? a : []; };
+function finishMission(m) {
+  const done = Date.now();
+  saveMission({ ...m, done });
+  if (!missionsDone().some((x) => x.id === m.id)) {
+    cfg.missionsDone = [...missionsDone(), { id: m.id, name: m.name, common: m.common || "", given: m.given || done, done }].slice(-300);
+    syncMeta({ missions_done: cfg.missionsDone });
+  }
+  cfg.missionCelebrated = false; // Progreso titila hasta que entres a verla
+  saveCfg(cfg);
+}
+// "en 2 días", "mañana" o "hoy", contando días de calendario hasta la próxima misión.
+const untilNext = (m) => {
+  const day = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const n = Math.round((day(m.done + MISSION_GAP) - day(Date.now())) / 86400e3);
+  return n <= 0 ? "hoy" : n === 1 ? "mañana" : `en ${n} días`;
+};
 // Decide la misión vigente: la cumple si ya la asentaste, avisa si otra persona la encontró primero,
 // y pide una nueva cuando no hay o ya pasaron los 2 días. Puede fallar si no hay conexión con iNaturalist.
 async function ensureMission() {
@@ -1165,8 +1200,8 @@ async function ensureMission() {
     const hit = plants.find((p) => illuKey(p.scientific_name) === illuKey(m.name));
     if (hit) {
       const mine = hit.user_id === user.id || (hit.sightings || []).some((x) => x.user_id === user.id);
-      m = mine ? { ...m, done: Date.now() } : { ...m, lostTo: hit.author_name || "Otra persona" };
-      if (mine) saveMission(m);
+      if (mine) { finishMission(m); m = missionOf(); }
+      else m = { ...m, lostTo: hit.author_name || "Otra persona" };
     }
   }
   if (!m || (m.done && Date.now() - m.done >= MISSION_GAP)) {
@@ -1178,7 +1213,8 @@ async function ensureMission() {
 // Puntito dorado en Progreso mientras haya una misión nueva que todavía no miraste.
 function navDot() {
   const m = missionOf(), b = $nav.querySelector('[data-go="stats"]');
-  b?.classList.toggle("has-dot", feat("misiones") && !cfg.missionsOff && !!m && !m.done && !m.lostTo && cfg.missionSeen !== m.id);
+  const fresh = !!m && !m.done && !m.lostTo && cfg.missionSeen !== m.id, celebrate = !!m?.done && cfg.missionCelebrated === false;
+  b?.classList.toggle("has-dot", feat("misiones") && !cfg.missionsOff && (fresh || celebrate));
 }
 async function hydrateMission() {
   const box = $app.querySelector("#mission"); if (!box || cfg.missionsOff || !feat("misiones")) return;
@@ -1209,8 +1245,15 @@ async function hydrateMission() {
   if (!m.done && !m.lostTo && cfg.missionSeen !== m.id) { cfg.missionSeen = m.id; saveCfg(cfg); navDot(); }
   const zoneShort = esc(z.name.split(/[,(]/)[0].trim());
   if (m.done) {
-    const next = new Date(m.done + MISSION_GAP).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-    box.innerHTML = `<p class="ms-hint"><b>Misión cumplida:</b> ${esc(m.common || m.name)}. La próxima llega el ${next}.</p>`;
+    if (cfg.missionCelebrated === false) { cfg.missionCelebrated = true; saveCfg(cfg); navDot(); }
+    const n = missionsDone().length;
+    box.innerHTML = `<div class="mission ms-done">
+      <span class="ms-ph done">${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy">` : ""}<span class="ms-stamp"><svg><use href="#i-seal-gold"/></svg><b>Cumplida</b></span></span>
+      <div class="ms-txt"><small>Misión cumplida</small>
+        <b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}
+        <span class="ms-meta">Tu próxima misión llega <b>${untilNext(m)}</b>.</span>
+        <span class="ms-meta">${n === 1 ? "Es tu primera misión cumplida." : `Llevás ${n} misiones cumplidas.`}</span>
+      </div></div>`;
     return;
   }
   if (m.lostTo) {
@@ -1931,7 +1974,8 @@ function renderForm(existing) {
           const { data, error } = await sb.from("sightings").insert(s).select().single();
           if (error) throw error;
           (dup.sightings ||= []).push(data);
-          clearDraft(); { const won = feat("misiones") && missionCheck(dup.scientific_name); feat("sello") ? stampSeal(won ? "Misión cumplida" : "Hallazgo sumado", dup.common_name) : toast(`Tu hallazgo se sumó a ${dup.common_name}`); }
+          clearDraft(); { const won = feat("misiones") && missionCheck(dup.scientific_name); const party = won ? () => missionCelebration(dup.common_name) : null;
+          feat("sello") ? stampSeal("Hallazgo sumado", dup.common_name, party) : (toast(`Tu hallazgo se sumó a ${dup.common_name}`), party && setTimeout(party, 600)); }
           location.hash = "plant/" + dup.id; return;
         }
         row.photos = paths;
@@ -1940,7 +1984,8 @@ function renderForm(existing) {
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants = sortPlants([...plants, data]);
-        clearDraft(); { const won = feat("misiones") && missionCheck(data.scientific_name); feat("sello") ? stampSeal(won ? "Misión cumplida" : "Asentada", data.common_name) : toast(`${data.common_name} asentada en el herbario`); }
+        clearDraft(); { const won = feat("misiones") && missionCheck(data.scientific_name); const party = won ? () => missionCelebration(data.common_name) : null;
+        feat("sello") ? stampSeal("Asentada", data.common_name, party) : (toast(`${data.common_name} asentada en el herbario`), party && setTimeout(party, 600)); }
         location.hash = "plant/" + data.id;
       }
     } catch (e) {
@@ -1987,7 +2032,12 @@ function achStats() {
   const country = (p) => (p.location_name || "").split(",").map((x) => x.trim()).filter(Boolean).at(-1);
   const photos = P.reduce((a, p) => a + (p.photos?.length || 0), 0);
   const c = (f) => P.filter(f).length;
+  // Misiones: cuántas, si alguna se cumplió el mismo día y en cuántas estaciones (según el hemisferio de tu zona).
+  const MD = missionsDone(), south = (zoneOf()?.lat || 0) < 0;
+  const sameDay = MD.some((x) => new Date(x.done).toDateString() === new Date(x.given).toDateString()) ? 1 : 0;
+  const seasonOf = (t) => { const mo = new Date(t).getMonth() + 1; const s0 = mo === 12 || mo <= 2 ? 0 : mo <= 5 ? 1 : mo <= 8 ? 2 : 3; return south ? (s0 + 2) % 4 : s0; };
   return {
+    missions: MD.length, missionSameDay: sameDay, missionSeasons: new Set(MD.map((x) => seasonOf(x.done))).size,
     n: P.length, families: set((p) => p.family).size, edible: c((p) => ["si", "parcial"].includes(p.edible_human) || uses(p).includes("comer")),
     medicinal: c((p) => has(p, "medicinal") || uses(p).includes("medicina")), toxic: c((p) => has(p, "toxica") || uses(p).includes("toxica")),
     other: c((p) => uses(p).includes("otro")), maxUses: Math.max(0, ...P.map((p) => uses(p).length)),
@@ -2071,9 +2121,18 @@ const ACH = [
   ["p3", "Fotografía", "i-camera", "Archivo gráfico", "200 fotos en total", 3, "photos", 200],
   ["w1", "Cuaderno", "i-quill", "Cuaderno de campo", "Notas propias en 5 láminas", 1, "notes", 5],
   ["w2", "Cuaderno", "i-quill", "Diario de naturalista", "Notas propias en 20 láminas", 2, "notes", 20],
+  ["x1", "Exploración", "i-compass", "Primera expedición", "Cumplí 1 misión", 1, "missions", 1],
+  ["x2", "Exploración", "i-compass", "Explorador", "Cumplí 3 misiones", 1, "missions", 3],
+  ["x3", "Exploración", "i-compass", "Rastreador", "Cumplí 5 misiones", 2, "missions", 5],
+  ["x4", "Exploración", "i-compass", "Naturalista de campo", "Cumplí 10 misiones", 3, "missions", 10],
+  ["x5", "Exploración", "i-compass", "Cartógrafo verde", "Cumplí 25 misiones", 4, "missions", 25],
+  ["x6", "Exploración", "i-compass", "A la primera", "Cumplí una misión el mismo día que te llegó", 2, "missionSameDay", 1],
+  ["x7", "Exploración", "i-compass", "Cuatro estaciones", "Cumplí misiones en las 4 estaciones del año", 3, "missionSeasons", 4],
 ];
+// Los logros de exploración existen solo si las misiones están activas para esta persona.
+const achList = () => ACH.filter((a) => a[1] !== "Exploración" || feat("misiones"));
 const ACH_KEY = "plantdex.ach";
-const achUnlocked = (S = achStats()) => ACH.filter((a) => S[a[6]] >= a[7]).map((a) => a[0]);
+const achUnlocked = (S = achStats()) => achList().filter((a) => S[a[6]] >= a[7]).map((a) => a[0]);
 
 // Avisa los logros nuevos. La primera vez en un dispositivo los registra en silencio, sin avalancha de avisos.
 function checkAchievements() {
@@ -2088,6 +2147,8 @@ function checkAchievements() {
 }
 const achQueue = []; let achShowing = false;
 function showNextAch() {
+  // Si se está mostrando un sello (asentada o misión cumplida), el logro espera su turno.
+  if (document.querySelector(".stamp")) { achShowing = true; return setTimeout(showNextAch, 500); }
   const a = achQueue.shift(); if (!a) { achShowing = false; return; }
   achShowing = true;
   const el = document.createElement("div");
@@ -2107,8 +2168,8 @@ function renderStats() {
   const S = achStats(), n = S.n;
   const unlocked = new Set(achUnlocked(S));
   const fam = Object.entries(plants.reduce((a, p) => (p.family && (a[p.family] = (a[p.family] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const cats = [...new Set(ACH.map((a) => a[1]))];
-  const pct = Math.round((unlocked.size / ACH.length) * 100);
+  const cats = [...new Set(achList().map((a) => a[1]))];
+  const pct = Math.round((unlocked.size / achList().length) * 100);
   const badge = (a) => { const ok = unlocked.has(a[0]); const cur = Math.min(S[a[6]], a[7]);
     return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[3]}</b>
       <div class="muted" style="font-size:14px">${a[4]}</div>
@@ -2123,9 +2184,9 @@ function renderStats() {
       <div class="stat"><b>${S.edible}</b>comestibles</div>
       <div class="stat"><b>${S.toxic}</b>tóxicas</div>
     </div>
-    <div class="ach-total"><div><b>${unlocked.size}</b> de ${ACH.length} logros</div><div class="ach-prog big"><i style="width:${pct}%"></i></div></div>
+    <div class="ach-total"><div><b>${unlocked.size}</b> de ${achList().length} logros</div><div class="ach-prog big"><i style="width:${pct}%"></i></div></div>
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
-    ${cats.map((cat) => { const list = ACH.filter((a) => a[1] === cat); const got = list.filter((a) => unlocked.has(a[0])).length;
+    ${cats.map((cat) => { const list = achList().filter((a) => a[1] === cat); const got = list.filter((a) => unlocked.has(a[0])).length;
       return `<h3>${cat} <span class="cat-count">${got}/${list.length}</span></h3><div class="badge-list">${list.map(badge).join("")}</div>`; }).join("")}`;
   hydrateMission();
 }
