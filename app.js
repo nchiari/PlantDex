@@ -419,11 +419,24 @@ function renderSettings() {
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
+    ${user && amOwner && feat("misiones") ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
+      <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona y la misión. Sirve para ver todo como alguien que entra por primera vez.</p>
+      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
+  $app.querySelector("#resetmis")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
+    btn.disabled = true;
+    for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone"]) delete cfg[k];
+    saveCfg(cfg);
+    try { localStorage.removeItem(NEAR_KEY); } catch {}
+    await syncMeta({ zone: null, mission: null, missions_intro: null });
+    location.replace(SITE_URL());
+  });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
   const $zq = $app.querySelector("#zoneq"), $zl = $app.querySelector("#zonelist");
   if ($zq) {
