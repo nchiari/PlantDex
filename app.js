@@ -264,6 +264,15 @@ const ILLU_QUERIES = [
 // antiguos de la especie (sinónimos de GBIF), porque muchas láminas del siglo XIX la nombran distinto.
 // Se intenta una sola vez por especie; las que quitaste a mano ("No es esta planta") no se vuelven a buscar.
 const ILLU_TRIED_KEY = "plantdex.illu-x";
+// Solo se aceptan láminas de colecciones digitalizadas y limpias (fondo claro, una planta, formato vertical):
+// son las que encajan en el arco de la tarjeta. Los escaneos de páginas de libros quedan afuera.
+const ILLU_CLEAN = /k(ö|oe|o)hler|medizinal-?pflanzen|lindman|bilder ur nordens flora|nordens flora|thom[ée]|flora von deutschland|flora batava|sturm|deutschlands flora in abbildungen/i;
+const illuGood = (pg) => {
+  const ii = pg.imageinfo?.[0] || {}, md = ii.extmetadata || {};
+  const who = `${pg.title} ${strip(md.Artist?.value)} ${strip(md.Credit?.value)} ${strip(md.ImageDescription?.value).slice(0, 300)}`;
+  const thome = /^File:Illustration [A-Z][a-z-]+ [a-z-]+\d*\.(jpe?g|png)$/i.test(pg.title); // así se llaman las de Thomé en Commons
+  return (ILLU_CLEAN.test(who) || thome) && (!ii.width || ii.height / ii.width >= 1.15);
+};
 let illuTried = new Set(); try { illuTried = new Set(JSON.parse(localStorage.getItem(ILLU_TRIED_KEY) || "[]")); } catch {}
 const saveTried = () => { try { localStorage.setItem(ILLU_TRIED_KEY, JSON.stringify([...illuTried].slice(-500))); } catch {} };
 // Las que quitaste a mano quedan anotadas aparte: ninguna búsqueda las vuelve a traer.
@@ -275,7 +284,7 @@ const titleCase = (n) => n.charAt(0).toUpperCase() + n.slice(1);
 async function categoryIllustration(name) {
   const q = new URLSearchParams({
     action: "query", format: "json", origin: "*", generator: "categorymembers", gcmtitle: `Category:${titleCase(name)} - botanical illustrations`,
-    gcmtype: "file", gcmlimit: "30", prop: "imageinfo", iiprop: "url|extmetadata|mime", iiurlwidth: "700",
+    gcmtype: "file", gcmlimit: "30", prop: "imageinfo", iiprop: "url|extmetadata|mime|size", iiurlwidth: "700",
   });
   const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
   if (!res.ok) throw new Error("HTTP " + res.status);
@@ -284,18 +293,18 @@ async function categoryIllustration(name) {
   // al final, las colecciones "mejoradas" que suelen juntar varias especies en una misma lámina.
   const n = name.toLowerCase();
   const score = (pg) => (pg.title.toLowerCase().includes(n) ? 4 : 0) + (ILLU_SOURCES.test(pg.title) ? 2 : 0) - (/rawpixel|digitally enhanced/i.test(pg.title) ? 3 : 0);
-  return files.sort((a, b) => score(b) - score(a))[0] || null;
+  return files.filter(illuGood).sort((a, b) => score(b) - score(a))[0] || null;
 }
 // Búsqueda por título (la de siempre) para un nombre dado: primero las floras preferidas.
 async function titleIllustration(name) {
   const q = new URLSearchParams({
     action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "8",
-    gsrsearch: `intitle:"${name}" filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
+    gsrsearch: `intitle:"${name}" filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata|size", iiurlwidth: "700",
   });
   const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
   if (!res.ok) throw new Error("HTTP " + res.status);
   const list = Object.values((await res.json()).query?.pages || {}).filter((pg) => pg.imageinfo?.[0]?.thumburl && pg.title.toLowerCase().includes(name));
-  return list.find((pg) => ILLU_SOURCES.test(pg.title)) || null;
+  return list.find(illuGood) || null;
 }
 // Nombres antiguos de la especie según GBIF (solo especies, sin la actual).
 async function oldNames(sci) {
@@ -317,7 +326,7 @@ async function findIllustration(sci) {
     const search = async (extra) => {
       const q = new URLSearchParams({
         action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6", gsrlimit: "5",
-        gsrsearch: `intitle:"${key}" ${extra} filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "700",
+        gsrsearch: `intitle:"${key}" ${extra} filetype:bitmap`, prop: "imageinfo", iiprop: "url|extmetadata|size", iiurlwidth: "700",
       });
       const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -329,7 +338,7 @@ async function findIllustration(sci) {
     if (results.every((r) => r === null)) return null; // sin red: reintentar más tarde
     for (let i = 0; i < results.length && !pick; i++) {
       const list = results[i] || [];
-      pick = i < ILLU_QUERIES.length - 1 ? list[0] : list.find((pg) => ILLU_SOURCES.test(pg.title));
+      pick = feat("laminas") ? list.find(illuGood) : i < ILLU_QUERIES.length - 1 ? list[0] : list.find((pg) => ILLU_SOURCES.test(pg.title));
     }
   } catch { return null; }
   if (!pick && feat("laminas")) {
