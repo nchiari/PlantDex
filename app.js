@@ -160,7 +160,7 @@ async function loadPlants() {
   amOwner = own.error ? true : !!own.data;
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { toast("Error cargando: " + error.message); return; }
-  plants = sortPlants(data);
+  plants = sortPlants(data.map(fixNames));
   // Hallazgos de la misma especie hechos por otras personas (o por vos en otra salida). Si la tabla no existe, se ignora.
   const { data: sg } = await sb.from("sightings").select("*").order("created_at");
   plants.forEach((p) => (p.sightings = (sg || []).filter((x) => x.plant_id === p.id)));
@@ -336,6 +336,11 @@ const CITE_MARKS = /\[span_\d+\]\((?:start|end)_span\)|\[cite(?:_start|_end)?(?:
 const cleanCites = (t) => String(t).replace(CITE_MARKS, "").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?)])/g, "$1").trim();
 // Limpia todos los textos de la respuesta, también los que van dentro de los usos.
 const cleanDeep = (v) => (typeof v === "string" ? cleanCites(v) : Array.isArray(v) ? v.map(cleanDeep) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cleanDeep(x)])) : v);
+// Nombres de plantas: el común siempre empieza con mayúscula (algunas IA e iNaturalist los dan en minúscula)
+// y el científico va con el género en mayúscula y el resto en minúscula (Arbutus unedo).
+const capName = (t) => { const x = String(t || "").trim(); return x ? x.charAt(0).toLocaleUpperCase("es") + x.slice(1) : x; };
+const sciName = (t) => { const x = String(t || "").trim().replace(/\s+/g, " "); return x ? x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() : x; };
+const fixNames = (p) => { if (p) { if (p.common_name) p.common_name = capName(p.common_name); if (p.scientific_name) p.scientific_name = sciName(p.scientific_name); } return p; };
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
   if (!m) throw new Error("No encontré un JSON en la respuesta");
@@ -346,6 +351,7 @@ function normalizeAI(raw) {
   out.fruit_months = months(out.fruit_months);
   delete out.confidence;
   out.iucn = normIucn(out.iucn);
+  fixNames(out);
   out.parts = normParts(out.parts);
   delete out.rarity;
   return out;
@@ -1027,12 +1033,12 @@ const saveMission = (m) => { cfg.mission = m; saveCfg(cfg); syncMeta({ mission: 
 async function speciesNear(z, month) {
   const key = `${z.lat},${z.lng},${month || "all"}`;
   let cache = {}; try { cache = JSON.parse(localStorage.getItem(NEAR_KEY) || "{}"); } catch {}
-  if (cache[key] && Date.now() - cache[key].t < 7 * 86400e3) return cache[key].list;
+  if (cache[key] && Date.now() - cache[key].t < 7 * 86400e3) return cache[key].list.map((x) => ({ ...x, common: capName(x.common) }));
   const locale = z.cc === "ar" ? "es-AR" : z.cc === "mx" ? "es-MX" : "es";
   const url = `https://api.inaturalist.org/v1/observations/species_counts?lat=${z.lat}&lng=${z.lng}&radius=8&iconic_taxa=Plantae&quality_grade=research&captive=false${month ? "&month=" + month : ""}&locale=${locale}&per_page=200`;
   const r = await fetch(url); if (!r.ok) throw new Error(`iNaturalist respondió ${r.status}`);
   const list = ((await r.json()).results || []).filter(({ taxon: t }) => t && t.rank === "species").map(({ count, taxon: t }) => ({
-    id: t.id, name: t.name, common: t.preferred_common_name || "", count,
+    id: t.id, name: t.name, common: capName(t.preferred_common_name), count,
     photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", credit: t.default_photo?.attribution || "",
   }));
   cache[key] = { t: Date.now(), list };
@@ -1105,6 +1111,7 @@ async function hydrateMission() {
     box.querySelector("#ms-zone").onclick = () => goZone();
     return;
   }
+  if (m.common) m = { ...m, common: capName(m.common) };
   if (!m.done && !m.lostTo && cfg.missionSeen !== m.id) { cfg.missionSeen = m.id; saveCfg(cfg); navDot(); }
   const zoneShort = esc(z.name.split(/[,(]/)[0].trim());
   if (m.done) {
@@ -1785,6 +1792,7 @@ function renderForm(existing) {
     const btn = ev.currentTarget;
     const row = { parts: normParts(d.parts), kind: d.kind || null, lat: d.lat ?? null, lng: d.lng ?? null, flower_months: d.flower_months, fruit_months: d.fruit_months };
     for (const k of ["common_name", "other_names", "origin", "native_range", "scientific_name", "family", "edible_human", "description", "edibility_notes", "medicinal_notes", "uses", "history", "curiosity", "notes", "location_name", "found_at"]) row[k] = v(k) || null;
+    fixNames(row);
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (!row.common_name) return toast("Ponele al menos un nombre");
