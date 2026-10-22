@@ -316,7 +316,13 @@ async function oldNames(sci) {
   (syn.results || []).forEach((r) => names.push(r.canonicalName || ""));
   return [...new Set(names.map((n) => illuKey(n)).filter((n) => n && n.split(" ").length === 2 && n !== key))].slice(0, 8);
 }
-async function findIllustration(sci) {
+const illuInflight = new Map();
+function findIllustration(sci) {
+  const key = illuKey(sci);
+  if (!illuInflight.has(key)) illuInflight.set(key, searchIllustration(sci).finally(() => illuInflight.delete(key)));
+  return illuInflight.get(key);
+}
+async function searchIllustration(sci) {
   const key = illuKey(sci);
   if (!key || key.split(" ").length < 2) return null;
   if (key in illuCache && !illuRetry(key)) return illuCache[key];
@@ -344,9 +350,11 @@ async function findIllustration(sci) {
   if (!pick && feat("laminas")) {
     try {
       pick = await categoryIllustration(key);
-      if (!pick) for (const n of await oldNames(sci)) {
-        pick = (await categoryIllustration(n).catch(() => null)) || (await titleIllustration(n).catch(() => null));
-        if (pick) { via = n; break; }
+      if (!pick) {
+        const names = await oldNames(sci);
+        const found = await Promise.all(names.map(async (n) => (await categoryIllustration(n).catch(() => null)) || (await titleIllustration(n).catch(() => null))));
+        const i = found.findIndex(Boolean);
+        if (i >= 0) { pick = found[i]; via = names[i]; }
       }
     } catch { if (firstTime) return null; return illuCache[key] ?? null; } // sin conexión: se reintenta otro día
     illuTried.add(key); saveTried();
@@ -545,10 +553,17 @@ function renderSettings() {
     try { const seen = JSON.parse(localStorage.getItem(ACH_KEY) || "[]").filter((id) => !/^x\d/.test(id)); localStorage.setItem(ACH_KEY, JSON.stringify(seen)); } catch {}
     location.replace(SITE_URL());
   });
-  $app.querySelector("#reillus")?.addEventListener("click", () => {
+  $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
     illuCache = Object.fromEntries([...illuRemoved].map((k) => [k, false])); saveIllu();
     illuTried = new Set(illuRemoved); saveTried();
-    toast("Listo: las láminas se vuelven a buscar"); go("list");
+    const todo = [...new Set(plants.map((p) => illuKey(p.scientific_name)).filter((k) => k.split(" ").length === 2 && !illuRemoved.has(k)))];
+    let done = 0, found = 0; const total = todo.length;
+    btn.disabled = true; btn.textContent = `Buscando… 0 de ${todo.length}`;
+    const worker = async () => { while (todo.length) { const k = todo.shift(); if (await findIllustration(k)) found++; done++; btn.textContent = `Buscando… ${done} de ${total}`; } };
+    await Promise.all([worker(), worker(), worker()]);
+    btn.textContent = `Listo: ${found} ${found === 1 ? "lámina encontrada" : "láminas encontradas"}`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = "Volver a buscar las láminas antiguas"; }, 4000);
   });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
   const $zq = $app.querySelector("#zoneq"), $zl = $app.querySelector("#zonelist");
