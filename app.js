@@ -1057,13 +1057,17 @@ function openShareInfo() {
 
 // ---------- tutorial: enfoca cada sección y explica para qué sirve ----------
 // Cada paso dice en qué pantalla se muestra: el tutorial va cambiando de página y al final vuelve al herbario.
+// Cada paso dice en qué pantalla se muestra ("plant" = la primera lámina del herbario) y qué señala
+// (con "||" se prueba el siguiente si el primero no está). El tutorial va cambiando de página y al final vuelve al herbario.
 const TOUR = [
   ["list", "#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
   ["list", ".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
   ["list", ".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Con Filtrar elegís tipos de planta o quién la encontró, y podés sumar varios."],
-  ["list", "#app .card .pstrip", "Los símbolos", "Dicen el estado de conservación de cada planta y para qué sirve. En «Leyenda», arriba a la derecha, está qué significa cada uno."],
-  ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola."],
+  ["list", "#app .card .pstrip", "Los símbolos", "Dicen el estado de conservación de cada planta y para qué sirve. El sello dorado «Nova» marca las láminas nuevas de los demás hasta que las abrís. En «Leyenda», arriba a la derecha, está qué significa cada uno."],
+  ["plant", "#app .hero||#app h2", "La ficha", "Tocá la foto para verla en grande y pasar entre fotos. Más abajo: para qué sirve, su historia y quién la encontró."],
+  ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola. Si la IA duda, te pide otra foto antes. Y si la planta ya está en el herbario, tu hallazgo se suma a esa lámina."],
   ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
+  ["stats", "#mission", "Tu misión", "Cada día, una planta que se vio cerca de tu casa para salir a buscar. Cuando la asentás, se cumple, y al día siguiente llega otra.", "misiones"],
   ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
   ["settings", "#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
 ];
@@ -1075,7 +1079,13 @@ const waitFor = async (sel, ms = 2500) => {
 };
 function startTour() {
   if (document.querySelector(".tour")) return;
-  const steps = TOUR.map((t) => (t[0] === "stats" && feat("misiones") ? ["stats", "#app h2", "Progreso", "Tu misión de exploración y más de 60 logros que se desbloquean a medida que tu herbario crece."] : t));
+  const steps = TOUR.filter((t) => !t[4] || feat(t[4])).map((t0) => {
+    const t = [...t0];
+    if (!feat("misiones")) return t;
+    if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
+    if (t[0] === "settings") return [t[0], t[1], t[2], "Tu nombre y tu medallón, tu zona para las misiones, el tema e invitar a otras personas."];
+    return t;
+  });
   // El paso de los símbolos se apoya en las tarjetas: durante el tutorial se muestra la vista con imágenes.
   const prevView = cfg.view;
   if (prevView === "list") { cfg.view = "grid"; if (currentView() === "list") renderList(); }
@@ -1090,17 +1100,22 @@ function startTour() {
     const el = document.querySelector(steps[i][1]); if (!el) return;
     const r = el.getBoundingClientRect(), pad = 8;
     Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
-    const below = r.top < innerHeight / 2;
-    card.style.top = below ? r.bottom + pad + 14 + "px" : "auto";
-    card.style.bottom = below ? "auto" : innerHeight - r.top + pad + 14 + "px";
+    const below = r.top < innerHeight / 2, ch = card.offsetHeight || 220, edge = 16;
+    // Si lo señalado es muy alto (una foto grande), el cartel queda pegado al borde para no salirse de la pantalla.
+    const top = Math.min(r.bottom + pad + 14, innerHeight - ch - edge), bottom = Math.min(innerHeight - r.top + pad + 14, innerHeight - ch - edge);
+    card.style.top = below ? Math.max(edge, top) + "px" : "auto";
+    card.style.bottom = below ? "auto" : Math.max(edge, bottom) + "px";
   };
   const show = async () => {
     if (busy) return; busy = true;
     card.classList.add("out");
-    const [view, sel, t, d] = steps[i];
-    const here = currentView() === view;
-    if (!here) go(view);
-    const el = await waitFor(sel, here ? 700 : 2500); // en la misma pantalla no hace falta esperar tanto
+    const [view, sels, t, d] = steps[i];
+    const target = view === "plant" ? (plants[0] ? "plant/" + plants[0].id : "") : view;
+    const here = view === "plant" ? location.hash.slice(1) === target : currentView() === view;
+    if (target && !here) go(target);
+    let el = null, sel = "";
+    if (target) for (const s1 of sels.split("||")) { el = await waitFor(s1, here || sel ? 700 : 2500); sel = s1; if (el) break; } // en la misma pantalla no hace falta esperar tanto
+    steps[i][1] = sel;
     if (!el) { busy = false; steps.splice(i, 1); return i < steps.length ? show() : end(); } // paso sin elemento en esta pantalla: se salta
     if (!el.closest(".bottom")) el.scrollIntoView({ block: "center" });
     await new Promise((r) => setTimeout(r, 180));
