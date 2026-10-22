@@ -756,6 +756,27 @@ function stampSeal(label, name) {
   setTimeout(bye, 1600);
 }
 
+// Visor de foto a pantalla completa. Muestra primero la versión chica (ya cargada) y la cambia por la grande cuando llega.
+function openViewer(src, fallback, title, sub = "", credit = "") {
+  const v = document.createElement("div");
+  v.className = "viewer";
+  v.innerHTML = `<button class="viewer-x" aria-label="Cerrar">×</button>
+    <img src="${esc(fallback || src)}" alt="${esc(title)}">
+    <div class="viewer-cap"><b>${esc(title)}</b>${sub ? `<i>${esc(sub)}</i>` : ""}${credit ? `<small>Foto: ${esc(credit)} · iNaturalist</small>` : ""}</div>`;
+  const img = v.querySelector("img");
+  if (src && src !== fallback) { const big = new Image(); big.onload = () => (img.src = src); big.src = src; }
+  // El botón "atrás" del celular cierra el visor en vez de salir de la pantalla.
+  history.pushState({ viewer: 1 }, "");
+  let closed = false;
+  const close = (fromBack) => { if (closed) return; closed = true; v.classList.add("out"); setTimeout(() => v.remove(), 220); removeEventListener("popstate", onBack); document.removeEventListener("keydown", onKey); if (!fromBack) history.back(); };
+  const onBack = () => close(true);
+  const onKey = (e) => e.key === "Escape" && close();
+  addEventListener("popstate", onBack);
+  document.addEventListener("keydown", onKey);
+  v.onclick = () => close();
+  document.body.appendChild(v);
+}
+
 // Pregunta con la estética del herbario (en lugar del cartel del navegador). Resuelve true si acepta.
 function ask({ title, text, ok = "Aceptar", cancel = "Cancelar" }) {
   return new Promise((res) => {
@@ -1126,12 +1147,13 @@ async function hydrateMission() {
   }
   const when = m.month ? `en ${MONTHS_LONG[m.month - 1].toLowerCase()}` : "durante el año";
   box.innerHTML = `<div class="mission">
-    ${m.photo ? `<img src="${esc(m.photo)}" alt="" loading="lazy" title="${esc(m.credit)}">` : ""}
+    ${m.photo ? `<button class="ms-ph" id="ms-ph" aria-label="Ver la foto más grande"><img src="${esc(m.photo)}" alt="" loading="lazy"></button>` : ""}
     <div class="ms-txt"><small>Cerca de ${zoneShort}</small>
       <b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}
       <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
       <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
     </div></div>`;
+  box.querySelector("#ms-ph")?.addEventListener("click", () => openViewer(m.photo.replace(/\/(square|small|medium)\.(\w+)(\?.*)?$/, "/large.$2"), m.photo, m.common || m.name, m.common ? m.name : "", m.credit));
   box.querySelector("#ms-skip").onclick = () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
 }
 
