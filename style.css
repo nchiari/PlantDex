@@ -903,3 +903,11 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .req-btns { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
 .req-btns .btn { padding: 8px 12px; font-size: 11px; }
 .req-btns .linkish { margin: 0; padding: 2px 0; font-size: 14px; }
+/* miniaturas de la lámina: se achican para entrar en cualquier pantalla y, si son muchas, pasan a otra fila */
+.thumbs { flex-wrap: nowrap; overflow: visible; gap: 8px; padding-left: 0; padding-right: 0; }
+.thumbs img, .thumbs .slot-add { flex: 1 1 0; max-width: 56px; min-width: 0; width: auto; height: auto; aspect-ratio: 4 / 5; }
+/* casillero libre: misma silueta de arco, con un + */
+.slot-add { display: grid; place-items: center; padding: 0; cursor: pointer; background: rgb(var(--line) / .04);
+  border: 1.5px dashed rgb(var(--line) / .4); border-radius: 99px 99px 2px 2px; color: var(--leaf); }
+.slot-add span { font: 300 26px/1 var(--text); }
+.slot-add:active { background: rgb(var(--line) / .1); }

@@ -136,8 +136,12 @@ async function boot() {
 
 function go(view) { if (location.hash === "#" + view) route(); else location.hash = view; }
 
+let lastView = "";
 function route() {
   const [view, arg] = location.hash.slice(1).split("/");
+  // Si salís de la carga de una planta sin asentarla, sus fotos se descartan.
+  if (lastView === "new" && view !== "new" && draft && !draft.editing && feat("fotos")) clearDraft();
+  lastView = view;
   window.scrollTo(0, 0);
   document.getElementById("sheet").hidden = true;
   const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
@@ -170,7 +174,8 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "prueba" };
+const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -1724,7 +1729,15 @@ async function renderDetail(id) {
     </div>
     ${figs[0] ? `<figure class="hero" style="margin:0"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
-    ${figs.length > 1 ? `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">`).join("")}</div>` : ""}
+    ${(() => {
+      // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
+      const mine = feat("fotos") && p.user_id === user.id;
+      const free = mine ? Math.max(0, MAX_PHOTOS - (p.photos || []).length) : 0;
+      if (figs.length <= 1 && !free) return "";
+      const lastOwn = figs.reduce((k, f, i) => (f.photo != null ? i : k), figs.findIndex((f) => f.illu));
+      const slots = Array.from({ length: free }, () => `<button class="slot-add" aria-label="Sumar una foto"><span>+</span></button>`).join("");
+      return `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">${i === lastOwn ? slots : ""}`).join("")}${lastOwn < 0 ? slots : ""}</div>`;
+    })()}
     <div class="row fig-actions" id="figact"></div>
     ${partsPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
@@ -1802,6 +1815,7 @@ async function renderDetail(id) {
     });
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
+  $app.querySelectorAll(".slot-add").forEach((b) => (b.onclick = async () => { const src = await choosePhotoSource(); if (src) addPhotosTo(p, src); }));
   if (figs.length) showFig(0);
   else if (canReillu) { $app.querySelector("#figact").innerHTML = `<button class="fig-link" id="reillu">Restaurar lámina</button>`; bindReillu(); }
   if ($app.querySelector("#del")) $app.querySelector("#del").onclick = async () => {
@@ -1879,22 +1893,25 @@ const idb = (() => {
     del: (k) => tx("readwrite", (st) => st.delete(k)).catch(() => {}),
   };
 })();
-const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { blobs: draft.files.map((f) => f.blob), takens: draft.files.map((f) => f.taken || null), gps: draft.files.map((f) => f.gps || null), data: draft.data, hint: draft.hint, mode: draft.mode }); };
+const saveDraft = () => { if (draft && !draft.editing) idb.set("draft", { ts: Date.now(), blobs: draft.files.map((f) => f.blob), takens: draft.files.map((f) => f.taken || null), gps: draft.files.map((f) => f.gps || null), data: draft.data, hint: draft.hint, mode: draft.mode }); };
 const clearDraft = () => { draft = null; idb.del("draft"); };
 async function restoreDraft() {
   const sd = await idb.get("draft");
   if (!sd || (!sd.blobs?.length && !sd.data?.common_name)) return;
+  // Solo se recupera lo que estabas cargando si la app se cerró en esa pantalla hace poco (por ejemplo, al abrir la cámara).
+  if (feat("fotos") && (location.hash !== "#new" || !sd.ts || Date.now() - sd.ts > 30 * 60e3)) { idb.del("draft"); return; }
   draft = { files: (sd.blobs || []).map((b, i) => ({ blob: b, url: URL.createObjectURL(b), taken: sd.takens?.[i] || null, gps: sd.gps?.[i] || null })), data: sd.data || {}, hint: sd.hint, mode: sd.mode === "manual" ? "manual" : "chat" };
 }
 
 // ---------- alta ----------
 // Abre cámara o galería; al elegir, suma las fotos al borrador y muestra la lámina nueva.
-function pickPhotos(source) {
+function pickPhotos(source, fresh = false) {
   const input = document.getElementById(source === "camera" ? "file-input" : "file-input-gallery");
   input.value = "";
   input.onchange = async () => {
     if (!input.files.length) return;
     if (draft?.editing) draft = null;
+    if (fresh && feat("fotos")) clearDraft(); // el + de abajo siempre arranca una planta nueva
     if (!draft) draft = { files: [], data: {}, mode: "chat" };
     for (const f of [...input.files].slice(0, 4 - draft.files.length)) {
       const meta = await photoMeta(f); // antes de achicar: el canvas descarta los datos EXIF
@@ -1912,8 +1929,8 @@ function openSheet() {
   sheet.hidden = false;
   const close = () => (sheet.hidden = true);
   sheet.onclick = (e) => { if (e.target === sheet) close(); };
-  sheet.querySelector("#sh-cam").onclick = () => { close(); pickPhotos("camera"); };
-  sheet.querySelector("#sh-gal").onclick = () => { close(); pickPhotos("gallery"); };
+  sheet.querySelector("#sh-cam").onclick = () => { close(); pickPhotos("camera", true); };
+  sheet.querySelector("#sh-gal").onclick = () => { close(); pickPhotos("gallery", true); };
   sheet.querySelector("#sh-cancel").onclick = close;
 }
 
@@ -2035,6 +2052,7 @@ function placeCtx() {
 // Borra una foto propia: de la lámina o de un hallazgo tuyo. Primero se saca de la ficha y después el archivo.
 async function deletePhoto(p, path, sighting = null) {
   const last = !sighting && (p.photos || []).length === 1;
+  if (last && feat("fotos")) { toast("Cada lámina necesita al menos una foto: sumá otra antes de borrar esta"); return false; }
   if (!(await ask({ title: "Borrar foto", text: last ? "Es la única foto de esta lámina. Si la borrás, la lámina queda con la ilustración antigua o sin imagen." : "La foto se borra para siempre del herbario.", ok: "Borrarla", cancel: "Dejarla" }))) return false;
   const owner = sighting || p, table = sighting ? "sightings" : "plants";
   const photos = (owner.photos || []).filter((x) => x !== path);
@@ -2054,15 +2072,33 @@ function paintEdPhotos(p) {
   box.querySelectorAll("[data-delph]").forEach((b) => (b.onclick = async () => { if (await deletePhoto(p, b.dataset.delph)) paintEdPhotos(p); }));
 }
 
+// Para un casillero libre: elegir cámara o galería.
+function choosePhotoSource() {
+  return new Promise((res) => {
+    const m = document.createElement("div");
+    m.className = "modal";
+    m.innerHTML = `<div class="modal-box ask" role="dialog" aria-modal="true"><h3>Sumar una foto</h3>
+      <p>Una foto real de esta misma planta: así la lámina sigue siendo un registro de verdad.</p>
+      <div class="row"><button class="btn" data-s="gallery">Galería</button><button class="btn primary" data-s="camera">Sacar foto</button></div></div>`;
+    const done = (v) => { m.remove(); res(v); };
+    m.onclick = (e) => { if (e.target === m) done(null); };
+    m.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => done(b.dataset.s)));
+    document.body.appendChild(m);
+  });
+}
+
 function addPhotosTo(p, source) {
   const input = document.getElementById(source === "camera" ? "file-input" : "file-input-gallery");
   input.value = "";
   input.onchange = async () => {
     if (!input.files.length) return;
-    toast("Subiendo fotos…");
+    const room = feat("fotos") ? MAX_PHOTOS - (p.photos || []).length : 6;
+    if (room <= 0) return toast(`Ya tiene ${MAX_PHOTOS} fotos: borrá alguna para sumar otra`);
+    if (input.files.length > room) toast(`Solo entran ${room} ${room === 1 ? "foto más" : "fotos más"}: se suben las primeras`);
+    else toast("Subiendo fotos…");
     try {
       const added = [];
-      for (const f of [...input.files].slice(0, 6)) {
+      for (const f of [...input.files].slice(0, room)) {
         const blob = await resizeImage(f);
         const path = `${user.id}/${crypto.randomUUID()}.jpg`;
         const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
@@ -2072,8 +2108,9 @@ function addPhotosTo(p, source) {
       const photos = [...(p.photos || []), ...added];
       const { error } = await sb.from("plants").update({ photos }).eq("id", p.id);
       if (error) throw error;
-      p.photos = photos; draft.data.photos = photos;
+      p.photos = photos; if (draft?.data) draft.data.photos = photos;
       paintEdPhotos(p);
+      if (location.hash === "#plant/" + p.id) renderDetail(p.id);
       toast(added.length === 1 ? "Foto agregada" : `${added.length} fotos agregadas`);
     } catch (e) { toast("Error al subir: " + e.message); }
   };
@@ -2122,7 +2159,9 @@ function renderForm(existing) {
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
   if (existing) {
     paintEdPhotos(existing);
+    if (feat("fotos") && (existing.photos || []).length >= MAX_PHOTOS) $app.querySelector("#addcam")?.closest(".row")?.insertAdjacentHTML("beforebegin", `<p class="muted" style="font-size:14.5px">Ya tiene ${MAX_PHOTOS} fotos. Para sumar otra, borrá alguna con la ✕.</p>`);
     $app.querySelector("#addcam").onclick = () => addPhotosTo(existing, "camera");
+    if (feat("fotos") && (existing.photos || []).length >= MAX_PHOTOS) { $app.querySelector("#addcam").disabled = true; $app.querySelector("#addgal").disabled = true; }
     $app.querySelector("#addgal").onclick = () => addPhotosTo(existing, "gallery");
   }
   [["flm", "flower_months", "fl"], ["frm", "fruit_months", "fr"]].forEach(([id, key, cls]) =>
@@ -2147,6 +2186,7 @@ function renderForm(existing) {
       return;
     }
     if (dup && !(await ask({ title: "Ya está en el herbario", text: `<b>${esc(dup.common_name)}</b> ya la asentó ${esc(dup.author_name || "otra persona")}. Tu hallazgo y tus fotos se suman a esa lámina, con tu nombre, en vez de crear otra igual.`, ok: "Sumar mi hallazgo", cancel: "Volver" }))) return;
+    if (!existing && !draft.files.length && feat("fotos")) return toast("Sumá al menos una foto de la planta para asentarla");
     if (!existing && !draft.files.length && !(await ask({ title: "Sin fotos", text: "Esta lámina no tiene fotos. Podés guardarla igual y agregarlas después, cuando la edites.", ok: "Guardar igual", cancel: "Volver" }))) return;
     btn.disabled = true; btn.textContent = "Entintando…";
     try {
