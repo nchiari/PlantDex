@@ -758,14 +758,18 @@ function stampSeal(label, name) {
 
 // Visor de fotos a pantalla completa. Recibe una lista de fotos {src, small, title, sub, credit} y la que se abre primero;
 // se pasa de una a otra deslizando o con las flechas. Muestra la versión chica (ya cargada) y la cambia por la grande cuando llega.
-function openViewer(items, start = 0) {
+function openViewer(items, start = 0, opts = {}) {
   let i = start;
   const v = document.createElement("div");
   v.className = "viewer";
   v.innerHTML = `<button class="viewer-x" aria-label="Cerrar">×</button>
-    ${items.length > 1 ? `<button class="viewer-nav prev" aria-label="Anterior">‹</button><button class="viewer-nav next" aria-label="Siguiente">›</button>` : ""}
-    <img alt=""><div class="viewer-cap"></div>`;
-  const img = v.querySelector("img"), cap = v.querySelector(".viewer-cap");
+    <div class="viewer-stage">${items.length > 1 ? `<button class="viewer-nav prev" aria-label="Anterior">‹</button><button class="viewer-nav next" aria-label="Siguiente">›</button>` : ""}
+      <div class="viewer-mat"><img alt=""></div></div>
+    <div class="viewer-card"><div class="viewer-cap"></div>${opts.info ? `<div class="viewer-info"></div>` : ""}</div>`;
+  const img = v.querySelector("img"), cap = v.querySelector(".viewer-cap"), info = v.querySelector(".viewer-info");
+  // Fotos y texto que llegan después (por ejemplo, de iNaturalist y Wikipedia).
+  v.addItems = (more) => { const had = items.length; items.push(...more.filter((x) => !items.some((y) => y.src === x.src))); if (had === 1 && items.length > 1) { v.querySelector(".viewer-stage").insertAdjacentHTML("afterbegin", `<button class="viewer-nav prev" aria-label="Anterior">‹</button><button class="viewer-nav next" aria-label="Siguiente">›</button>`); bindNav(); } show(); };
+  v.setInfo = (html) => { if (info) info.innerHTML = html; };
   const show = () => {
     const it = items[i];
     img.src = it.small || it.src; img.alt = it.title || "";
@@ -781,16 +785,55 @@ function openViewer(items, start = 0) {
   const onKey = (e) => (e.key === "Escape" ? close() : e.key === "ArrowLeft" ? step(-1) : e.key === "ArrowRight" ? step(1) : null);
   addEventListener("popstate", onBack);
   document.addEventListener("keydown", onKey);
-  v.querySelector(".prev")?.addEventListener("click", (e) => { e.stopPropagation(); step(-1); });
-  v.querySelector(".next")?.addEventListener("click", (e) => { e.stopPropagation(); step(1); });
+  const bindNav = () => {
+    v.querySelector(".prev")?.addEventListener("click", (e) => { e.stopPropagation(); step(-1); });
+    v.querySelector(".next")?.addEventListener("click", (e) => { e.stopPropagation(); step(1); });
+  };
+  bindNav();
+  // La ficha de abajo se puede leer y tocar sin cerrar el visor.
+  v.querySelector(".viewer-card").addEventListener("click", (e) => e.stopPropagation());
   // Deslizar para pasar de foto; un toque sin deslizar cierra.
   let x0 = null, moved = false;
   v.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; moved = false; }, { passive: true });
   v.addEventListener("touchmove", (e) => { if (x0 !== null && Math.abs(e.touches[0].clientX - x0) > 12) moved = true; }, { passive: true });
   v.addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (items.length > 1 && Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
   v.onclick = () => { if (moved) { moved = false; return; } close(); };
+  if (opts.info) v.setInfo(opts.info);
   show();
   document.body.appendChild(v);
+  return v;
+}
+
+// Pista para reconocer una especie de misión: resumen de Wikipedia en castellano (o el de iNaturalist)
+// y más fotos de la especie en iNaturalist. Se guarda en el celular para no volver a pedirla.
+const HINT_KEY = "plantdex.hint";
+async function missionExtras(m) {
+  let cache = {}; try { cache = JSON.parse(localStorage.getItem(HINT_KEY) || "{}"); } catch {}
+  if (cache[m.id]) return cache[m.id];
+  const out = { text: "", wiki: "", photos: [] };
+  const firstSentences = (t) => { const parts = String(t).replace(/\s+/g, " ").trim().match(/[^.!?]+[.!?]+/g) || [t]; let r = ""; for (const p of parts) { if ((r + p).length > 360 && r) break; r += p; } return r.trim(); };
+  const [tx, wp] = await Promise.allSettled([
+    fetch(`https://api.inaturalist.org/v1/taxa/${m.id}?locale=es`).then((r) => r.json()),
+    fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(m.name.replace(/ /g, "_"))}`).then((r) => (r.ok ? r.json() : null)),
+  ]);
+  const t = tx.status === "fulfilled" ? tx.value?.results?.[0] : null;
+  if (wp.status === "fulfilled" && wp.value?.extract && wp.value.type !== "disambiguation") { out.text = firstSentences(wp.value.extract); out.wiki = wp.value.content_urls?.mobile?.page || ""; }
+  else if (t?.wikipedia_summary) out.text = firstSentences(t.wikipedia_summary.replace(/<[^>]+>/g, ""));
+  out.photos = (t?.taxon_photos || []).slice(0, 8).map(({ photo: ph }) => ({ src: ph.large_url || ph.medium_url, small: ph.medium_url, credit: ph.attribution ? `Foto: ${ph.attribution} · iNaturalist` : "" })).filter((x) => x.src);
+  cache[m.id] = out;
+  try { localStorage.setItem(HINT_KEY, JSON.stringify(Object.fromEntries(Object.entries(cache).slice(-20)))); } catch {}
+  return out;
+}
+async function openMissionViewer(m) {
+  const base = { title: m.common || m.name, sub: m.common ? m.name : "" };
+  const first = { ...base, src: m.photo.replace(/\/(square|small|medium)\.(\w+)(\?.*)?$/, "/large.$2"), small: m.photo, credit: m.credit ? `Foto: ${m.credit} · iNaturalist` : "" };
+  const v = openViewer([first], 0, { info: `<p class="vi-h">Pista</p><p class="vi-t muted">Buscando cómo reconocerla…</p>` });
+  try {
+    const x = await missionExtras(m);
+    v.addItems(x.photos.map((ph) => ({ ...base, ...ph })));
+    v.setInfo(x.text ? `<p class="vi-h">Pista</p><p class="vi-t">${esc(x.text)}</p>${x.wiki ? `<a class="vi-more" href="${esc(x.wiki)}" target="_blank" rel="noopener">Seguir leyendo en Wikipedia</a>` : ""}`
+      : `<p class="vi-h">Pista</p><p class="vi-t muted">No encontré una descripción. Mirá las fotos con atención: hojas, flores y frutos.</p>`);
+  } catch { v.setInfo(`<p class="vi-h">Pista</p><p class="vi-t muted">No pude traer la descripción ahora. Probá de nuevo más tarde.</p>`); }
 }
 
 // Pregunta con la estética del herbario (en lugar del cartel del navegador). Resuelve true si acepta.
@@ -1165,11 +1208,12 @@ async function hydrateMission() {
   box.innerHTML = `<div class="mission">
     ${m.photo ? `<button class="ms-ph" id="ms-ph" aria-label="Ver la foto más grande"><img src="${esc(m.photo)}" alt="" loading="lazy"></button>` : ""}
     <div class="ms-txt"><small>Cerca de ${zoneShort}</small>
-      <b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}
+      <button class="ms-name" id="ms-name"><b>${esc(m.common || m.name)}</b>${m.common ? `<i>${esc(m.name)}</i>` : ""}</button>
       <span class="ms-meta">Se registró ${m.count} ${m.count === 1 ? "vez" : "veces"} ${when} en tu zona.</span>
       <span class="ms-links"><a href="https://www.inaturalist.org/taxa/${m.id}" target="_blank" rel="noopener">Cómo es</a><a href="https://es.wikipedia.org/w/index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener">Wikipedia</a><button class="linkish" id="ms-skip">Otra planta</button></span>
     </div></div>`;
-  box.querySelector("#ms-ph")?.addEventListener("click", () => openViewer([{ src: m.photo.replace(/\/(square|small|medium)\.(\w+)(\?.*)?$/, "/large.$2"), small: m.photo, title: m.common || m.name, sub: m.common ? m.name : "", credit: m.credit ? `Foto: ${m.credit} · iNaturalist` : "" }]));
+  box.querySelector("#ms-ph")?.addEventListener("click", () => openMissionViewer(m));
+  box.querySelector("#ms-name")?.addEventListener("click", () => (m.photo ? openMissionViewer(m) : window.open(`https://www.inaturalist.org/taxa/${m.id}`, "_blank")));
   box.querySelector("#ms-skip").onclick = () => { cfg.missionSkip = [...(cfg.missionSkip || []), m.id].slice(-200); saveMission(null); hydrateMission(); };
 }
 
