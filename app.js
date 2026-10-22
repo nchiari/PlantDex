@@ -134,7 +134,7 @@ function route() {
   checkAchievements();
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
-  else if (feat("misiones") && !missionsIntroSeen() && !zoneOf()) setTimeout(() => !document.querySelector(".tour, .modal") && !missionsIntroSeen() && openMissionsIntro(), 900);
+  else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
   if (feat("misiones") && zoneOf() && !route.missionChecked) { route.missionChecked = true; ensureMission().then(navDot).catch(() => {}); } else navDot();
@@ -754,7 +754,7 @@ function openNews(all = false) {
     ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
     <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
   const close = () => {
-    m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg);
+    m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg); if (!all) maybeMissionsIntro(450);
     if ((user?.user_metadata?.news_seen || 0) < NEWS[0].v) Promise.resolve().then(() => sb.auth.updateUser({ data: { news_seen: NEWS[0].v } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {});
   };
   m.onclick = (e) => { if (e.target === m) close(); };
@@ -1003,6 +1003,7 @@ function startTour() {
   const end = () => {
     ov.classList.add("out"); setTimeout(() => ov.remove(), 250);
     cfg.view = prevView; cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place);
+    maybeMissionsIntro(700);
     if (currentView() !== "list") go("list"); else renderList();
   };
   ov.querySelector("[data-skip]").onclick = end;
@@ -1284,6 +1285,11 @@ async function hydrateMission() {
 
 // Presentación de las misiones: aparece una vez, centrada, con su propio diseño (es una función importante).
 const missionsIntroSeen = () => !!(cfg.missionsIntro || user?.user_metadata?.missions_intro);
+// La carta de las misiones sale sola, nunca encima de otra ventana: después del tutorial o de las Novedades.
+function maybeMissionsIntro(delay = 500) {
+  if (!user || !feat("misiones") || missionsIntroSeen() || zoneOf()) return;
+  setTimeout(() => { if (!document.querySelector(".tour, .modal, .stamp") && !missionsIntroSeen()) openMissionsIntro(); }, delay);
+}
 function openMissionsIntro() {
   const m = document.createElement("div");
   m.className = "modal feature-intro";
