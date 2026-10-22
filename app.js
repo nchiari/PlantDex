@@ -266,7 +266,11 @@ const ILLU_QUERIES = [
 const ILLU_TRIED_KEY = "plantdex.illu-x";
 let illuTried = new Set(); try { illuTried = new Set(JSON.parse(localStorage.getItem(ILLU_TRIED_KEY) || "[]")); } catch {}
 const saveTried = () => { try { localStorage.setItem(ILLU_TRIED_KEY, JSON.stringify([...illuTried].slice(-500))); } catch {} };
-const illuRetry = (key) => feat("laminas") && illuCache[key] === false && !illuTried.has(key);
+// Las que quitaste a mano quedan anotadas aparte: ninguna búsqueda las vuelve a traer.
+const ILLU_REMOVED_KEY = "plantdex.illu-off";
+let illuRemoved = new Set(); try { illuRemoved = new Set(JSON.parse(localStorage.getItem(ILLU_REMOVED_KEY) || "[]")); } catch {}
+const saveRemoved = () => { try { localStorage.setItem(ILLU_REMOVED_KEY, JSON.stringify([...illuRemoved])); } catch {} };
+const illuRetry = (key) => feat("laminas") && illuCache[key] === false && !illuTried.has(key) && !illuRemoved.has(key);
 const titleCase = (n) => n.charAt(0).toUpperCase() + n.slice(1);
 async function categoryIllustration(name) {
   const q = new URLSearchParams({
@@ -276,7 +280,11 @@ async function categoryIllustration(name) {
   const res = await fetch("https://commons.wikimedia.org/w/api.php?" + q);
   if (!res.ok) throw new Error("HTTP " + res.status);
   const files = Object.values((await res.json()).query?.pages || {}).filter((pg) => pg.imageinfo?.[0]?.thumburl && /image\/(jpeg|png|tiff)/.test(pg.imageinfo[0].mime || "image/jpeg"));
-  return files.find((pg) => ILLU_SOURCES.test(pg.title)) || files[0] || null;
+  // Mejor primero: con el nombre de la planta en el título (suelen ser láminas solo de esa especie) y de floras clásicas;
+  // al final, las colecciones "mejoradas" que suelen juntar varias especies en una misma lámina.
+  const n = name.toLowerCase();
+  const score = (pg) => (pg.title.toLowerCase().includes(n) ? 4 : 0) + (ILLU_SOURCES.test(pg.title) ? 2 : 0) - (/rawpixel|digitally enhanced/i.test(pg.title) ? 3 : 0);
+  return files.sort((a, b) => score(b) - score(a))[0] || null;
 }
 // Búsqueda por título (la de siempre) para un nombre dado: primero las floras preferidas.
 async function titleIllustration(name) {
@@ -509,7 +517,9 @@ function renderSettings() {
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
     ${user && amOwner ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
       <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
-      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button></details>` : ""}
+      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
+      <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este celular y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
+      <button class="btn ghost" id="reillus" style="width:100%">Volver a buscar las láminas antiguas</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row"><button class="btn" id="export">Exportar backup</button><button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
@@ -525,6 +535,11 @@ function renderSettings() {
     await syncMeta({ zone: null, mission: null, missions_intro: null, missions_done: null });
     try { const seen = JSON.parse(localStorage.getItem(ACH_KEY) || "[]").filter((id) => !/^x\d/.test(id)); localStorage.setItem(ACH_KEY, JSON.stringify(seen)); } catch {}
     location.replace(SITE_URL());
+  });
+  $app.querySelector("#reillus")?.addEventListener("click", () => {
+    illuCache = Object.fromEntries([...illuRemoved].map((k) => [k, false])); saveIllu();
+    illuTried = new Set(illuRemoved); saveTried();
+    toast("Listo: las láminas se vuelven a buscar"); go("list");
   });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
   const $zq = $app.querySelector("#zoneq"), $zl = $app.querySelector("#zonelist");
@@ -1648,7 +1663,7 @@ async function renderDetail(id) {
   const canReillu = !ill && cfg.illustrations && p.scientific_name;
   const bindReillu = () => $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
-    delete illuCache[illuKey(p.scientific_name)]; saveIllu(); illuTried.delete(illuKey(p.scientific_name)); saveTried();
+    delete illuCache[illuKey(p.scientific_name)]; saveIllu(); illuTried.delete(illuKey(p.scientific_name)); saveTried(); illuRemoved.delete(illuKey(p.scientific_name)); saveRemoved();
     const found = await findIllustration(p.scientific_name);
     if (!found) toast("No encontré una lámina antigua para esta especie");
     renderDetail(p.id);
@@ -1684,8 +1699,8 @@ async function renderDetail(id) {
     });
     act.querySelector("#noillu")?.addEventListener("click", () => {
       const key = illuKey(p.scientific_name), prev = illuCache[key];
-      illuCache[key] = false; saveIllu(); illuTried.add(key); saveTried(); renderDetail(p.id);
-      toast("Lámina quitada", ["Deshacer", () => { illuCache[key] = prev; saveIllu(); renderDetail(p.id); }]);
+      illuCache[key] = false; saveIllu(); illuTried.add(key); saveTried(); illuRemoved.add(key); saveRemoved(); renderDetail(p.id);
+      toast("Lámina quitada", ["Deshacer", () => { illuCache[key] = prev; saveIllu(); illuRemoved.delete(key); saveRemoved(); renderDetail(p.id); }]);
     });
   };
   $app.querySelectorAll(".thumbs img").forEach((t) => (t.onclick = () => showFig(+t.dataset.i)));
