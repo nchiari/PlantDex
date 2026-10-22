@@ -820,3 +820,12 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .fi-letter .fi-sign { text-align: right; font-style: italic; color: var(--ink-soft); margin: 4px 0 0; }
 .fi-box .fi-small { text-align: center; }
 .fi-box { max-height: calc(100dvh - 44px); overflow-y: auto; padding-top: 24px; }
+/* aviso al guardar la zona y puntito de misión nueva en Progreso */
+.zone-done { margin: 10px 0 0; padding: 10px 12px; font-size: 15.5px; line-height: 1.45; background: var(--gold-wash, rgb(var(--line) / .06)); border-left: 3px solid var(--gold); color: var(--ink); }
+.zone-done .linkish { margin: 0; padding: 0; font-size: inherit; }
+.bottom [data-go="stats"] { position: relative; }
+.bottom [data-go="stats"].has-dot::after { content: ""; position: absolute; top: 6px; left: calc(50% + 10px); width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--parchment); }
+/* la brújula sigue buscando el norte */
+.fi-art { animation: fi-spin 1.2s cubic-bezier(.2,1,.3,1) both, fi-turn 24s linear 1.2s infinite; }
+@keyframes fi-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fi-art { animation: none; } }

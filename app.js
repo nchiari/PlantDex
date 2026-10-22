@@ -137,6 +137,7 @@ function route() {
   else if (feat("misiones") && !missionsIntroSeen() && !zoneOf()) setTimeout(() => !document.querySelector(".tour, .modal") && !missionsIntroSeen() && openMissionsIntro(), 900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
+  if (feat("misiones") && zoneOf() && !route.missionChecked) { route.missionChecked = true; ensureMission().then(navDot).catch(() => {}); } else navDot();
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
@@ -394,6 +395,7 @@ function renderSettings() {
     ${user && feat("misiones") ? `<label>Tu zona</label>
     <div class="zone-pick"><input id="zoneq" autocomplete="off" placeholder="Escribí tu barrio, pueblo o ciudad" value="${esc(zoneOf()?.name || "")}"><div class="zone-list" id="zonelist" hidden></div></div>
     <button class="linkish zone-gps" id="setzone">Usar mi ubicación actual</button>
+    <p class="zone-done" id="zonedone" hidden></p>
     <p class="muted zone-note">Sirve para proponerte plantas que se vieron cerca. Se guarda aproximada, a un kilómetro.</p>
     <label class="toggle"><input type="checkbox" id="missions" ${cfg.missionsOff ? "" : "checked"}> Misiones de exploración</label>` : ""}
     <h3>Apariencia</h3>
@@ -419,7 +421,7 @@ function renderSettings() {
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
-    ${user && amOwner && feat("misiones") ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
+    ${user && amOwner ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
       <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona y la misión. Sirve para ver todo como alguien que entra por primera vez.</p>
       <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
@@ -431,7 +433,7 @@ function renderSettings() {
     const btn = ev.currentTarget;
     if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
     btn.disabled = true;
-    for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone"]) delete cfg[k];
+    for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone", "missionSeen"]) delete cfg[k];
     saveCfg(cfg);
     try { localStorage.removeItem(NEAR_KEY); } catch {}
     await syncMeta({ zone: null, mission: null, missions_intro: null });
@@ -439,9 +441,19 @@ function renderSettings() {
   });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
   const $zq = $app.querySelector("#zoneq"), $zl = $app.querySelector("#zonelist");
+  // Zona guardada: se busca la primera misión y se indica dónde verla.
+  const zoneReady = async () => {
+    const note = $app.querySelector("#zonedone"); if (!note) return;
+    note.hidden = false; note.innerHTML = "Zona guardada. Buscando tu primera misión…";
+    try {
+      const m = await ensureMission(); navDot();
+      note.innerHTML = m ? `Listo: <b>tu misión te espera en Progreso</b>. <button class="linkish" id="zd-go">Ver mi misión</button>` : "Zona guardada, pero no encontré plantas registradas cerca. Probá con un lugar más grande.";
+    } catch { note.innerHTML = `Zona guardada. <button class="linkish" id="zd-go">Ver Progreso</button>`; }
+    $app.querySelector("#zd-go")?.addEventListener("click", () => go("stats"));
+  };
   if ($zq) {
     let tmr = null, seq = 0;
-    const pickZone = (z) => { saveZone(z.lat, z.lng, z.name, z.cc); $zq.value = z.name; $zl.hidden = true; $zq.blur(); toast("Zona guardada"); };
+    const pickZone = (z) => { saveZone(z.lat, z.lng, z.name, z.cc); $zq.value = z.name; $zl.hidden = true; $zq.blur(); zoneReady(); };
     $zq.oninput = () => {
       clearTimeout(tmr);
       const q = $zq.value.trim(); if (q.length < 3) { $zl.hidden = true; return; }
@@ -465,7 +477,7 @@ function renderSettings() {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const z = await setZone(pos.coords.latitude, pos.coords.longitude);
       if ($zq) $zq.value = z.name;
-      b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("Zona guardada");
+      b.disabled = false; b.textContent = "Usar mi ubicación actual"; zoneReady();
     }, () => { b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("No pude leer la ubicación: revisá el permiso"); }, { timeout: 10000 });
   });
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
@@ -1017,9 +1029,9 @@ async function speciesNear(z, month) {
   let cache = {}; try { cache = JSON.parse(localStorage.getItem(NEAR_KEY) || "{}"); } catch {}
   if (cache[key] && Date.now() - cache[key].t < 7 * 86400e3) return cache[key].list;
   const locale = z.cc === "ar" ? "es-AR" : z.cc === "mx" ? "es-MX" : "es";
-  const url = `https://api.inaturalist.org/v1/observations/species_counts?lat=${z.lat}&lng=${z.lng}&radius=8&iconic_taxa=Plantae&quality_grade=research&captive=false&hrank=species&lrank=species${month ? "&month=" + month : ""}&locale=${locale}&per_page=200`;
-  const r = await fetch(url); if (!r.ok) throw new Error("iNaturalist no respondió");
-  const list = ((await r.json()).results || []).map(({ count, taxon: t }) => ({
+  const url = `https://api.inaturalist.org/v1/observations/species_counts?lat=${z.lat}&lng=${z.lng}&radius=8&iconic_taxa=Plantae&quality_grade=research&captive=false${month ? "&month=" + month : ""}&locale=${locale}&per_page=200`;
+  const r = await fetch(url); if (!r.ok) throw new Error(`iNaturalist respondió ${r.status}`);
+  const list = ((await r.json()).results || []).filter(({ taxon: t }) => t && t.rank === "species").map(({ count, taxon: t }) => ({
     id: t.id, name: t.name, common: t.preferred_common_name || "", count,
     photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", credit: t.default_photo?.attribution || "",
   }));
@@ -1044,6 +1056,30 @@ function missionCheck(sci) {
   saveMission({ ...m, done: Date.now() });
   return true;
 }
+// Decide la misión vigente: la cumple si ya la asentaste, avisa si otra persona la encontró primero,
+// y pide una nueva cuando no hay o ya pasaron los 2 días. Puede fallar si no hay conexión con iNaturalist.
+async function ensureMission() {
+  if (!zoneOf()) return null;
+  let m = missionOf();
+  if (m && !m.done) {
+    const hit = plants.find((p) => illuKey(p.scientific_name) === illuKey(m.name));
+    if (hit) {
+      const mine = hit.user_id === user.id || (hit.sightings || []).some((x) => x.user_id === user.id);
+      m = mine ? { ...m, done: Date.now() } : { ...m, lostTo: hit.author_name || "Otra persona" };
+      if (mine) saveMission(m);
+    }
+  }
+  if (!m || (m.done && Date.now() - m.done >= MISSION_GAP)) {
+    m = await newMission();
+    if (m) saveMission(m);
+  }
+  return m;
+}
+// Puntito dorado en Progreso mientras haya una misión nueva que todavía no miraste.
+function navDot() {
+  const m = missionOf(), b = $nav.querySelector('[data-go="stats"]');
+  b?.classList.toggle("has-dot", feat("misiones") && !cfg.missionsOff && !!m && !m.done && !m.lostTo && cfg.missionSeen !== m.id);
+}
 async function hydrateMission() {
   const box = $app.querySelector("#mission"); if (!box || cfg.missionsOff || !feat("misiones")) return;
   const z = zoneOf();
@@ -1054,22 +1090,22 @@ async function hydrateMission() {
     box.querySelector("#ms-zone").onclick = () => goZone();
     return;
   }
-  let m = missionOf();
-  // ¿Alguien del herbario ya la tiene? Si fuiste vos, está cumplida; si fue otra persona, te la ganó.
-  if (m && !m.done) {
-    const hit = plants.find((p) => illuKey(p.scientific_name) === illuKey(m.name));
-    if (hit) {
-      const mine = hit.user_id === user.id || (hit.sightings || []).some((x) => x.user_id === user.id);
-      m = mine ? { ...m, done: Date.now() } : { ...m, lostTo: hit.author_name || "Otra persona" };
-      if (mine) saveMission(m);
-    }
-  }
-  if (!m || (m.done && Date.now() - m.done >= MISSION_GAP)) {
-    try { m = await newMission(); } catch { return; } // sin conexión con iNaturalist: no se muestra nada
-    if (!m) return;
-    saveMission(m);
+  box.innerHTML = `<p class="ms-hint">Buscando plantas cerca tuyo…</p>`;
+  let m;
+  try { m = await ensureMission(); }
+  catch (e) {
+    if (!$app.contains(box)) return;
+    box.innerHTML = `<p class="ms-hint">No pude consultar las plantas de tu zona (${esc(e.message || "sin conexión")}). <button class="linkish" id="ms-retry">Reintentar</button></p>`;
+    box.querySelector("#ms-retry").onclick = () => { try { localStorage.removeItem(NEAR_KEY); } catch {} hydrateMission(); };
+    return;
   }
   if (!$app.contains(box)) return;
+  if (!m) {
+    box.innerHTML = `<p class="ms-hint">No encontré plantas registradas cerca de tu zona que falten en el herbario. Probá con otra zona en <button class="linkish" id="ms-zone">Ajustes</button>.</p>`;
+    box.querySelector("#ms-zone").onclick = () => goZone();
+    return;
+  }
+  if (!m.done && !m.lostTo && cfg.missionSeen !== m.id) { cfg.missionSeen = m.id; saveCfg(cfg); navDot(); }
   const zoneShort = esc(z.name.split(/[,(]/)[0].trim());
   if (m.done) {
     const next = new Date(m.done + MISSION_GAP).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
