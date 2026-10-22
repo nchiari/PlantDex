@@ -152,7 +152,7 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos" };
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -722,6 +722,12 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el celular y en su cuenta.
 const NEWS = [
+  { v: 3, date: "2026-10-22", items: [
+    "<b>Misiones de exploración.</b> Te propongo una planta que se vio cerca de tu casa y que todavía no está en el herbario. Cuando la encontrás y la asentás, al día siguiente llega otra. Las vas a ver en <b>Progreso</b> (antes, Logros), junto con siete logros nuevos de exploración para ir desbloqueando.",
+    "<b>Tu zona.</b> En Ajustes, escribí tu barrio o pueblo para recibir misiones de tu zona.",
+    "<b>La IA pregunta si duda.</b> Si no está segura de qué planta es, te pide una foto o un dato más antes de darte la ficha.",
+    "<b>Leyenda.</b> En el herbario, tocá «Leyenda» para ver qué significa cada símbolo.",
+  ] },
   { v: 2, date: "2026-10-21", items: [
     "<b>Sello Nova.</b> Las láminas nuevas que suben los demás llevan un sello dorado hasta que las abrís.",
     "<b>Borrar fotos.</b> Tocá una foto tuya en la lámina y elegí «Borrar foto». También podés borrarla desde Editar, con la ✕.",
