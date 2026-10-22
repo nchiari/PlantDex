@@ -1103,8 +1103,10 @@ function consBadge(code, cls = "cons") {
 // ---------- misiones de exploración ----------
 // Cada persona marca su zona; la app busca en iNaturalist qué plantas silvestres se registraron cerca en este mes
 // (observaciones confirmadas por la comunidad) y propone una que nadie del herbario tenga todavía.
-// Se cumple sola al asentar esa especie; la siguiente llega a los 2 días. Se puede cambiar cuando quieras.
-const MISSION_GAP = 2 * 86400e3, NEAR_KEY = "plantdex.near";
+// La misión queda activa sin vencimiento. Se cumple sola al asentar esa especie y la siguiente llega
+// al día siguiente, desde la medianoche. Se puede cambiar por otra cuando quieras.
+const NEAR_KEY = "plantdex.near";
+const nextMissionAt = (m) => { const d = new Date(m.done); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); return d.getTime(); };
 const zoneOf = () => cfg.zone || user?.user_metadata?.zone || null;
 const syncMeta = (data) => Promise.resolve().then(() => sb.auth.updateUser({ data })).then(({ data: d }) => d?.user && (user = d.user)).catch(() => {});
 // Guarda la zona redondeada a ~1 km: alcanza para buscar y no guarda tu casa exacta.
@@ -1185,14 +1187,14 @@ function finishMission(m) {
   cfg.missionCelebrated = false; // Progreso titila hasta que entres a verla
   saveCfg(cfg);
 }
-// "en 2 días", "mañana" o "hoy", contando días de calendario hasta la próxima misión.
+// "mañana" (o "hoy", si ya pasó la medianoche y todavía no se pidió), contando días de calendario.
 const untilNext = (m) => {
   const day = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
-  const n = Math.round((day(m.done + MISSION_GAP) - day(Date.now())) / 86400e3);
+  const n = Math.round((day(nextMissionAt(m)) - day(Date.now())) / 86400e3);
   return n <= 0 ? "hoy" : n === 1 ? "mañana" : `en ${n} días`;
 };
 // Decide la misión vigente: la cumple si ya la asentaste, avisa si otra persona la encontró primero,
-// y pide una nueva cuando no hay o ya pasaron los 2 días. Puede fallar si no hay conexión con iNaturalist.
+// y pide una nueva cuando no hay o ya es el día siguiente al de la cumplida. Puede fallar si no hay conexión con iNaturalist.
 async function ensureMission() {
   if (!zoneOf()) return null;
   let m = missionOf();
@@ -1204,7 +1206,7 @@ async function ensureMission() {
       else m = { ...m, lostTo: hit.author_name || "Otra persona" };
     }
   }
-  if (!m || (m.done && Date.now() - m.done >= MISSION_GAP)) {
+  if (!m || (m.done && Date.now() >= nextMissionAt(m))) {
     m = await newMission();
     if (m) saveMission(m);
   }
@@ -1286,7 +1288,7 @@ function openMissionsIntro() {
     <div class="fi-letter">
       ${cfg.name ? `<p class="fi-to">${esc(cfg.name)}:</p>` : ""}
       <p>Todo naturalista empezó igual: con un mapa a medio dibujar y las ganas de saber qué crece a la vuelta de casa.</p>
-      <p>Desde hoy, este herbario te va a encargar misiones. Cada una es <b>una planta que alguien vio cerca tuyo</b> y que todavía no tiene su lámina. Salís a buscarla, la asentás, y la misión queda cumplida. Unos días después, te espera la siguiente.</p>
+      <p>Desde hoy, este herbario te va a encargar misiones. Cada una es <b>una planta que alguien vio cerca tuyo</b> y que todavía no tiene su lámina. Te espera todo el tiempo que haga falta: salís a buscarla, la asentás, y la misión queda cumplida. Al día siguiente, te espera otra.</p>
       <p class="fi-sign">— Herbarium vivum</p>
     </div>
     <p class="fi-small">Las misiones viven en Progreso. Para empezar, marcá desde dónde explorás.</p>
