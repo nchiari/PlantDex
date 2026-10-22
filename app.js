@@ -852,7 +852,7 @@ const NEWS = [
   ] },
 ];
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
-const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, user?.created_at > NEWS[0].date + "T23:59" ? NEWS[0].v : 0);
+const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
 function openNews(all = false) {
   const seen = all ? 0 : newsSeen();
   const list = NEWS.filter((n) => n.v > seen);
