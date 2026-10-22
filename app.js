@@ -409,14 +409,12 @@ Lugar del hallazgo: ${place || "desconocido"}.${foundWhen() ? ` Fecha del hallaz
 
 TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usás un término botánico, explicalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
 
-${feat("dudas") ? `ANTES DE RESPONDER, ¿ESTÁS SEGURO? Evaluá con honestidad si podés identificar la especie con seguridad razonable con lo que tenés (fotos, lugar, fecha y pista).
-- Si estás razonablemente seguro, respondé directamente con la ficha, como se indica más abajo.
-- Si dudás entre dos o más especies, o si a las fotos les falta algo clave para decidir (la flor, el fruto, el revés de la hoja, el tallo, el porte completo), NO des la ficha todavía. Respondé en pocas líneas, en tono cercano:
-  1) Las 2 o 3 candidatas más probables (nombre común y científico) y en qué se diferencian, en palabras simples.
-  2) Hasta 3 pedidos concretos y fáciles de cumplir en el campo para decidir: una foto puntual (ej. "la flor de cerca", "el revés de una hoja", "el tallo") o una pregunta simple (ej. "¿huele a algo si frotás una hoja?", "¿el tallo es cuadrado?", "¿qué altura tiene?").
-  Terminá con esta línea: "Contestame esto y te paso la ficha para Herbalorium."
-- Cuando con las respuestas ya estés razonablemente seguro, recién ahí respondé con la ficha.
-- Nunca adivines para cumplir: si algo no se ve en las fotos, preguntalo. Si después de preguntar todavía no podés decidir, elegí la más probable y contá la duda en el campo "doubt".
+${feat("dudas") ? `¿PREGUNTAR O RESPONDER? Por defecto, respondé directamente con la ficha. La gran mayoría de las veces tu primera idea es la correcta: confiá en ella.
+Preguntá ANTES de dar la ficha solo en estos casos, y en ningún otro:
+- Dudás de verdad entre especies que se ven casi iguales en las fotos Y la diferencia importa, sobre todo si una es tóxica o peligrosa y la otra no.
+- Las fotos no permiten identificar ni siquiera el género (muy borrosas, muy lejos, solo un pedazo irreconocible).
+Si dudás solo entre especies parecidas sin riesgo, o entre variedades, NO preguntes: elegí la más probable y contá la duda en el campo "doubt".
+Si tenés que preguntar, hacelo una sola vez y en pocas líneas, en tono cercano: las 2 candidatas y en qué se diferencian, y como máximo 2 pedidos fáciles de cumplir en el campo (una foto puntual o una pregunta simple). Terminá con: "Contestame esto y te paso la ficha para Herbalorium." Con la respuesta, das la ficha sí o sí.
 
 ` : ""}Cuando des la ficha, tu respuesta debe tener SOLO dos cosas: primero esta línea, tal cual: "Copiá este bloque y pegalo en Herbalorium 👇"; y debajo, el JSON dentro de un bloque de código (\`\`\`json … \`\`\`), para que se copie con un toque. Nada más antes ni después. Dentro de los textos, nada de citas, referencias, notas al pie ni marcas de fuentes.
 El JSON tiene que ser válido y con esta forma exacta:
