@@ -922,3 +922,5 @@ html.locked body { position: fixed; left: 0; right: 0; top: var(--lock-y, 0); }
 .all-seen svg { flex: none; width: 46px; height: 46px; filter: grayscale(.4) opacity(.8); }
 .all-seen p { margin: 0; font-size: 16px; line-height: 1.45; color: var(--ink-soft); }
 .all-seen b { color: var(--ink); font-weight: 600; }
+.btn.is-full { opacity: .45; }
+.photos-full { text-align: center; font-size: 14.5px; margin: 8px 0 0; }

@@ -1926,7 +1926,10 @@ function pickPhotos(source, fresh = false) {
     if (draft?.editing) draft = null;
     if (fresh && feat("fotos")) clearDraft(); // el + de abajo siempre arranca una planta nueva
     if (!draft) draft = { files: [], data: {}, mode: "chat" };
-    for (const f of [...input.files].slice(0, 4 - draft.files.length)) {
+    const room = 4 - draft.files.length;
+    if (room <= 0) return toast("Ya tenés 4 fotos: borrá alguna con la × para sumar otra");
+    if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suman las primeras`);
+    for (const f of [...input.files].slice(0, room)) {
       const meta = await photoMeta(f); // antes de achicar: el canvas descarta los datos EXIF
       const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken: meta.date, gps: meta.lat != null ? [meta.lat, meta.lng] : null });
     }
@@ -1972,8 +1975,15 @@ function renderNew() {
   prev.innerHTML = draft.files.map((f, i) => `<div><img src="${f.url}"><button data-i="${i}">×</button></div>`).join("");
   prev.querySelectorAll("button").forEach((b) => (b.onclick = () => { draft.files.splice(+b.dataset.i, 1); saveDraft(); renderNew(); }));
   $app.querySelector("#resume")?.addEventListener("click", () => renderForm(null));
-  $app.querySelector("#cam").onclick = () => pickPhotos("camera");
-  $app.querySelector("#gal").onclick = () => pickPhotos("gallery");
+  // Con 4 fotos ya no se pueden sumar más: los botones lo avisan en vez de abrir la cámara.
+  const full = draft.files.length >= 4;
+  const pick = (src) => (full ? toast("Ya tenés 4 fotos: borrá alguna con la × para sumar otra") : pickPhotos(src));
+  $app.querySelector("#cam").onclick = () => pick("camera");
+  $app.querySelector("#gal").onclick = () => pick("gallery");
+  if (full) {
+    $app.querySelectorAll("#cam, #gal").forEach((b) => b.classList.add("is-full"));
+    prev.insertAdjacentHTML("afterend", `<p class="muted photos-full">Ya tenés las 4 fotos. Para cambiar una, borrala con la ×.</p>`);
+  }
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
   $app.querySelector("#place").oninput = (e) => { draft.data.location_name = e.target.value; draft.data.locSource = "manual"; saveDraft(); };
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));
@@ -2107,7 +2117,7 @@ function addPhotosTo(p, source) {
     if (!input.files.length) return;
     const room = feat("fotos") ? MAX_PHOTOS - (p.photos || []).length : 6;
     if (room <= 0) return toast(`Ya tiene ${MAX_PHOTOS} fotos: borrá alguna para sumar otra`);
-    if (input.files.length > room) toast(`Solo entran ${room} ${room === 1 ? "foto más" : "fotos más"}: se suben las primeras`);
+    if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suben las primeras`);
     else toast("Subiendo fotos…");
     try {
       const added = [];
