@@ -130,7 +130,8 @@ async function boot() {
   await readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-home").onclick = () => go("list");
-  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go === "new" ? openSheet() : go(b.dataset.go))));
+  // El + abre la carga de una planta; si ya estás cargando una, no hace nada (no se pierden las fotos).
+  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go !== "new" ? go(b.dataset.go) : currentView() === "new" ? toast("Ya estás cargando una planta") : openSheet())));
   window.addEventListener("hashchange", route);
 
   if (!cfg.sbUrl || !cfg.sbKey) return renderSetup();
@@ -156,6 +157,7 @@ function route() {
   document.getElementById("sheet").hidden = true;
   const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
   $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
+  $nav.querySelector(".capture")?.classList.toggle("here", view === "new");
   if (!sb) return renderSetup();
   if (user && !amMember) return renderWaiting();
   if (view === "settings") return renderSettings();
