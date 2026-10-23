@@ -916,3 +916,9 @@ html.locked, html.locked body { overflow: hidden; overscroll-behavior: none; }
 html.locked body { position: fixed; left: 0; right: 0; top: var(--lock-y, 0); }
 .modal, .viewer, .tour, .stamp { overscroll-behavior: contain; touch-action: none; }
 .modal-box, .viewer, .fi-box { overscroll-behavior: contain; touch-action: pan-y; }
+/* filtro de láminas nuevas */
+.chip.nova-chip small { font: 600 10px var(--caps); opacity: .75; margin-left: 2px; }
+.all-seen { display: flex; align-items: center; gap: 14px; margin: 18px 0; padding: 14px 16px; border: 1px solid rgb(var(--line) / .2); background: rgb(var(--line) / .04); }
+.all-seen svg { flex: none; width: 46px; height: 46px; filter: grayscale(.4) opacity(.8); }
+.all-seen p { margin: 0; font-size: 16px; line-height: 1.45; color: var(--ink-soft); }
+.all-seen b { color: var(--ink); font-weight: 600; }

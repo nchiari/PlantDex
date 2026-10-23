@@ -21,7 +21,7 @@ let sb = null;
 let user = null;
 let plants = [];
 const urlCache = new Map();
-let filter = { q: "", types: [], who: [], open: false };
+let filter = { q: "", types: [], who: [], nova: false, open: false };
 let draft = null; // { files: [{blob, url}], data: {}, mode }
 
 const $app = document.getElementById("app");
@@ -184,7 +184,7 @@ const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name ||
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "prueba", nuevas: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
 async function loadPlants() {
@@ -1226,13 +1226,16 @@ const foundBy = (p) => [...new Set([p.author_name, ...(p.sightings || []).map((s
 function renderList() {
   const q = filter.q.toLowerCase();
   const list = plants.filter((p) =>
+    (!filter.nova || isNova(p)) &&
     filter.types.every((t) => p.types?.includes(t)) &&
     (!filter.who.length || foundBy(p).some((w) => filter.who.includes(w))) &&
     (!q || [p.common_name, p.other_names, p.scientific_name, p.family, p.location_name].join(" ").toLowerCase().includes(q)));
   const used = TYPES.filter((t) => plants.some((p) => p.types?.includes(t)));
   // Personas que encontraron algo: quien subió la lámina y quien sumó un hallazgo, con cuántas láminas tiene cada una.
   const people = Object.entries(plants.reduce((acc, p) => { foundBy(p).forEach((w) => (acc[w] = (acc[w] || 0) + 1)); return acc; }, {})).sort((a, b) => b[1] - a[1]);
-  const active = filter.types.length + filter.who.length;
+  if (!feat("nuevas")) filter.nova = false;
+  const novas = feat("nuevas") ? plants.filter(isNova).length : 0;
+  const active = filter.types.length + filter.who.length + (filter.nova ? 1 : 0);
   const chipT = (t) => `<span class="chip ${filter.types.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`;
   const chipW = ([w, n]) => `<span class="chip who ${filter.who.includes(w) ? "on" : ""}" data-w="${esc(w)}"><span class="avatar xs">${esc([...w][0].toUpperCase())}</span>${esc(w)} <small>${n}</small></span>`;
   $app.innerHTML = `
@@ -1244,15 +1247,16 @@ function renderList() {
     <div class="search"><input id="q" placeholder="Buscar en el herbario…" value="${esc(filter.q)}">
       ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${active ? `<b>${active}</b>` : ""}</button>` : ""}</div>
     ${filter.open ? `<div class="filters">
+        ${feat("nuevas") ? `<p class="fl-h">Novedades</p><div class="chips"><span class="chip nova-chip ${filter.nova ? "on" : ""}" data-nova>Nuevas <small>${novas}</small></span></div>` : ""}
         ${used.length ? `<p class="fl-h">Tipo</p><div class="chips">${used.map(chipT).join("")}</div>` : ""}
         ${people.length > 1 ? `<p class="fl-h">Encontrada por</p><div class="chips">${people.map(chipW).join("")}</div>` : ""}
         ${active ? `<button class="linkish" id="fclear">Quitar filtros</button>` : ""}
-      </div>` : active ? `<div class="chips active-f">${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
+      </div>` : active ? `<div class="chips active-f">${filter.nova ? `<span class="chip on" data-nova>Nuevas ✕</span>` : ""}${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
       <button class="btn red" id="start">Comenzar el herbario</button></div>` :
-      !list.length ? `<p class="muted">Ninguna lámina coincide.</p>` :
+      !list.length ? (filter.nova && !novas ? `<div class="all-seen"><svg><use href="#i-seal-gold"/></svg><p><b>Ya viste todas las láminas del herbario.</b><br>Cuando alguien sume una nueva, va a aparecer acá con su sello.</p></div>` : `<p class="muted">Ninguna lámina coincide.</p>`) :
       cfg.view === "list" ? `<ol class="index">${list.map(row).join("")}</ol>` : `<div class="grid">${list.map(card).join("")}</div>`}
   `;
   const $q = $app.querySelector("#q");
@@ -1262,7 +1266,8 @@ function renderList() {
   $app.querySelectorAll(".chip[data-w]").forEach((c) => (c.onclick = () => { filter.who = toggle(filter.who, c.dataset.w); renderList(); }));
   $app.querySelector("#legend")?.addEventListener("click", openLegend);
   $app.querySelector("#filt")?.addEventListener("click", () => { filter.open = !filter.open; renderList(); });
-  $app.querySelector("#fclear")?.addEventListener("click", () => { filter.types = []; filter.who = []; renderList(); });
+  $app.querySelector("#fclear")?.addEventListener("click", () => { filter.types = []; filter.who = []; filter.nova = false; renderList(); });
+  $app.querySelectorAll("[data-nova]").forEach((c) => (c.onclick = () => { filter.nova = !filter.nova; renderList(); }));
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
