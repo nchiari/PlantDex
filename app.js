@@ -115,6 +115,16 @@ function adoptUser() {
   cfg.uid = user.id; saveCfg(cfg);
 }
 
+// Mientras haya una ventana abierta (las que suben desde abajo, el visor, la carta, el tutorial o un sello), el fondo no se mueve.
+const OVERLAYS = ".modal, .viewer, .stamp, .tour";
+new MutationObserver(() => {
+  const on = !!document.querySelector(OVERLAYS);
+  if (on === document.documentElement.classList.contains("locked")) return;
+  if (on) { document.documentElement.style.setProperty("--lock-y", `-${scrollY}px`); document.documentElement.dataset.y = scrollY; }
+  document.documentElement.classList.toggle("locked", on);
+  if (!on) scrollTo(0, +(document.documentElement.dataset.y || 0));
+}).observe(document.body, { childList: true });
+
 async function boot() {
   applyTheme();
   await readConfigLink();

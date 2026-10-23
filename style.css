@@ -911,3 +911,8 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
   border: 1.5px dashed rgb(var(--line) / .4); border-radius: 99px 99px 2px 2px; color: var(--leaf); }
 .slot-add span { font: 300 26px/1 var(--text); }
 .slot-add:active { background: rgb(var(--line) / .1); }
+/* fondo quieto con una ventana abierta: se fija la página donde estaba y la ventana no le pasa el deslizamiento */
+html.locked, html.locked body { overflow: hidden; overscroll-behavior: none; }
+html.locked body { position: fixed; left: 0; right: 0; top: var(--lock-y, 0); }
+.modal, .viewer, .tour, .stamp { overscroll-behavior: contain; touch-action: none; }
+.modal-box, .viewer, .fi-box { overscroll-behavior: contain; touch-action: pan-y; }
