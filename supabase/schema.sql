@@ -197,3 +197,8 @@ drop policy if exists "read photos" on storage.objects;
 drop policy if exists "write own photos" on storage.objects;
 create policy "read photos" on storage.objects for select to authenticated using (bucket_id = 'plant-photos' and public.is_member());
 create policy "write own photos" on storage.objects for insert to authenticated with check (bucket_id = 'plant-photos' and (storage.foldername(name))[1] = auth.uid()::text and public.is_member());
+
+-- v14: número de versión de la base. La app lo compara con el que necesita y, si falta algo,
+-- le muestra al dueño un aviso con este archivo para correr (se puede correr entero de nuevo sin riesgo).
+create or replace function public.schema_version() returns int language sql immutable as $$ select 14 $$;
+grant execute on function public.schema_version() to anon, authenticated;

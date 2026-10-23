@@ -171,6 +171,7 @@ function route() {
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
   navDotSettings();
+  maybeSchemaNotice();
   if (feat("misiones") && zoneOf() && !route.missionChecked) { route.missionChecked = true; ensureMission().then(navDot).catch(() => {}); } else navDot();
   if (view === "new") return renderNew();
   if (view === "plant" && arg) return renderDetail(arg);
@@ -188,11 +189,18 @@ let amOwner = false, amMember = true, pendingRequests = 0;
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
 const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
-const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner);
+// Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
+const DEV_BASE = "ssrbytherfljgxfgvhlc";
+const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
+const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
+// Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
+const SCHEMA_NEEDED = 14;
+let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
   const own = await sb.rpc("is_owner");
   amOwner = own.error ? true : !!own.data;
+  if (amOwner) { const v = await sb.rpc("schema_version"); schemaBehind = v.error ? true : (v.data || 0) < SCHEMA_NEEDED; }
   // Miembro = cuenta aceptada por el dueño. Si la función no existe (herbario viejo), se asume aceptada.
   const mem = amOwner ? { data: true } : await sb.rpc("is_member");
   amMember = mem.error ? true : !!mem.data;
@@ -550,11 +558,13 @@ function renderSettings() {
       <div class="share-box"><h3>Tu herbario</h3>
         <p class="muted" style="margin-top:0">Estás en ${book}. Para sumar a alguien, pasale este enlace: cuando entre, el dueño del herbario recibe su pedido y decide. También sirve para abrirlo en otro dispositivo.</p>
         <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button></div>`) : ""}
+    ${user && amOwner && schemaBehind ? schemaBox() : ""}
     ${owner ? `<details class="owner-db" ${user ? "" : "open"}><summary>Conexión con la base ${user ? "· solo la ves vos" : ""}</summary>
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
+      <p class="muted" style="font-size:14.5px">Ojo: en el plan gratis, si nadie abre el herbario durante 7 días, Supabase lo pone en pausa. No se pierde nada: se reactiva desde supabase.com con <i>Restore project</i>.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
-    ${user && amOwner ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
+    ${user && amOwner && isDevBase() ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
       <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
       <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
       <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este celular y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
@@ -576,6 +586,7 @@ function renderSettings() {
     location.replace(SITE_URL());
   });
   if (amOwner && user) paintRequests();
+  $app.querySelector("#copyschema")?.addEventListener("click", copySchema);
   $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
     illuCache = Object.fromEntries([...illuRemoved].map((k) => [k, false])); saveIllu();
@@ -1152,6 +1163,26 @@ function startTour() {
   show();
 }
 
+// Base desactualizada: la app es la misma para todos, pero cada herbario tiene su propia base.
+// Cuando una función nueva necesita algo en la base, el dueño ve este aviso con el código para correr.
+const schemaBox = () => `<div class="share-box schema-box"><h3>Tu herbario necesita una actualización</h3>
+  <p class="muted" style="margin-top:0">La app sumó funciones que necesitan un cambio en tu base de Supabase. Hasta que lo hagas, algunas partes pueden no andar.</p>
+  <ol class="setup ob-list"><li>Tocá <b>Copiar código</b>.</li><li>En Supabase, abrí <i>SQL Editor → New query</i>, pegalo y tocá <i>Run</i>.</li><li>Volvé y recargá la app.</li></ol>
+  <button class="btn primary" id="copyschema" style="width:100%">Copiar código</button>
+  <p class="muted" style="font-size:14px">Es el código completo del herbario: se puede correr las veces que haga falta sin perder nada.</p></div>`;
+async function copySchema() {
+  try { const t = await (await fetch("supabase/schema.sql", { cache: "no-store" })).text(); await navigator.clipboard.writeText(t); toast("Código copiado: pegalo en el SQL Editor de Supabase"); }
+  catch { toast("No pude copiarlo: abrí herbalorium.pages.dev/supabase/schema.sql y copialo de ahí"); }
+}
+function maybeSchemaNotice() {
+  if (!user || !amOwner || !schemaBehind || cfg.schemaNotice === SCHEMA_NEEDED) return;
+  setTimeout(async () => {
+    if (document.querySelector(".tour, .modal")) return;
+    cfg.schemaNotice = SCHEMA_NEEDED; saveCfg(cfg);
+    if (await ask({ title: "Tu herbario necesita una actualización", text: "La app sumó funciones que necesitan un cambio en tu base de Supabase. Te dejo los pasos en Ajustes: es copiar un código y pegarlo.", ok: "Ver los pasos", cancel: "Más tarde" })) go("settings");
+  }, 1200);
+}
+
 // Pedidos para entrar (solo el dueño): aceptar o rechazar a quien llegó con una invitación.
 async function paintRequests() {
   const box = $app.querySelector("#requests"); if (!box) return;
@@ -1176,7 +1207,7 @@ async function paintRequests() {
     row.querySelector("[data-no]").onclick = () => decide("rejected");
   });
 }
-const navDotSettings = () => $nav.querySelector('[data-go="settings"]')?.classList.toggle("has-dot", amOwner && pendingRequests > 0);
+const navDotSettings = () => $nav.querySelector('[data-go="settings"]')?.classList.toggle("has-dot", amOwner && (pendingRequests > 0 || schemaBehind));
 
 // Cuenta creada desde una invitación pero todavía no aceptada por el dueño del herbario.
 async function renderWaiting() {

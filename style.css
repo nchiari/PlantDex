@@ -927,3 +927,4 @@ html.locked body { position: fixed; left: 0; right: 0; top: var(--lock-y, 0); }
 /* en la carga de una planta, el + queda en pausa: ya estás ahí */
 .bottom .capture.here { filter: grayscale(.6) brightness(.85) drop-shadow(0 3px 4px rgb(var(--line) / 0.3)); cursor: default; }
 .bottom .capture.here:active { transform: none; }
+.schema-box { border-color: var(--gold); }
