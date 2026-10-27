@@ -159,6 +159,7 @@ function route() {
   $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
   $nav.querySelector(".capture")?.classList.toggle("here", view === "new");
   if (!sb) return renderSetup();
+  if (user && offline && !plants.length) return renderOffline(); // si el herbario ya estaba cargado, se sigue viendo
   if (user && !amMember) return renderWaiting();
   if (view === "settings") return renderSettings();
   if (!user) return renderLogin();
@@ -184,6 +185,11 @@ function route() {
 // ---------- datos ----------
 const byName = new Intl.Collator("es", { sensitivity: "base" });
 const sortPlants = (list) => list.sort((a, b) => byName.compare(a.common_name || "", b.common_name || ""));
+let offline = false;
+const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load failed|fetch/i.test(e?.message || "");
+// Al volver la conexión, se carga el herbario solo.
+addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
+addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
@@ -198,7 +204,10 @@ const SCHEMA_NEEDED = 14;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
+  // Sin conexión no se puede saber qué hay en el herbario: se avisa en vez de mostrarlo vacío.
+  offline = !navigator.onLine; if (offline) return;
   const own = await sb.rpc("is_owner");
+  if (own.error && isNetErr(own.error)) { offline = true; return; }
   amOwner = own.error ? true : !!own.data;
   if (amOwner) { const v = await sb.rpc("schema_version"); schemaBehind = v.error ? true : (v.data || 0) < SCHEMA_NEEDED; }
   // Miembro = cuenta aceptada por el dueño. Si la función no existe (herbario viejo), se asume aceptada.
@@ -207,7 +216,7 @@ async function loadPlants() {
   if (!amMember) { plants = []; return; }
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
-  if (error) { toast("Error cargando: " + error.message); return; }
+  if (error) { if (isNetErr(error)) { offline = true; return; } toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data.map(fixNames));
   // Hallazgos de la misma especie hechos por otras personas (o por vos en otra salida). Si la tabla no existe, se ignora.
   const { data: sg } = await sb.from("sightings").select("*").order("created_at");
@@ -1208,6 +1217,21 @@ async function paintRequests() {
   });
 }
 const navDotSettings = () => $nav.querySelector('[data-go="settings"]')?.classList.toggle("has-dot", amOwner && (pendingRequests > 0 || schemaBehind));
+
+// Sin conexión: el herbario está a salvo en la nube, solo que ahora no se puede leer.
+function renderOffline() {
+  $nav.hidden = true;
+  document.body.classList.remove("onboarding");
+  $app.innerHTML = `<div class="empty"><div class="big">${PLANT_ART}</div>
+    <h2>Sin conexión</h2>
+    <p class="lead">Tus láminas están guardadas en la nube y no se perdió nada. <b>Cuando vuelvas a tener internet, el herbario aparece solo.</b></p>
+    <button class="btn primary" id="retry" style="width:100%">Volver a intentar</button></div>`;
+  $app.querySelector("#retry").onclick = async (ev) => {
+    ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando conexión…";
+    await loadPlants(); route();
+    if (offline) toast("Todavía no hay conexión");
+  };
+}
 
 // Cuenta creada desde una invitación pero todavía no aceptada por el dueño del herbario.
 async function renderWaiting() {
