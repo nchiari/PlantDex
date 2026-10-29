@@ -193,7 +193,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -2004,6 +2004,7 @@ function pickPhotos(source, fresh = false) {
 
 // Cartel de "trabajando": una hoja que respira y una frase, para que nunca parezca que la app se colgó.
 function busy(text) {
+  if (!feat("carga")) return;
   let el = document.getElementById("busy");
   if (!text) { if (el) { el.classList.add("out"); setTimeout(() => el.remove(), 200); } return; }
   if (!el) {
