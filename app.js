@@ -116,7 +116,7 @@ function adoptUser() {
 }
 
 // Mientras haya una ventana abierta (las que suben desde abajo, el visor, la carta, el tutorial o un sello), el fondo no se mueve.
-const OVERLAYS = ".modal, .viewer, .stamp, .tour";
+const OVERLAYS = ".modal, .viewer, .stamp, .tour, .busy";
 new MutationObserver(() => {
   const on = !!document.querySelector(OVERLAYS);
   if (on === document.documentElement.classList.contains("locked")) return;
@@ -1986,15 +1986,32 @@ function pickPhotos(source, fresh = false) {
     const room = 4 - draft.files.length;
     if (room <= 0) return toast("Ya tenés 4 fotos: borrá alguna con la × para sumar otra");
     if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suman las primeras`);
-    for (const f of [...input.files].slice(0, room)) {
-      const meta = await photoMeta(f); // antes de achicar: el canvas descarta los datos EXIF
-      const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken: meta.date, gps: meta.lat != null ? [meta.lat, meta.lng] : null });
-    }
+    const pick = [...input.files].slice(0, room);
+    busy(pick.length === 1 ? "Preparando la foto…" : `Preparando las fotos… 1 de ${pick.length}`);
+    try {
+      for (const [k, f] of pick.entries()) {
+        if (pick.length > 1) busy(`Preparando las fotos… ${k + 1} de ${pick.length}`);
+        const meta = await photoMeta(f); // antes de achicar: el canvas descarta los datos EXIF
+        const blob = await resizeImage(f); draft.files.push({ blob, url: URL.createObjectURL(blob), taken: meta.date, gps: meta.lat != null ? [meta.lat, meta.lng] : null });
+      }
+    } finally { busy(null); }
     usePhotoLocation();
     saveDraft();
     if (location.hash === "#new") renderNew(); else location.hash = "new";
   };
   input.click();
+}
+
+// Cartel de "trabajando": una hoja que respira y una frase, para que nunca parezca que la app se colgó.
+function busy(text) {
+  let el = document.getElementById("busy");
+  if (!text) { if (el) { el.classList.add("out"); setTimeout(() => el.remove(), 200); } return; }
+  if (!el) {
+    el = document.createElement("div"); el.id = "busy"; el.className = "busy"; el.setAttribute("role", "status");
+    el.innerHTML = `<div class="busy-box"><svg class="busy-leaf"><use href="#i-emblem"/></svg><p></p></div>`;
+    document.body.appendChild(el);
+  }
+  el.classList.remove("out"); el.querySelector("p").textContent = text;
 }
 
 function openSheet() {
@@ -2175,10 +2192,11 @@ function addPhotosTo(p, source) {
     const room = feat("fotos") ? MAX_PHOTOS - (p.photos || []).length : 6;
     if (room <= 0) return toast(`Ya tiene ${MAX_PHOTOS} fotos: borrá alguna para sumar otra`);
     if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suben las primeras`);
-    else toast("Subiendo fotos…");
+    const pick = [...input.files].slice(0, room);
     try {
       const added = [];
-      for (const f of [...input.files].slice(0, room)) {
+      for (const f of pick) {
+        busy(pick.length === 1 ? "Subiendo la foto…" : `Subiendo las fotos… ${added.length + 1} de ${pick.length}`);
         const blob = await resizeImage(f);
         const path = `${user.id}/${crypto.randomUUID()}.jpg`;
         const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
@@ -2190,9 +2208,10 @@ function addPhotosTo(p, source) {
       if (error) throw error;
       p.photos = photos; if (draft?.data) draft.data.photos = photos;
       paintEdPhotos(p);
+      busy(null);
       if (location.hash === "#plant/" + p.id) renderDetail(p.id);
       toast(added.length === 1 ? "Foto agregada" : `${added.length} fotos agregadas`);
-    } catch (e) { toast("Error al subir: " + e.message); }
+    } catch (e) { busy(null); toast("Error al subir: " + e.message); }
   };
   input.click();
 }
