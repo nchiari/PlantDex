@@ -140,7 +140,11 @@ async function boot() {
   user = data.session?.user ?? null;
   adoptUser();
   sb.auth.onAuthStateChange((_e, s) => { const was = user; user = s?.user ?? null; if (!!was !== !!user) { if (user) { adoptUser(); loadPlants().then(route); } else route(); } });
-  if (user) await loadPlants();
+  if (user) {
+    // Todavía no se sabe si sos el dueño: para el modo prueba se usa lo que la app sabía la vez anterior.
+    if (FEATURES.cargando === "todos" || (FEATURES.cargando === "prueba" && cfg.wasOwner && isDevBase())) $app.innerHTML = loadingHTML();
+    await loadPlants();
+  }
   await restoreDraft();
   route();
 }
@@ -193,7 +197,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "prueba", reemplazar: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "prueba", reemplazar: "prueba", cargando: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -209,6 +213,7 @@ async function loadPlants() {
   const own = await sb.rpc("is_owner");
   if (own.error && isNetErr(own.error)) { offline = true; return; }
   amOwner = own.error ? true : !!own.data;
+  if (cfg.wasOwner !== amOwner) { cfg.wasOwner = amOwner; saveCfg(cfg); }
   if (amOwner) { const v = await sb.rpc("schema_version"); schemaBehind = v.error ? true : (v.data || 0) < SCHEMA_NEEDED; }
   // Miembro = cuenta aceptada por el dueño. Si la función no existe (herbario viejo), se asume aceptada.
   const mem = amOwner ? { data: true } : await sb.rpc("is_member");
@@ -1218,6 +1223,9 @@ async function paintRequests() {
 }
 const navDotSettings = () => $nav.querySelector('[data-go="settings"]')?.classList.toggle("has-dot", amOwner && (pendingRequests > 0 || schemaBehind));
 
+// Mientras se abre el herbario: una hoja que late y un texto, en vez de una pantalla vacía.
+const loadingHTML = () => `<div class="empty app-loading"><svg class="busy-leaf"><use href="#i-emblem"/></svg><p class="lead">Abriendo el herbario…</p></div>`;
+
 // Sin conexión: el herbario está a salvo en la nube, solo que ahora no se puede leer.
 function renderOffline() {
   $nav.hidden = true;
@@ -2098,8 +2106,13 @@ function renderNew() {
         box.querySelector("#paste").value = t; toast("Respuesta pegada");
       } catch { box.querySelector("#paste").focus(); toast("No pude leer el portapapeles: mantené apretado el recuadro y elegí «Pegar»"); }
     };
-    box.querySelector("#useit").onclick = () => {
-      try { draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; saveDraft(); renderForm(null); }
+    box.querySelector("#useit").onclick = async () => {
+      try {
+        draft.data = { ...draft.data, ...normalizeAI(v("paste")) }; saveDraft();
+        // ¿Ya la tenés? Se avisa acá, antes de pasar a la ficha.
+        if (feat("reemplazar") && await checkOwnDup(draft.data.scientific_name)) return;
+        renderForm(null);
+      }
       catch (e) {
         if (e.noJson && v("paste").trim()) ask({ title: "La IA todavía tiene dudas", text: "Parece que te hizo preguntas o te pidió más fotos en vez de darte la ficha. Contestale en el mismo chat (podés mandarle fotos nuevas) y, cuando te dé el bloque para Herbalorium, pegalo acá.", ok: "Entendido", cancel: "Cerrar" });
         else toast("No entendí la respuesta: " + e.message);
@@ -2172,6 +2185,19 @@ function paintEdPhotos(p) {
 
 // Elegir con qué fotos se queda una lámina (o tu hallazgo) cuando volvés a cargar una planta que ya tenías:
 // las de antes y las nuevas, hasta 4 y al menos 1. Las de antes que no elijas se borran.
+// Si la especie ya la cargaste vos (lámina propia o hallazgo tuyo), ofrece elegir fotos o cancelar. Devuelve true si se ocupó.
+async function checkOwnDup(sci) {
+  const dup = sci && plants.find((x) => illuKey(x.scientific_name) === illuKey(sci));
+  if (!dup) return false;
+  const mineS = dup.user_id === user.id ? null : (dup.sightings || []).find((x) => x.user_id === user.id);
+  if (dup.user_id !== user.id && !mineS) return false;
+  const has = draft.files.length > 0;
+  const r = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b>${mineS ? ` en la lámina de ${esc(dup.author_name || "otra persona")}` : ""}.${has ? " ¿Querés sumar o cambiar fotos con las que acabás de sacar?" : ""}`, ok: has ? "Elegir fotos" : "Ver la lámina", cancel: "Cancelar subida" });
+  if (r && has) openPhotoMerge(dup, mineS);
+  else if (r) { clearDraft(); location.hash = "plant/" + dup.id; }
+  else if (r === false) cancelUpload();
+  return r !== null; // tocar afuera: te quedás donde estabas
+}
 // Cancelar la subida: se descarta lo que estabas cargando y volvés al herbario.
 function cancelUpload() { clearDraft(); toast("Subida cancelada"); go("list"); }
 async function openPhotoMerge(p, sighting = null) {
@@ -2341,13 +2367,7 @@ function renderForm(existing) {
     const dup = !existing && row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
     if (dup && (dup.user_id === user.id || (dup.sightings || []).some((s) => s.user_id === user.id))) {
       // Ya la tenés y trajiste fotos nuevas: elegís con cuáles quedarte (de la lámina o de tu hallazgo en la lámina de otro).
-      if (feat("reemplazar") && draft.files.length) {
-        const mineS = dup.user_id === user.id ? null : dup.sightings.find((x) => x.user_id === user.id);
-        const go2 = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b>${mineS ? ` en la lámina de ${esc(dup.author_name || "otra persona")}` : ""}. ¿Querés sumar o cambiar fotos con las que acabás de sacar?`, ok: "Elegir fotos", cancel: "Cancelar subida" });
-        if (go2) openPhotoMerge(dup, mineS);
-        else if (go2 === false) cancelUpload();
-        return;
-      }
+      if (feat("reemplazar")) { await checkOwnDup(row.scientific_name); return; }
       const see = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b> en el herbario${dup.user_id === user.id ? "" : `, en la lámina de ${esc(dup.author_name || "otra persona")}`}. No hace falta asentarla de nuevo.`, ok: "Ver la lámina", cancel: "Volver" });
       if (see) { clearDraft(); location.hash = "plant/" + dup.id; }
       return;
