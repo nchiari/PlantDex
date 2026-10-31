@@ -1026,8 +1026,8 @@ function ask({ title, text, ok = "Aceptar", cancel = "Cancelar" }) {
     m.innerHTML = `<div class="modal-box ask" role="alertdialog" aria-modal="true"><h3>${title}</h3><p>${text}</p>
       <div class="row"><button class="btn ghost" data-a="0">${cancel}</button><button class="btn primary" data-a="1">${ok}</button></div></div>`;
     const done = (v) => { m.remove(); document.removeEventListener("keydown", key); res(v); };
-    const key = (e) => e.key === "Escape" && done(false);
-    m.onclick = (e) => { if (e.target === m) done(false); };
+    const key = (e) => e.key === "Escape" && done(null);
+    m.onclick = (e) => { if (e.target === m) done(null); };
     m.querySelectorAll("[data-a]").forEach((b) => (b.onclick = () => done(b.dataset.a === "1")));
     document.addEventListener("keydown", key);
     document.body.appendChild(m);
@@ -2172,6 +2172,8 @@ function paintEdPhotos(p) {
 
 // Elegir con qué fotos se queda una lámina (o tu hallazgo) cuando volvés a cargar una planta que ya tenías:
 // las de antes y las nuevas, hasta 4 y al menos 1. Las de antes que no elijas se borran.
+// Cancelar la subida: se descarta lo que estabas cargando y volvés al herbario.
+function cancelUpload() { clearDraft(); toast("Subida cancelada"); go("list"); }
 async function openPhotoMerge(p, sighting = null) {
   const target = sighting || p, MAX = sighting ? 4 : MAX_PHOTOS;
   const old = target.photos || [];
@@ -2185,7 +2187,7 @@ async function openPhotoMerge(p, sighting = null) {
     <p class="muted" style="margin-top:0">Tocá las fotos para elegir con cuáles se queda${sighting ? " tu hallazgo" : " la lámina"}: hasta ${MAX}. Las de antes que no elijas se borran.</p>
     <div class="merge-grid">${items.map((it, i) => `<button class="merge-ph" data-i="${i}"><img src="${esc(it.src)}" alt=""><span class="merge-tag">${it.path ? "Antes" : "Nueva"}</span><span class="merge-check">✓</span></button>`).join("")}</div>
     <p class="merge-count"></p>
-    <div class="row"><button class="btn ghost" id="mg-no">Volver</button><button class="btn primary" id="mg-ok">Guardar fotos</button></div></div>`;
+    <div class="row"><button class="btn ghost" id="mg-no">Cancelar subida</button><button class="btn primary" id="mg-ok">Guardar fotos</button></div></div>`;
   const paint = () => {
     const n = items.filter((x) => x.on).length;
     m.querySelectorAll(".merge-ph").forEach((b) => b.classList.toggle("on", items[+b.dataset.i].on));
@@ -2198,7 +2200,8 @@ async function openPhotoMerge(p, sighting = null) {
     it.on = !it.on; paint();
   }));
   const close = () => m.remove();
-  m.querySelector(".modal-x").onclick = close; m.querySelector("#mg-no").onclick = close;
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelector("#mg-no").onclick = () => { close(); cancelUpload(); };
   m.querySelector("#mg-ok").onclick = async (ev) => {
     ev.currentTarget.disabled = true;
     const keep = items.filter((x) => x.on);
@@ -2340,8 +2343,9 @@ function renderForm(existing) {
       // Ya la tenés y trajiste fotos nuevas: elegís con cuáles quedarte (de la lámina o de tu hallazgo en la lámina de otro).
       if (feat("reemplazar") && draft.files.length) {
         const mineS = dup.user_id === user.id ? null : dup.sightings.find((x) => x.user_id === user.id);
-        const go2 = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b>${mineS ? ` en la lámina de ${esc(dup.author_name || "otra persona")}` : ""}. ¿Querés sumar o cambiar fotos con las que acabás de sacar?`, ok: "Elegir fotos", cancel: "Volver" });
+        const go2 = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b>${mineS ? ` en la lámina de ${esc(dup.author_name || "otra persona")}` : ""}. ¿Querés sumar o cambiar fotos con las que acabás de sacar?`, ok: "Elegir fotos", cancel: "Cancelar subida" });
         if (go2) openPhotoMerge(dup, mineS);
+        else if (go2 === false) cancelUpload();
         return;
       }
       const see = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b> en el herbario${dup.user_id === user.id ? "" : `, en la lámina de ${esc(dup.author_name || "otra persona")}`}. No hace falta asentarla de nuevo.`, ok: "Ver la lámina", cancel: "Volver" });
