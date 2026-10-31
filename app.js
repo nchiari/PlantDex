@@ -193,7 +193,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "prueba", reemplazar: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -2170,6 +2170,62 @@ function paintEdPhotos(p) {
   box.querySelectorAll("[data-delph]").forEach((b) => (b.onclick = async () => { if (await deletePhoto(p, b.dataset.delph)) paintEdPhotos(p); }));
 }
 
+// Elegir con qué fotos se queda una lámina (o tu hallazgo) cuando volvés a cargar una planta que ya tenías:
+// las de antes y las nuevas, hasta 4 y al menos 1. Las de antes que no elijas se borran.
+async function openPhotoMerge(p, sighting = null) {
+  const target = sighting || p, MAX = sighting ? 4 : MAX_PHOTOS;
+  const old = target.photos || [];
+  await signUrls(old);
+  const items = [...old.map((path) => ({ path, src: urlCache.get(path) || "" })), ...draft.files.map((f) => ({ file: f, src: f.url }))];
+  items.forEach((it, i) => (it.on = i < MAX)); // de entrada: las de antes y, si hay lugar, las nuevas
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box merge" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Fotos de ${esc(p.common_name)}</h3>
+    <p class="muted" style="margin-top:0">Tocá las fotos para elegir con cuáles se queda${sighting ? " tu hallazgo" : " la lámina"}: hasta ${MAX}. Las de antes que no elijas se borran.</p>
+    <div class="merge-grid">${items.map((it, i) => `<button class="merge-ph" data-i="${i}"><img src="${esc(it.src)}" alt=""><span class="merge-tag">${it.path ? "Antes" : "Nueva"}</span><span class="merge-check">✓</span></button>`).join("")}</div>
+    <p class="merge-count"></p>
+    <div class="row"><button class="btn ghost" id="mg-no">Volver</button><button class="btn primary" id="mg-ok">Guardar fotos</button></div></div>`;
+  const paint = () => {
+    const n = items.filter((x) => x.on).length;
+    m.querySelectorAll(".merge-ph").forEach((b) => b.classList.toggle("on", items[+b.dataset.i].on));
+    m.querySelector(".merge-count").textContent = n ? `${n} de ${MAX} elegidas` : "Elegí al menos una";
+    m.querySelector("#mg-ok").disabled = !n;
+  };
+  m.querySelectorAll(".merge-ph").forEach((b) => (b.onclick = () => {
+    const it = items[+b.dataset.i];
+    if (!it.on && items.filter((x) => x.on).length >= MAX) return toast(`Ya elegiste ${MAX}: destildá alguna primero`);
+    it.on = !it.on; paint();
+  }));
+  const close = () => m.remove();
+  m.querySelector(".modal-x").onclick = close; m.querySelector("#mg-no").onclick = close;
+  m.querySelector("#mg-ok").onclick = async (ev) => {
+    ev.currentTarget.disabled = true;
+    const keep = items.filter((x) => x.on);
+    try {
+      const photos = [];
+      for (const [k, it] of keep.entries()) {
+        if (it.path) { photos.push(it.path); continue; }
+        busy(`Subiendo las fotos… ${k + 1} de ${keep.length}`);
+        const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from(BUCKET).upload(path, it.file.blob, { contentType: "image/jpeg" });
+        if (error) throw error;
+        urlCache.set(path, it.file.url); photos.push(path);
+      }
+      const { data, error } = await sb.from(sighting ? "sightings" : "plants").update({ photos }).eq("id", target.id).select("id");
+      if (error) throw error;
+      if (!data?.length) throw new Error("no se pudo guardar");
+      const gone = old.filter((x) => !photos.includes(x));
+      if (gone.length) try { await sb.storage.from(BUCKET).remove(gone); } catch {}
+      target.photos = photos; busy(null); close(); clearDraft();
+      toast(gone.length || photos.length > old.length ? "Fotos actualizadas" : "Listo");
+      location.hash = "plant/" + p.id;
+    } catch (e) { busy(null); ev.currentTarget.disabled = false; toast("No se pudo guardar: " + e.message); }
+  };
+  document.body.appendChild(m);
+  paint();
+}
+
 // Para un casillero libre: elegir cámara o galería.
 function choosePhotoSource() {
   return new Promise((res) => {
@@ -2281,6 +2337,13 @@ function renderForm(existing) {
     // ¿Ya está esta especie? Si la registraste vos, no se repite; si fue otra persona, tu hallazgo se suma a su lámina.
     const dup = !existing && row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
     if (dup && (dup.user_id === user.id || (dup.sightings || []).some((s) => s.user_id === user.id))) {
+      // Ya la tenés y trajiste fotos nuevas: elegís con cuáles quedarte (de la lámina o de tu hallazgo en la lámina de otro).
+      if (feat("reemplazar") && draft.files.length) {
+        const mineS = dup.user_id === user.id ? null : dup.sightings.find((x) => x.user_id === user.id);
+        const go2 = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b>${mineS ? ` en la lámina de ${esc(dup.author_name || "otra persona")}` : ""}. ¿Querés sumar o cambiar fotos con las que acabás de sacar?`, ok: "Elegir fotos", cancel: "Volver" });
+        if (go2) openPhotoMerge(dup, mineS);
+        return;
+      }
       const see = await ask({ title: "Ya la tenés", text: `Ya registraste <b>${esc(dup.common_name)}</b> en el herbario${dup.user_id === user.id ? "" : `, en la lámina de ${esc(dup.author_name || "otra persona")}`}. No hace falta asentarla de nuevo.`, ok: "Ver la lámina", cancel: "Volver" });
       if (see) { clearDraft(); location.hash = "plant/" + dup.id; }
       return;
