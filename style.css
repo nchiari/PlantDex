@@ -947,3 +947,8 @@ html.locked body { position: fixed; left: 0; right: 0; top: var(--lock-y, 0); }
 .merge-ph.on .merge-check { display: grid; }
 .merge-count { text-align: center; font-style: italic; color: var(--ink-soft); margin: 6px 0 12px; }
 .app-loading { padding-top: 22vh; display: flex; flex-direction: column; align-items: center; } .app-loading .busy-leaf { width: 64px; height: 64px; display: block; margin: 0 auto; } .app-loading .lead { margin-top: 14px; }
+/* cuántas láminas nuevas hay, en la esquina de Filtrar */
+.filt { position: relative; }
+.nova-count { position: absolute; top: -8px; right: -6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; display: grid; place-items: center;
+  font: 700 11px var(--caps); letter-spacing: 0; color: #3d2c0c; background: linear-gradient(135deg, #f0d68c, #c9a24a);
+  box-shadow: 0 0 0 2px var(--parchment), 0 2px 4px rgb(0 0 0 / .25); }

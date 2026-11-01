@@ -201,7 +201,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1314,7 +1314,7 @@ function renderList() {
       <button data-v="list" class="${cfg.view === "list" ? "on" : ""}">Índice</button>
     </div>` : ""}
     <div class="search"><input id="q" placeholder="Buscar en el herbario…" value="${esc(filter.q)}">
-      ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${active ? `<b>${active}</b>` : ""}</button>` : ""}</div>
+      ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${active ? `<b>${active}</b>` : ""}${feat("contador") && novas && !filter.nova ? `<span class="nova-count" title="${novas} ${novas === 1 ? "lámina nueva" : "láminas nuevas"}">${novas}</span>` : ""}</button>` : ""}</div>
     ${filter.open ? `<div class="filters">
         ${feat("nuevas") ? `<p class="fl-h">Novedades</p><div class="chips"><span class="chip nova-chip ${filter.nova ? "on" : ""}" data-nova>Nuevas <small>${novas}</small></span></div>` : ""}
         ${used.length ? `<p class="fl-h">Tipo</p><div class="chips">${used.map(chipT).join("")}</div>` : ""}
