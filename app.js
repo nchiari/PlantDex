@@ -201,7 +201,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -876,6 +876,13 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el celular y en su cuenta.
 const NEWS = [
+  { v: 4, date: "2026-11-01", items: [
+    "<b>Fotos más ordenadas.</b> Cada lámina tiene hasta 4 fotos. Podés borrar las que no te gusten y, si te queda lugar, tocar el <b>+</b> junto a las miniaturas para sumar otra ahí mismo.",
+    "<b>Elegí tus mejores fotos.</b> Si volvés a cargar una planta que ya tenías, ahora podés elegir con qué fotos se queda: las de antes, las nuevas o una mezcla.",
+    "<b>Láminas nuevas a la vista.</b> Un número dorado en <b>Filtrar</b> te dice cuántas láminas sumaron los demás que todavía no abriste, y el filtro <b>«Nuevas»</b> te las muestra de una.",
+    "<b>Misiones con sorpresa.</b> Ahora salen al azar, y de vez en cuando toca una <b>difícil</b>: una planta poco vista en tu zona.",
+    "<b>Invitar es más fácil.</b> Pasale tu invitación a quien quieras; cuando entre, el dueño del herbario recibe su pedido y lo acepta desde Ajustes.",
+  ] },
   { v: 3, date: "2026-10-22", items: [
     "<b>Misiones de exploración.</b> Te propongo una planta que se vio cerca de tu casa y que todavía no está en el herbario. Cuando la encontrás y la asentás, al día siguiente llega otra. Las vas a ver en <b>Progreso</b> (antes, Logros), junto con siete logros nuevos de exploración para ir desbloqueando.",
     "<b>Tu zona.</b> En Ajustes, escribí tu barrio o pueblo para recibir misiones de tu zona.",
