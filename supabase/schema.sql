@@ -215,3 +215,24 @@ $$;
 revoke all on function public.member_names() from public, anon;
 grant execute on function public.member_names() to authenticated;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 15 $$;
+
+-- v16: avisos de pedidos para entrar (notificación en el celular y mail al dueño).
+-- Los celulares que aceptaron recibir avisos; cada uno ve y borra solo los suyos.
+create table if not exists public.push_subs (
+  endpoint text primary key, user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  p256dh text not null, auth text not null, created_at timestamptz default now()
+);
+alter table public.push_subs enable row level security;
+drop policy if exists "own subs read" on public.push_subs;
+drop policy if exists "own subs write" on public.push_subs;
+drop policy if exists "own subs delete" on public.push_subs;
+create policy "own subs read" on public.push_subs for select to authenticated using (user_id = auth.uid());
+create policy "own subs write" on public.push_subs for insert to authenticated with check (user_id = auth.uid());
+create policy "own subs delete" on public.push_subs for delete to authenticated using (user_id = auth.uid());
+-- Para no avisar dos veces el mismo pedido.
+alter table public.members add column if not exists notified_at timestamptz;
+-- Claves que solo usa la función de avisos (sin reglas de acceso: nadie las lee desde la app).
+create table if not exists public.app_secrets (key text primary key, value text not null);
+alter table public.app_secrets enable row level security;
+-- Además hace falta la función "notify-request" (supabase/functions/notify-request) y, para el mail, el secreto BREVO_API_KEY.
+create or replace function public.schema_version() returns int language sql immutable as $$ select 16 $$;

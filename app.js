@@ -202,14 +202,14 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "prueba", miembros: "prueba", botones: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "prueba", miembros: "prueba", botones: "prueba", avisos: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
-const SCHEMA_NEEDED = 15;
+const SCHEMA_NEEDED = 15; // pasa a 16 cuando se aplique la v16 (avisos) en la base de Nico
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -569,6 +569,7 @@ function renderSettings() {
     ${user ? iucnBatchBox() : ""}
     ${user ? (owner ? `
       <div id="requests"></div>
+      ${feat("avisos") ? avisosBox() : ""}
       <div class="share-box"><h3>Invitar a mi herbario</h3>
         <ol class="setup ob-list">
           <li><b>Mandale tu enlace de invitación</b>. Al abrirlo, la app lo guía paso a paso.</li>
@@ -607,6 +608,7 @@ function renderSettings() {
     location.replace(SITE_URL());
   });
   if (amOwner && user) paintRequests();
+  if (amOwner && user && feat("avisos")) bindAvisos();
   $app.querySelector("#copyschema")?.addEventListener("click", copySchema);
   $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
@@ -1223,6 +1225,62 @@ function maybeSchemaNotice() {
   }, 1200);
 }
 
+// ---------- avisos de pedidos para entrar: notificación en el celular del dueño ----------
+const VAPID_PUBLIC = "BMAsFISJq-6Ts3KOUGXKAUHORfJrrCSKoJ9Fzx5_8YGDRq8fT6wejSN7L4iM8ux8mwNknFRKQXYR0SjjjuaUKMY";
+const pushOK = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const b64ToBytes = (b) => { const s = atob(b.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b.length + 3) % 4)); return Uint8Array.from(s, (c) => c.charCodeAt(0)); };
+async function pushState() {
+  if (!pushOK()) return "nope";
+  if (Notification.permission === "denied") return "denied";
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  return sub ? "on" : "off";
+}
+async function enablePush() {
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { toast("Sin permiso no te puedo avisar: activalo en los ajustes del navegador"); return false; }
+  const reg = await navigator.serviceWorker.register("sw.js");
+  await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }));
+  const j = sub.toJSON();
+  const { error } = await sb.from("push_subs").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+  if (error) { toast("No pude guardar el aviso: " + error.message); return false; }
+  return true;
+}
+async function disablePush() {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (sub) { await sb.from("push_subs").delete().eq("endpoint", sub.endpoint); await sub.unsubscribe(); }
+}
+// Quien pidió entrar le avisa al dueño (una sola vez; si la función no existe en esa base, no pasa nada).
+async function notifyOwner() {
+  if (cfg.reqNotified === user?.id) return;
+  try { const r = await sb.functions.invoke("notify-request", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
+}
+const avisosBox = () => `<div class="share-box avisos"><h3>Avisos de pedidos</h3>
+  <p class="muted" style="margin-top:0">Cuando alguien pida entrar al herbario, te llega una notificación a este celular y un mail.</p>
+  <p class="av-state muted" id="avstate">Revisando…</p>
+  <div class="row"><button class="btn primary" id="avon">Activar en este celular</button><button class="btn ghost" id="avtest">Probar aviso</button></div></div>`;
+async function bindAvisos() {
+  const st = $app.querySelector("#avstate"); if (!st) return;
+  const on = $app.querySelector("#avon"), test = $app.querySelector("#avtest");
+  const paint = async () => {
+    const s = await pushState();
+    st.textContent = { on: "Activados en este celular.", off: "Todavía no están activados en este celular.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
+    on.textContent = s === "on" ? "Desactivar en este celular" : "Activar en este celular";
+    on.disabled = s === "nope" || s === "denied";
+  };
+  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Avisos desactivados en este celular"); } else if (await enablePush()) toast("Listo: te voy a avisar acá"); paint(); };
+  test.onclick = async () => {
+    test.disabled = true;
+    const r = await sb.functions.invoke("notify-request", { body: { kind: "test", site: SITE_URL() } });
+    test.disabled = false;
+    if (r.error) return toast("No pude mandar la prueba: " + r.error.message);
+    toast(`Prueba enviada${r.data?.push ? " al celular" : ""}${r.data?.mail ? (r.data?.push ? " y por mail" : " por mail") : ""}${!r.data?.push && !r.data?.mail ? ": pero no hay avisos activos todavía" : ""}`);
+  };
+  paint();
+}
+
 // Pedidos para entrar (solo el dueño): aceptar o rechazar a quien llegó con una invitación.
 async function paintRequests() {
   const box = $app.querySelector("#requests"); if (!box) return;
@@ -1272,6 +1330,7 @@ async function renderWaiting() {
   $nav.hidden = true;
   document.body.classList.remove("onboarding");
   const { data: me } = await sb.from("members").select("status,name").eq("user_id", user.id).maybeSingle();
+  if (me?.status === "pending") notifyOwner();
   const no = me?.status === "rejected";
   const hi = me?.name || cfg.name;
   $app.innerHTML = `<div class="empty"><div class="big">${PLANT_ART}</div>
