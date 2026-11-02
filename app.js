@@ -569,7 +569,6 @@ function renderSettings() {
     ${user ? iucnBatchBox() : ""}
     ${user ? (owner ? `
       <div id="requests"></div>
-      ${feat("avisos") ? avisosBox() : ""}
       <div class="share-box"><h3>Invitar a mi herbario</h3>
         <ol class="setup ob-list">
           <li><b>Mandale tu enlace de invitación</b>. Al abrirlo, la app lo guía paso a paso.</li>
@@ -580,6 +579,7 @@ function renderSettings() {
       <div class="share-box"><h3>Tu herbario</h3>
         <p class="muted" style="margin-top:0">Estás en ${book}. Para sumar a alguien, pasale este enlace: cuando entre, el dueño del herbario recibe su pedido y decide. También sirve para abrirlo en otro dispositivo.</p>
         <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button></div>`) : ""}
+    ${user && feat("avisos") ? avisosBox() : ""}
     ${user && amOwner && schemaBehind ? schemaBox() : ""}
     ${owner ? `<details class="owner-db" ${user ? "" : "open"}><summary>Conexión con la base ${user ? "· solo la ves vos" : ""}</summary>
       <p class="muted">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés.</p>
@@ -608,7 +608,7 @@ function renderSettings() {
     location.replace(SITE_URL());
   });
   if (amOwner && user) paintRequests();
-  if (amOwner && user && feat("avisos")) bindAvisos();
+  if (user && feat("avisos")) bindAvisos();
   $app.querySelector("#copyschema")?.addEventListener("click", copySchema);
   $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
@@ -1255,31 +1255,57 @@ async function disablePush() {
 // Quien pidió entrar le avisa al dueño (una sola vez; si la función no existe en esa base, no pasa nada).
 async function notifyOwner() {
   if (cfg.reqNotified === user?.id) return;
-  try { const r = await sb.functions.invoke("notify-request", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
+  try { const r = await sb.functions.invoke("notify", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
 }
-const avisosBox = () => `<div class="share-box avisos"><h3>Avisos de pedidos</h3>
-  <p class="muted" style="margin-top:0">Cuando alguien pida entrar al herbario, te llega una notificación a este celular y un mail.</p>
+// Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
+const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"]];
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false } };
+let notifPrefs = null;
+const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
+  <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
+  <table class="av-table"><thead><tr><th></th><th>Celular</th><th>Mail</th></tr></thead><tbody>
+    ${NOTIF_KINDS.filter(([, , own]) => !own || amOwner).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
+      <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
+  </tbody></table>
   <p class="av-state muted" id="avstate">Revisando…</p>
   <div class="row"><button class="btn primary" id="avon">Activar en este celular</button><button class="btn ghost" id="avtest">Probar aviso</button></div></div>`;
 async function bindAvisos() {
   const st = $app.querySelector("#avstate"); if (!st) return;
   const on = $app.querySelector("#avon"), test = $app.querySelector("#avtest");
+  if (!notifPrefs) { const { data } = await sb.from("notif_prefs").select("prefs").eq("user_id", user.id).maybeSingle(); notifPrefs = { ...NOTIF_DEFAULT, ...(data?.prefs || {}) }; }
+  const savePrefs = async () => {
+    const { error } = await sb.from("notif_prefs").upsert({ user_id: user.id, prefs: notifPrefs, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, updated_at: new Date().toISOString() });
+    if (error) toast("No pude guardar los avisos: " + error.message);
+  };
+  $app.querySelectorAll(".av-table input").forEach((c) => {
+    c.checked = !!notifPrefs[c.dataset.k]?.[c.dataset.ch];
+    c.onchange = async () => {
+      notifPrefs[c.dataset.k] = { ...notifPrefs[c.dataset.k], [c.dataset.ch]: c.checked };
+      await savePrefs();
+      if (c.checked && c.dataset.ch === "push" && (await pushState()) === "off" && (await enablePush())) paint();
+    };
+  });
   const paint = async () => {
     const s = await pushState();
-    st.textContent = { on: "Activados en este celular.", off: "Todavía no están activados en este celular.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
+    st.textContent = { on: "Las notificaciones están activadas en este celular.", off: "Para recibirlas en este celular, activalas acá abajo.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
     on.textContent = s === "on" ? "Desactivar en este celular" : "Activar en este celular";
     on.disabled = s === "nope" || s === "denied";
   };
-  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Avisos desactivados en este celular"); } else if (await enablePush()) toast("Listo: te voy a avisar acá"); paint(); };
+  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este celular"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este celular"); } paint(); };
   test.onclick = async () => {
+    const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
+    if (!what) return toast("Marcá alguna casilla primero");
     test.disabled = true;
-    const r = await sb.functions.invoke("notify-request", { body: { kind: "test", site: SITE_URL() } });
+    const r = await sb.functions.invoke("notify", { body: { kind: "test", what, site: SITE_URL() } });
     test.disabled = false;
     if (r.error) return toast("No pude mandar la prueba: " + r.error.message);
-    toast(`Prueba enviada${r.data?.push ? " al celular" : ""}${r.data?.mail ? (r.data?.push ? " y por mail" : " por mail") : ""}${!r.data?.push && !r.data?.mail ? ": pero no hay avisos activos todavía" : ""}`);
+    const p = r.data?.push, m = r.data?.mail;
+    toast(p || m ? `Prueba enviada${p ? " al celular" : ""}${m ? (p ? " y por mail" : " por mail") : ""}` : "La prueba no llegó a ningún lado: activá el celular o marcá Mail");
   };
   paint();
 }
+// Avisar a los demás (cada uno recibe según lo que eligió). Si la función no existe en esa base, no pasa nada.
+const notify = (body) => { if (feat("avisos")) sb.functions.invoke("notify", { body: { ...body, site: SITE_URL() } }).catch(() => {}); };
 
 // Pedidos para entrar (solo el dueño): aceptar o rechazar a quien llegó con una invitación.
 async function paintRequests() {
@@ -1299,6 +1325,7 @@ async function paintRequests() {
       const { error: e } = await sb.from("members").update({ status, decided_at: new Date().toISOString() }).eq("user_id", r.user_id);
       if (e) return toast("No se pudo: " + e.message);
       toast(status === "accepted" ? `Listo: ${r.name || r.email} ya puede entrar` : "Pedido rechazado");
+      if (status === "accepted") notify({ kind: "member", user_id: r.user_id });
       paintRequests();
     };
     row.querySelector("[data-ok]").onclick = () => decide("accepted");
@@ -2492,6 +2519,7 @@ function renderForm(existing) {
         const { data, error } = await sb.from("plants").insert(row).select().single();
         if (error) throw error;
         plants = sortPlants([...plants, data]);
+        notify({ kind: "plant", plant_id: data.id });
         clearDraft(); { const won = feat("misiones") && missionCheck(data.scientific_name); const party = won ? () => missionCelebration(data.common_name) : null;
         feat("sello") ? stampSeal("Asentada", data.common_name, party) : (toast(`${data.common_name} asentada en el herbario`), party && setTimeout(party, 600)); }
         location.hash = "plant/" + data.id;

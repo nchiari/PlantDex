@@ -216,7 +216,7 @@ revoke all on function public.member_names() from public, anon;
 grant execute on function public.member_names() to authenticated;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 15 $$;
 
--- v16: avisos de pedidos para entrar (notificación en el celular y mail al dueño).
+-- v16: avisos (notificación en el celular y mail). Cada persona elige en Ajustes qué quiere recibir y por dónde.
 -- Los celulares que aceptaron recibir avisos; cada uno ve y borra solo los suyos.
 create table if not exists public.push_subs (
   endpoint text primary key, user_id uuid not null default auth.uid() references auth.users on delete cascade,
@@ -229,10 +229,27 @@ drop policy if exists "own subs delete" on public.push_subs;
 create policy "own subs read" on public.push_subs for select to authenticated using (user_id = auth.uid());
 create policy "own subs write" on public.push_subs for insert to authenticated with check (user_id = auth.uid());
 create policy "own subs delete" on public.push_subs for delete to authenticated using (user_id = auth.uid());
+-- Qué avisos quiere cada persona (de entrada: celular sí, mail no), su zona horaria y cuándo se le avisó por última vez.
+create table if not exists public.notif_prefs (
+  user_id uuid primary key default auth.uid() references auth.users on delete cascade,
+  prefs jsonb not null default '{"requests":{"push":true,"mail":false},"members":{"push":true,"mail":false},"plants":{"push":true,"mail":false},"missions":{"push":true,"mail":false}}',
+  tz text default 'Europe/Madrid', last_mission_ping date, last_digest_at timestamptz default now(), updated_at timestamptz default now()
+);
+alter table public.notif_prefs enable row level security;
+drop policy if exists "own prefs read" on public.notif_prefs;
+drop policy if exists "own prefs write" on public.notif_prefs;
+drop policy if exists "own prefs update" on public.notif_prefs;
+create policy "own prefs read" on public.notif_prefs for select to authenticated using (user_id = auth.uid());
+create policy "own prefs write" on public.notif_prefs for insert to authenticated with check (user_id = auth.uid());
+create policy "own prefs update" on public.notif_prefs for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 -- Para no avisar dos veces el mismo pedido.
 alter table public.members add column if not exists notified_at timestamptz;
 -- Claves que solo usa la función de avisos (sin reglas de acceso: nadie las lee desde la app).
 create table if not exists public.app_secrets (key text primary key, value text not null);
 alter table public.app_secrets enable row level security;
--- Además hace falta la función "notify-request" (supabase/functions/notify-request) y, para el mail, el secreto BREVO_API_KEY.
+-- Además hacen falta la función "notify" (supabase/functions/notify), el secreto BREVO_API_KEY para los mails
+-- y una tarea que la llame cada hora (para la misión nueva de las 9 y el resumen diario de láminas):
+--   create extension if not exists pg_cron; create extension if not exists pg_net;
+--   select cron.schedule('herbalorium-avisos', '5 * * * *', $c$ select net.http_post(url := 'https://<proyecto>.supabase.co/functions/v1/notify',
+--     headers := jsonb_build_object('content-type','application/json','x-cron', (select value from public.app_secrets where key = 'cron')), body := '{"kind":"cron"}'::jsonb) $c$);
 create or replace function public.schema_version() returns int language sql immutable as $$ select 16 $$;

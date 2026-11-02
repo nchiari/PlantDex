@@ -959,3 +959,10 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .session-btns.solid #leavebook, .session-btns.solid #logout { color: var(--ink-soft); }
 .session-btns.solid + .session-btns.solid { margin-top: 12px; }
 .avisos .av-state { font-size: 15px; margin: 4px 0 12px; font-style: italic; }
+.av-table { width: 100%; border-collapse: collapse; margin: 4px 0 10px; font-size: 15.5px; }
+.av-table th { font: 600 9.5px var(--caps); letter-spacing: 1.2px; text-transform: uppercase; color: var(--leaf); padding: 0 4px 6px; width: 64px; }
+.av-table th:first-child { width: auto; }
+.av-table td { padding: 8px 4px; border-top: 1px solid rgb(var(--line) / .14); vertical-align: middle; }
+.av-table td:not(:first-child) { text-align: center; }
+.av-table td small { display: block; font-size: 13px; color: var(--ink-soft); font-style: italic; }
+.av-table input { width: 20px; height: 20px; accent-color: var(--leaf); }
