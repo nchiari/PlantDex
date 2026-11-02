@@ -129,6 +129,8 @@ new MutationObserver(() => {
 
 async function boot() {
   applyTheme();
+  // Si ya aceptaste avisos, se actualiza el trabajador en segundo plano (por ejemplo, el ícono de la notificación).
+  try { if ("serviceWorker" in navigator && Notification.permission === "granted") navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {}); } catch {}
   await readConfigLink();
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-home").onclick = () => go("list");

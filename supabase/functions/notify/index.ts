@@ -10,6 +10,31 @@ const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, 
 type Kind = keyof typeof DEFAULT;
 const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
+// El mail con la estética del herbario: pergamino, filete dorado, emblema y un botón verde.
+// (Los mails no cargan fuentes propias: Georgia es la más parecida que tienen todos.)
+const letter = (title: string, inner: string, site = "https://herbalorium.pages.dev/") => {
+  const btn = (inner.match(/<a href="([^"]+)">([^<]+)<\/a>/) || []) as string[];
+  const body = inner.replace(/<p><a href="[^"]+">[^<]+<\/a><\/p>/, "");
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#e9e2cc">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9e2cc;padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#f7f1e1;border:1px solid #c9a24a;outline:4px solid #f7f1e1;outline-offset:-6px">
+<tr><td align="center" style="padding:30px 28px 6px">
+  <img src="${site}icons/icon-192.png" width="64" height="64" alt="" style="display:block;border:0;border-radius:50%">
+  <div style="margin-top:12px;font:700 22px/1.2 Georgia,'Times New Roman',serif;letter-spacing:4px;color:#1f3426;text-transform:uppercase">Herbalorium</div>
+  <div style="margin-top:2px;font:italic 15px Georgia,serif;color:#5d6b4f">Herbarium vivum</div>
+  <div style="margin:18px auto 0;width:60px;border-top:1px solid #c9a24a"></div>
+</td></tr>
+<tr><td style="padding:18px 34px 6px;font:17px/1.55 Georgia,'Times New Roman',serif;color:#1f3426">
+  <div style="font:600 19px/1.35 Georgia,serif;margin-bottom:10px">${esc(title)}</div>${body}
+</td></tr>
+${btn[1] ? `<tr><td align="center" style="padding:16px 34px 30px">
+  <a href="${btn[1]}" style="display:inline-block;background:#3e5f34;color:#f3eedb;text-decoration:none;font:600 13px Georgia,serif;letter-spacing:2px;text-transform:uppercase;padding:13px 26px;border:1px solid #2a4423">${btn[2]}</a>
+</td></tr>` : `<tr><td style="padding:0 0 26px"></td></tr>`}
+</table>
+<div style="max-width:520px;margin:14px auto 0;font:italic 13px Georgia,serif;color:#7a7a66;text-align:center">Te llega porque lo elegiste en Ajustes → Avisos. Lo cambiás cuando quieras desde ahí.</div>
+</td></tr></table></body></html>`;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -49,7 +74,7 @@ Deno.serve(async (req) => {
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST", headers: { "api-key": key, "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ sender: { name: "Herbalorium", email: Deno.env.get("BREVO_SENDER") || owner.email }, to: [{ email: to }], subject,
-        htmlContent: `<div style="font-family:Georgia,serif;font-size:17px;line-height:1.5;color:#1f3426">${html}</div>` }),
+        htmlContent: letter(subject, html) }),
     });
     return r.ok;
   };
@@ -89,7 +114,7 @@ Deno.serve(async (req) => {
         if (news?.length) {
           const li = news.map((x) => `<li><b>${esc(x.common_name)}</b>${x.author_name ? `, de ${esc(x.author_name)}` : ""}</li>`).join("");
           const t = news.length === 1 ? "Hoy se sumó una lámina al herbario" : `Hoy se sumaron ${news.length} láminas al herbario`;
-          if (await mail(uid, t, `<p>${t}:</p><ul>${li}</ul><p><a href="${site}#list">Verlas en Herbalorium</a></p>`)) digests++;
+          if (await mail(uid, t, `<ul style="padding-left:22px;margin:0">${li}</ul><p><a href="${site}#list">Verlas en Herbalorium</a></p>`)) digests++;
         }
         await db.from("notif_prefs").upsert({ user_id: uid, last_digest_at: now.toISOString() });
       }

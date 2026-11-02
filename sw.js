@@ -4,7 +4,7 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (e) => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Herbalorium", body: e.data?.text() || "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "Herbalorium", {
-    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: d.url || "./#settings" }, tag: "pedido",
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/badge-96.png", data: { url: d.url || "./#settings" }, tag: "pedido",
   }));
 });
 self.addEventListener("notificationclick", (e) => {
