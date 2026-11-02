@@ -116,7 +116,8 @@ function adoptUser() {
 }
 
 // Mientras haya una ventana abierta (las que suben desde abajo, el visor, la carta, el tutorial o un sello), el fondo no se mueve.
-const OVERLAYS = ".modal, .viewer, .stamp, .tour, .busy";
+// (El tutorial no: necesita mover la página para mostrar cada parte; su capa ya frena los toques del fondo.)
+const OVERLAYS = ".modal, .viewer, .stamp, .busy";
 new MutationObserver(() => {
   const on = !!document.querySelector(OVERLAYS);
   if (on === document.documentElement.classList.contains("locked")) return;
@@ -204,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -671,6 +672,7 @@ function renderSettings() {
   });
   if (amOwner && user) paintRequests();
   if (user && feat("avisos")) bindAvisos();
+  if (cfg.focusAvisos) { delete cfg.focusAvisos; saveCfg(cfg); setTimeout(() => $app.querySelector(".avisos")?.scrollIntoView({ block: "start", behavior: "smooth" }), 250); }
   $app.querySelector("#copyschema")?.addEventListener("click", copySchema);
   $app.querySelector("#reillus")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
@@ -991,7 +993,7 @@ function openNews(all = false) {
   m.className = "modal";
   m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Novedades del herbario</h3>
-    ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`).join("")}
+    ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>${n.cta ? `<button class="btn news-cta" data-go="${n.cta.go}">${n.cta.label}</button>` : ""}`).join("")}
     <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
   const close = () => {
     m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg); if (!all) maybeMissionsIntro(450);
@@ -1000,6 +1002,8 @@ function openNews(all = false) {
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   m.querySelector("#news-ok").onclick = close;
+  // Botón de una novedad: cierra el panel y lleva directo a donde se configura (por ejemplo, los avisos).
+  m.querySelectorAll(".news-cta").forEach((b) => (b.onclick = () => { close(); if (b.dataset.go === "avisos") { cfg.focusAvisos = true; saveCfg(cfg); } go(b.dataset.go === "avisos" ? "settings" : b.dataset.go); }));
   document.body.appendChild(m);
 }
 
@@ -1200,6 +1204,7 @@ const TOUR = [
   ["stats", "#mission", "Tu misión", "Cada día, una planta que se vio cerca de tu casa para salir a buscar. Cuando la asentás, se cumple, y al día siguiente llega otra.", "misiones"],
   ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
   ["settings", "#app .me-card||#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
+  ["settings", "#app .avisos", "Avisos", "Elegí qué querés que te avise el herbario, en el móvil o por mail: láminas nuevas, tu misión del día y más. Tocá «Activar en este móvil» para que te lleguen.", "tutoavisos"],
 ];
 const currentView = () => location.hash.slice(1).split("/")[0] || "list";
 // Espera a que la pantalla pinte el elemento (las páginas se dibujan de forma asíncrona).
@@ -1213,7 +1218,7 @@ function startTour() {
     const t = [...t0];
     if (!feat("misiones")) return t;
     if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
-    if (t[0] === "settings") return [t[0], t[1], t[2], "Tu nombre y tu medallón, tu zona para las misiones, qué avisos querés recibir, el tema e invitar a otras personas."];
+    if (t[2] === "Ajustes") return [t[0], t[1], t[2], feat("tutoavisos") ? "Tu nombre y tu medallón, tu zona para las misiones, el tema e invitar a otras personas." : "Tu nombre y tu medallón, tu zona para las misiones, qué avisos querés recibir, el tema e invitar a otras personas."];
     return t;
   });
   // El paso de los símbolos se apoya en las tarjetas: durante el tutorial se muestra la vista con imágenes.
