@@ -1,4 +1,4 @@
-// Avisos de Herbalorium: notificación en el celular y mail, según lo que cada persona eligió en Ajustes.
+// Avisos de Herbalorium: notificación en el móvil y mail, según lo que cada persona eligió en Ajustes.
 // La llaman las apps (pedido para entrar, persona aceptada, lámina nueva, prueba) y, cada hora, una tarea
 // de la base ("cron") para la misión nueva de las 9 y el resumen diario de láminas por mail.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
     const to = [...accepted].filter((u) => u !== body.user_id && u !== me.id);
     return json({ ok: true, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
   }
-  if (kind === "plant") { // lámina nueva: al celular de los demás (el mail va en el resumen diario)
+  if (kind === "plant") { // lámina nueva: al móvil de los demás (el mail va en el resumen diario)
     const { data: p } = await db.from("plants").select("id,common_name,author_name,user_id,created_at").eq("id", body.plant_id).maybeSingle();
     if (!p || p.user_id !== me.id || Date.now() - new Date(p.created_at).getTime() > 600e3) return json({ error: "no corresponde" }, 403);
     const to = [...accepted].filter((u) => u !== me.id);

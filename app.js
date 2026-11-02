@@ -651,7 +651,7 @@ function renderSettings() {
     ${user && amOwner && isDevBase() ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
       <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
       <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
-      <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este celular y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
+      <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este móvil y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
       <button class="btn ghost" id="reillus" style="width:100%">Volver a buscar las láminas antiguas</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row session-btns${feat("botones") ? " solid" : ""}"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
@@ -818,7 +818,7 @@ const OB_SCREENS = {
   theme: () => `<div class="ob-center"><h2>¿Cómo lo preferís?</h2>
       <p class="lead">Elegí cómo se ve tu herbario. Podés cambiarlo cuando quieras en Ajustes.</p>
       <div class="theme-pick ob-theme">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
-      <p class="muted ob-note">Automático sigue el tema de tu celular.</p>
+      <p class="muted ob-note">Automático sigue el tema de tu móvil.</p>
       <button class="btn primary ob-cta" id="obnext">Continuar</button></div>`,
   ai: () => `<div class="ob-center"><h2>Vas a necesitar una IA</h2>
       <p class="lead">Herbalorium no tiene inteligencia artificial propia: usa la que ya tengas. Le pasás las fotos con un toque, ella identifica la planta y vos pegás la respuesta. Alcanza con la versión gratis.</p>
@@ -943,7 +943,7 @@ function openWhyAI() {
     <h3>¿Por qué usamos IA?</h3>
     <p><b>Reconocer una planta en una foto no se puede hacer con una simple búsqueda.</b> Hay unas 390.000 especies de plantas conocidas, y para identificarlas a partir de una imagen hace falta un sistema entrenado con millones de fotos: eso es, justamente, una inteligencia artificial.</p>
     <p><b>Además hay que cruzar datos.</b> La IA mira las fotos, pero también el lugar y la fecha del hallazgo, para descartar plantas que no crecen ahí o que no florecen en esa época.</p>
-    <p><b>Montarlo por nuestra cuenta costaría mucho:</b> servidores, modelos y una base de datos gigante. Usar la IA que ya tenés en el celular lo resuelve rápido y gratis.</p>
+    <p><b>Montarlo por nuestra cuenta costaría mucho:</b> servidores, modelos y una base de datos gigante. Usar la IA que ya tenés en el móvil lo resuelve rápido y gratis.</p>
     <p><b>No necesitás pagar nada.</b> Las versiones gratuitas de ChatGPT, Claude o Gemini alcanzan. Lo único: tienen un límite de imágenes por día, que para un paseo normal sobra.</p></div>`;
   const close = () => m.remove();
   m.onclick = (e) => { if (e.target === m) close(); };
@@ -953,7 +953,7 @@ function openWhyAI() {
 
 // ---------- novedades: lo que cambió desde la última vez que entraste ----------
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
-// Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el celular y en su cuenta.
+// Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el móvil y en su cuenta.
 const NEWS = [
   { v: 4, date: "2026-11-01", items: [
     "<b>Fotos más ordenadas.</b> Cada lámina tiene hasta 4 fotos. Podés borrar las que no te gusten y, si te queda lugar, tocar el <b>+</b> junto a las miniaturas para sumar otra ahí mismo.",
@@ -1054,7 +1054,7 @@ function openViewer(items, start = 0, opts = {}) {
     cap.innerHTML = `<b>${esc(it.title || "")}</b>${it.sub ? `<i>${esc(it.sub)}</i>` : ""}${it.credit ? `<small>${esc(it.credit)}</small>` : ""}${items.length > 1 ? `<small>${i + 1} de ${items.length}</small>` : ""}`;
   };
   const step = (d) => { i = (i + d + items.length) % items.length; show(); };
-  // El botón "atrás" del celular cierra el visor en vez de salir de la pantalla.
+  // El botón "atrás" del móvil cierra el visor en vez de salir de la pantalla.
   history.pushState({ viewer: 1 }, "");
   let closed = false;
   const close = (fromBack) => { if (closed) return; closed = true; v.classList.add("out"); setTimeout(() => v.remove(), 220); removeEventListener("popstate", onBack); document.removeEventListener("keydown", onKey); if (!fromBack) history.back(); };
@@ -1082,7 +1082,7 @@ function openViewer(items, start = 0, opts = {}) {
 }
 
 // Pista para reconocer una especie de misión: resumen de Wikipedia en castellano (o el de iNaturalist)
-// y más fotos de la especie en iNaturalist. Se guarda en el celular para no volver a pedirla.
+// y más fotos de la especie en iNaturalist. Se guarda en el móvil para no volver a pedirla.
 const HINT_KEY = "plantdex.hint";
 async function missionExtras(m) {
   let cache = {}; try { cache = JSON.parse(localStorage.getItem(HINT_KEY) || "{}"); } catch {}
@@ -1299,7 +1299,7 @@ function maybeSchemaNotice() {
   }, 1200);
 }
 
-// ---------- avisos de pedidos para entrar: notificación en el celular del dueño ----------
+// ---------- avisos de pedidos para entrar: notificación en el móvil del dueño ----------
 const VAPID_PUBLIC = "BMAsFISJq-6Ts3KOUGXKAUHORfJrrCSKoJ9Fzx5_8YGDRq8fT6wejSN7L4iM8ux8mwNknFRKQXYR0SjjjuaUKMY";
 const pushOK = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 const b64ToBytes = (b) => { const s = atob(b.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b.length + 3) % 4)); return Uint8Array.from(s, (c) => c.charCodeAt(0)); };
@@ -1337,12 +1337,12 @@ const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: 
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
-  <table class="av-table"><thead><tr><th></th><th>Celular</th><th>Mail</th></tr></thead><tbody>
+  <table class="av-table"><thead><tr><th></th><th>Móvil</th><th>Mail</th></tr></thead><tbody>
     ${NOTIF_KINDS.filter(([, , own]) => !own || amOwner).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
   </tbody></table>
   <p class="av-state muted" id="avstate">Revisando…</p>
-  <div class="row"><button class="btn primary" id="avon">Activar en este celular</button><button class="btn ghost" id="avtest">Probar aviso</button></div></div>`;
+  <div class="row"><button class="btn primary" id="avon">Activar en este móvil</button><button class="btn ghost" id="avtest">Probar aviso</button></div></div>`;
 async function bindAvisos() {
   const st = $app.querySelector("#avstate"); if (!st) return;
   const on = $app.querySelector("#avon"), test = $app.querySelector("#avtest");
@@ -1361,11 +1361,11 @@ async function bindAvisos() {
   });
   const paint = async () => {
     const s = await pushState();
-    st.textContent = { on: "Las notificaciones están activadas en este celular.", off: "Para recibirlas en este celular, activalas acá abajo.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
-    on.textContent = s === "on" ? "Desactivar en este celular" : "Activar en este celular";
+    st.textContent = { on: "Las notificaciones están activadas en este móvil.", off: "Para recibirlas en este móvil, activalas acá abajo.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
+    on.textContent = s === "on" ? "Desactivar en este móvil" : "Activar en este móvil";
     on.disabled = s === "nope" || s === "denied";
   };
-  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este celular"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este celular"); } paint(); };
+  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este móvil"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este móvil"); } paint(); };
   test.onclick = async () => {
     const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
     if (!what) return toast("Marcá alguna casilla primero");
@@ -1374,7 +1374,7 @@ async function bindAvisos() {
     test.disabled = false;
     if (r.error) return toast("No pude mandar la prueba: " + r.error.message);
     const p = r.data?.push, m = r.data?.mail;
-    toast(p || m ? `Prueba enviada${p ? " al celular" : ""}${m ? (p ? " y por mail" : " por mail") : ""}` : "La prueba no llegó a ningún lado: activá el celular o marcá Mail");
+    toast(p || m ? `Prueba enviada${p ? " al móvil" : ""}${m ? (p ? " y por mail" : " por mail") : ""}` : "La prueba no llegó a ningún lado: activá el móvil o marcá Mail");
   };
   paint();
 }
@@ -1633,7 +1633,7 @@ function missionCheck(sci) {
   finishMission(m);
   return true;
 }
-// Historial de misiones cumplidas (para los logros de exploración). Va en el celular y en la cuenta.
+// Historial de misiones cumplidas (para los logros de exploración). Va en el móvil y en la cuenta.
 const missionsDone = () => { const a = cfg.missionsDone || user?.user_metadata?.missions_done || []; return Array.isArray(a) ? a : []; };
 function finishMission(m) {
   const done = Date.now();
@@ -1763,7 +1763,7 @@ function openMissionsIntro() {
 }
 
 // ---------- sello Nova: láminas de otras personas que todavía no abriste ----------
-// Cuenta desde que creaste tu cuenta; lo abierto queda en el celular y en tu cuenta (no se repite entre dispositivos).
+// Cuenta desde que creaste tu cuenta; lo abierto queda en el móvil y en tu cuenta (no se repite entre dispositivos).
 const NOVA_KEY = "plantdex.nova";
 let novaSeen = null;
 const novaSet = () => {
