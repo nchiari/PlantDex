@@ -202,7 +202,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1185,6 +1185,18 @@ function startTour() {
   };
   ov.querySelector("[data-skip]").onclick = end;
   ov.querySelector("[data-next]").onclick = () => (busy ? null : i < steps.length - 1 ? (i++, show()) : end());
+  // Deslizar el dedo también pasa de paso: hacia la izquierda, el siguiente; hacia la derecha, el anterior.
+  if (feat("deslizar")) {
+    let x0 = null, y0 = 0;
+    ov.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    ov.addEventListener("touchend", (e) => {
+      if (x0 === null || busy) return;
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0) { if (i < steps.length - 1) { i++; show(); } else end(); }
+      else if (i > 0) { i--; show(); }
+    }, { passive: true });
+  }
   addEventListener("resize", place);
   show();
 }
