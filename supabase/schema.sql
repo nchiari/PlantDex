@@ -202,3 +202,16 @@ create policy "write own photos" on storage.objects for insert to authenticated 
 -- le muestra al dueño un aviso con este archivo para correr (se puede correr entero de nuevo sin riesgo).
 create or replace function public.schema_version() returns int language sql immutable as $$ select 14 $$;
 grant execute on function public.schema_version() to anon, authenticated;
+
+-- v15: nombres de las personas aceptadas en el herbario (para los filtros, aunque todavía no hayan cargado nada).
+-- Usa el nombre actual de cada cuenta; solo lo pueden pedir los miembros.
+create or replace function public.member_names() returns setof text
+language sql stable security definer set search_path = '' as $$
+  select coalesce(nullif(u.raw_user_meta_data->>'name', ''), m.name)
+  from public.members m join auth.users u on u.id = m.user_id
+  where m.status = 'accepted' and public.is_member()
+    and coalesce(nullif(u.raw_user_meta_data->>'name', ''), m.name) is not null;
+$$;
+revoke all on function public.member_names() from public, anon;
+grant execute on function public.member_names() to authenticated;
+create or replace function public.schema_version() returns int language sql immutable as $$ select 15 $$;

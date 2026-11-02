@@ -199,17 +199,17 @@ const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load faile
 // Al volver la conexión, se carga el herbario solo.
 addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
 addEventListener("offline", () => { offline = true; });
-let amOwner = false, amMember = true, pendingRequests = 0;
+let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "prueba", miembros: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
-const SCHEMA_NEEDED = 14;
+const SCHEMA_NEEDED = 15;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -225,6 +225,8 @@ async function loadPlants() {
   amMember = mem.error ? true : !!mem.data;
   if (!amMember) { plants = []; return; }
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
+  // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
+  if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = mn.error ? [] : (mn.data || []).filter(Boolean); }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { if (isNetErr(error)) { offline = true; return; } toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data.map(fixNames));
@@ -1321,7 +1323,9 @@ function renderList() {
     (!q || [p.common_name, p.other_names, p.scientific_name, p.family, p.location_name].join(" ").toLowerCase().includes(q)));
   const used = TYPES.filter((t) => plants.some((p) => p.types?.includes(t)));
   // Personas que encontraron algo: quien subió la lámina y quien sumó un hallazgo, con cuántas láminas tiene cada una.
-  const people = Object.entries(plants.reduce((acc, p) => { foundBy(p).forEach((w) => (acc[w] = (acc[w] || 0) + 1)); return acc; }, {})).sort((a, b) => b[1] - a[1]);
+  const counts = plants.reduce((acc, p) => { foundBy(p).forEach((w) => (acc[w] = (acc[w] || 0) + 1)); return acc; }, {});
+  if (feat("miembros")) memberNames.forEach((n) => (counts[n] ??= 0)); // quien todavía no cargó nada aparece con 0
+  const people = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (!feat("nuevas")) filter.nova = false;
   const novas = feat("nuevas") ? plants.filter(isNova).length : 0;
   const active = filter.types.length + filter.who.length + (filter.nova ? 1 : 0);
@@ -1345,7 +1349,7 @@ function renderList() {
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
       <button class="btn red" id="start">Comenzar el herbario</button></div>` :
-      !list.length ? (filter.nova && !novas ? `<div class="all-seen"><svg><use href="#i-seal-gold"/></svg><p><b>Ya viste todas las láminas del herbario.</b><br>Cuando alguien sume una nueva, va a aparecer acá con su sello.</p></div>` : `<p class="muted">Ninguna lámina coincide.</p>`) :
+      !list.length ? (filter.nova && !novas ? `<div class="all-seen"><svg><use href="#i-seal-gold"/></svg><p><b>Ya viste todas las láminas del herbario.</b><br>Cuando alguien sume una nueva, va a aparecer acá con su sello.</p></div>` : `<p class="muted">${filter.who.length === 1 && !filter.types.length && !filter.nova && !q && !counts[filter.who[0]] ? `${esc(filter.who[0])} todavía no cargó ninguna lámina.` : "Ninguna lámina coincide."}</p>`) :
       cfg.view === "list" ? `<ol class="index">${list.map(row).join("")}</ol>` : `<div class="grid">${list.map(card).join("")}</div>`}
   `;
   const $q = $app.querySelector("#q");
