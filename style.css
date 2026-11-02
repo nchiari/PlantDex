@@ -1005,3 +1005,12 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .set-fold .iucn-box h3 { margin-top: 4px; }
 .set2 .avisos .av-table { margin-top: 0; }
 .news-cta { display: block; width: 100%; margin: 2px 0 14px; }
+/* avisos sin activar: el botón arriba y a la vista */
+.av-cta { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 16px; padding: 14px 16px; border: 1px solid var(--gold); background: var(--gold-wash, rgb(201 162 74 / .1)); }
+.av-cta b { font: 600 17px var(--text); color: var(--ink); }
+.av-cta span { font-size: 15px; color: var(--ink-soft); font-style: italic; }
+.av-cta .btn { margin-top: 10px; width: 100%; animation: av-pulse 2s ease-in-out infinite; }
+@keyframes av-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(201 162 74 / .55); } 50% { box-shadow: 0 0 0 7px rgb(201 162 74 / 0); } }
+@media (prefers-reduced-motion: reduce) { .av-cta .btn { animation: none; } }
+.av-quiet .btn.primary { background: none; color: var(--ink-soft); border-color: rgb(var(--line) / .3); box-shadow: none; padding: 8px 14px; font-size: 11px; }
+.av-cta[hidden] { display: none; }

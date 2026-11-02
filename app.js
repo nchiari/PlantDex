@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "prueba", avisoboton: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1342,6 +1342,7 @@ const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: 
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
+  ${feat("avisoboton") ? `<div class="av-cta" id="avcta" hidden><b>Todavía no te llega nada a este móvil</b><span>Tocá el botón y aceptá el permiso: es una sola vez.</span><button class="btn primary" id="avon2">Activar en este móvil</button></div>` : ""}
   <table class="av-table"><thead><tr><th></th><th>Móvil</th><th>Mail</th></tr></thead><tbody>
     ${NOTIF_KINDS.filter(([, , own]) => !own || amOwner).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
@@ -1364,12 +1365,17 @@ async function bindAvisos() {
       if (c.checked && c.dataset.ch === "push" && (await pushState()) === "off" && (await enablePush())) paint();
     };
   });
+  const cta = $app.querySelector("#avcta"), on2 = $app.querySelector("#avon2");
   const paint = async () => {
     const s = await pushState();
+    // Si este móvil todavía no tiene los avisos activados, el botón va arriba y bien a la vista.
+    if (cta) { cta.hidden = s !== "off"; on.closest(".row").classList.toggle("av-quiet", s === "on"); on.style.display = s === "off" ? "none" : ""; st.style.display = s === "off" ? "none" : ""; }
     st.textContent = { on: "Las notificaciones están activadas en este móvil.", off: "Para recibirlas en este móvil, activalas acá abajo.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
-    on.textContent = s === "on" ? "Desactivar en este móvil" : "Activar en este móvil";
+    on.textContent = s === "on" ? (cta ? "Desactivar" : "Desactivar en este móvil") : "Activar en este móvil";
+    if (cta && s === "on") st.textContent = "✓ Activadas en este móvil.";
     on.disabled = s === "nope" || s === "denied";
   };
+  if (on2) on2.onclick = () => on.onclick();
   on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este móvil"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este móvil"); } paint(); };
   if (test) test.onclick = async () => {
     const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
