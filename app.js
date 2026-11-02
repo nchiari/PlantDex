@@ -202,7 +202,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "prueba", ajustes2: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -545,11 +545,71 @@ const EMBLEM = `<svg viewBox="0 0 64 64"><use href="#i-emblem"/></svg>`;
 // ---------- vistas ----------
 // Inicial del avatar: primera letra del nombre (o del email), en mayúscula.
 const initialOf = (name) => [...((name || "").trim() || user?.email || "?")][0].toUpperCase();
+// Ajustes, diseño nuevo: lo urgente arriba, el perfil como encabezado, secciones por tema y lo poco usado plegado.
+function settingsV2(owner, book) {
+  const sw = (id, on, label, sub = "") => `<label class="sw-row"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span><input type="checkbox" class="sw" id="${id}" ${on ? "checked" : ""}></label>`;
+  const link = (id, label) => `<button class="set-link" id="${id}"><span>${label}</span><span aria-hidden="true">›</span></button>`;
+  const people = Math.max(memberNames.length, new Set(plants.flatMap(foundBy)).size);
+  return `<div class="set2">
+    <h2>Ajustes</h2>
+    ${amOwner ? `<div id="requests"></div>` : ""}
+    ${amOwner && schemaBehind ? schemaBox() : ""}
+
+    <div class="me-card">
+      <span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span>
+      <div class="me-txt"><b id="mename">${esc(cfg.name || "Tu nombre")}</b><span>${esc(user.email)}</span>${owner ? `<small>Dueño del herbario</small>` : ""}</div>
+      <button class="me-pen" id="editname" aria-label="Cambiar tu nombre">✎</button>
+    </div>
+    <div class="me-edit" hidden><label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
+
+    <h3>Tu herbario</h3>
+    <p class="set-sub">${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)}${people > 1 ? ` · ${people} personas` : ""}</p>
+    <p class="muted set-note">${owner ? "Pasale la invitación a quien quieras: cuando entre, te llega su pedido acá arriba y lo aceptás." : "Pasale la invitación a quien quieras: el dueño del herbario recibe su pedido. También sirve para abrirlo en otro dispositivo."}</p>
+    <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
+
+    ${feat("misiones") ? `<h3>Exploración</h3>
+    <label class="set-label">Tu zona</label>
+    <div class="zone-pick"><input id="zoneq" autocomplete="off" placeholder="Escribí tu barrio, pueblo o ciudad" value="${esc(zoneOf()?.name || "")}"><div class="zone-list" id="zonelist" hidden></div></div>
+    <button class="linkish zone-gps" id="setzone">Usar mi ubicación actual</button>
+    <p class="zone-done" id="zonedone" hidden></p>
+    ${sw("missions", !cfg.missionsOff, "Misiones de exploración", "Una planta cerca tuyo para salir a buscar")}` : ""}
+
+    ${feat("avisos") ? avisosBox().replace('<div class="share-box avisos"><h3>Avisos</h3>', '<div class="avisos"><h3>Avisos</h3>') : ""}
+
+    <h3>Apariencia</h3>
+    <div class="theme-pick">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-theme-pick="${k}" class="${(cfg.theme || "auto") === k ? "on" : ""}"><i class="sw-${k}"></i>${l}</button>`).join("")}</div>
+    ${sw("engrave", cfg.engrave, "Filtro de grabado", "Las fotos se ven como un grabado antiguo")}
+    ${sw("illustrations", cfg.illustrations, "Láminas antiguas", "Ilustraciones de época como imagen principal")}
+
+    <h3>Ayuda</h3>
+    <div class="set-links">${link("retour", "Ver el tutorial")}${link("news", "Novedades")}${link("whyai", "¿Por qué usamos IA?")}</div>
+
+    ${plants.length || owner ? `<details class="set-fold"><summary>Herramientas</summary>
+      ${iucnBatchBox()}
+      ${owner ? `<p class="muted set-note">Una copia de todas las láminas del herbario, para guardar.</p><button class="btn ghost" id="export" style="width:100%">Exportar backup</button>` : ""}
+    </details>` : ""}
+    ${owner ? `<details class="set-fold"><summary>Administración · solo la ves vos</summary>
+      <p class="muted set-note">Dirección y clave pública de tu nube en Supabase. Solo cambialas si sabés lo que hacés. En el plan gratis, si nadie abre el herbario durante 7 días, Supabase lo pone en pausa: se reactiva desde supabase.com con <i>Restore project</i>.</p>
+      <label class="set-label">Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
+      <label class="set-label">Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
+      <button class="btn ghost" id="save" style="width:100%;margin-top:14px">Guardar conexión</button>
+      ${isDevBase() ? `<p class="set-label" style="margin-top:22px">Pruebas</p>
+        <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
+        <button class="btn ghost" id="reillus" style="width:100%;margin-top:10px">Volver a buscar las láminas antiguas</button>` : ""}
+    </details>` : ""}
+
+    <div class="set-out">
+      ${owner ? `<button class="set-link quiet" id="switchbook"><span>Cambiar de herbario</span><span aria-hidden="true">›</span></button>` : `<button class="set-link quiet" id="leavebook"><span>Salir de este herbario</span><span aria-hidden="true">›</span></button>`}
+      <button class="set-link quiet" id="logout"><span>Cerrar sesión</span><span aria-hidden="true">›</span></button>
+    </div>
+  </div>`;
+}
+
 function renderSettings() {
   $nav.hidden = !user;
   const owner = !user || amOwner; // sin sesión (configuración inicial) se muestra todo
   const book = cfg.joinedFrom ? `el herbario de ${esc(cfg.joinedFrom)}` : "un herbario compartido";
-  $app.innerHTML = `
+  if (user && feat("ajustes2")) $app.innerHTML = settingsV2(owner, book); else $app.innerHTML = `
     <h2>Ajustes</h2>
     <h3>Vos</h3>
     <label>Tu nombre (aparece en las láminas que cargás)</label>
@@ -672,11 +732,23 @@ function renderSettings() {
     try { if (navigator.share) return await navigator.share({ title: "Herbalorium", text: `${cfg.name ? cfg.name + " te invita a su" : "Te invito a mi"} herbario en Herbalorium 🌿`, url }); } catch { return; }
     try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copiá este enlace:", url); }
   });
-  $app.querySelector("#save").onclick = () => {
+  // Diseño nuevo: todo se guarda solo (nombre, grabado, láminas antiguas); "Guardar" queda solo para la conexión.
+  const autosave = () => { cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
+    saveCfg(cfg); document.body.classList.toggle("engrave", cfg.engrave);
+    if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
+    $app.querySelector("#mename") && ($app.querySelector("#mename").textContent = cfg.name || "Tu nombre"); toast("Guardado"); };
+  if ($app.querySelector(".set2")) {
+    $app.querySelector("#myname").onchange = autosave;
+    $app.querySelector("#myname").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
+    $app.querySelector("#engrave").onchange = autosave; $app.querySelector("#illustrations").onchange = autosave;
+    $app.querySelector("#whyai")?.addEventListener("click", openWhyAI);
+    $app.querySelector("#editname")?.addEventListener("click", () => { const i = $app.querySelector("#myname"); i.closest(".me-edit").hidden = false; i.focus(); });
+  }
+  if ($app.querySelector("#save")) $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
     const sbUrlEl = document.getElementById("sbUrl");
     cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name,
-      sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: document.getElementById("engrave").checked, illustrations: document.getElementById("illustrations").checked };
+      sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
     saveCfg(cfg);
     if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
     document.body.classList.toggle("engrave", cfg.engrave);
