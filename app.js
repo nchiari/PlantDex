@@ -209,7 +209,7 @@ const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
-const SCHEMA_NEEDED = 14; // pasa a 15 cuando se aplique la v15 en la base de Nico
+const SCHEMA_NEEDED = 15;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
