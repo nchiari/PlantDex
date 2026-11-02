@@ -204,7 +204,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "prueba", ajustes2: "prueba" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1199,7 +1199,7 @@ const TOUR = [
   ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
   ["stats", "#mission", "Tu misión", "Cada día, una planta que se vio cerca de tu casa para salir a buscar. Cuando la asentás, se cumple, y al día siguiente llega otra.", "misiones"],
   ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
-  ["settings", "#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
+  ["settings", "#app .me-card||#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
 ];
 const currentView = () => location.hash.slice(1).split("/")[0] || "list";
 // Espera a que la pantalla pinte el elemento (las páginas se dibujan de forma asíncrona).
@@ -1213,7 +1213,7 @@ function startTour() {
     const t = [...t0];
     if (!feat("misiones")) return t;
     if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
-    if (t[0] === "settings") return [t[0], t[1], t[2], "Tu nombre y tu medallón, tu zona para las misiones, el tema e invitar a otras personas."];
+    if (t[0] === "settings") return [t[0], t[1], t[2], "Tu nombre y tu medallón, tu zona para las misiones, qué avisos querés recibir, el tema e invitar a otras personas."];
     return t;
   });
   // El paso de los símbolos se apoya en las tarjetas: durante el tutorial se muestra la vista con imágenes.
@@ -1342,7 +1342,7 @@ const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
   </tbody></table>
   <p class="av-state muted" id="avstate">Revisando…</p>
-  <div class="row"><button class="btn primary" id="avon">Activar en este móvil</button><button class="btn ghost" id="avtest">Probar aviso</button></div></div>`;
+  <div class="row"><button class="btn primary" id="avon">Activar en este móvil</button>${amOwner && isDevBase() ? `<button class="btn ghost" id="avtest">Probar aviso</button>` : ""}</div></div>`;
 async function bindAvisos() {
   const st = $app.querySelector("#avstate"); if (!st) return;
   const on = $app.querySelector("#avon"), test = $app.querySelector("#avtest");
@@ -1366,7 +1366,7 @@ async function bindAvisos() {
     on.disabled = s === "nope" || s === "denied";
   };
   on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este móvil"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este móvil"); } paint(); };
-  test.onclick = async () => {
+  if (test) test.onclick = async () => {
     const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
     if (!what) return toast("Marcá alguna casilla primero");
     test.disabled = true;
