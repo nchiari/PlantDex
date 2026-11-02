@@ -161,6 +161,7 @@ function route() {
   // Si salís de la carga de una planta sin asentarla, sus fotos se descartan.
   if (lastView === "new" && view !== "new" && draft && !draft.editing && feat("fotos")) clearDraft();
   lastView = view;
+  document.body.classList.toggle("airy", feat("aire"));
   window.scrollTo(0, 0);
   document.getElementById("sheet").hidden = true;
   const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
@@ -201,7 +202,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "prueba" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
