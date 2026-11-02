@@ -1014,3 +1014,12 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 @media (prefers-reduced-motion: reduce) { .av-cta .btn { animation: none; } }
 .av-quiet .btn.primary { background: none; color: var(--ink-soft); border-color: rgb(var(--line) / .3); box-shadow: none; padding: 8px 14px; font-size: 11px; }
 .av-cta[hidden] { display: none; }
+/* quiénes están en el herbario */
+.modal-box.people ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.modal-box.people li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgb(var(--line) / .12); }
+.modal-box.people li:first-child { border-top: 0; }
+.modal-box.people .avatar.sm { width: 34px; height: 34px; font-size: 16px; }
+.modal-box.people b { flex: 1; font: 500 17px var(--text); }
+.modal-box.people b small { font: 600 9px var(--caps); letter-spacing: 1.2px; text-transform: uppercase; color: var(--gold); margin-left: 4px; }
+.modal-box.people li > span:last-child { font-size: 14.5px; color: var(--ink-soft); font-style: italic; }
+.set2 #whois { border-top: 1px solid rgb(var(--line) / .12); margin-bottom: 2px; }

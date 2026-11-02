@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -548,6 +548,21 @@ const EMBLEM = `<svg viewBox="0 0 64 64"><use href="#i-emblem"/></svg>`;
 // ---------- vistas ----------
 // Inicial del avatar: primera letra del nombre (o del email), en mayúscula.
 const initialOf = (name) => [...((name || "").trim() || user?.email || "?")][0].toUpperCase();
+// Quiénes están en el herbario: medallón, nombre y cuántas láminas encontró cada uno (sin emails).
+function openPeople() {
+  const counts = plants.reduce((acc, p) => { foundBy(p).forEach((w) => (acc[w] = (acc[w] || 0) + 1)); return acc; }, {});
+  memberNames.forEach((n) => (counts[n] ??= 0));
+  const list = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box people" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Quiénes están</h3>
+    <ul>${list.map(([n, c]) => `<li><span class="avatar sm" aria-hidden="true">${esc([...n][0].toUpperCase())}</span><b>${esc(n)}${n === cfg.name ? ` <small>vos</small>` : ""}</b><span>${c ? `${c} ${c === 1 ? "lámina" : "láminas"}` : "todavía ninguna"}</span></li>`).join("")}</ul></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+}
 // Ajustes, diseño nuevo: lo urgente arriba, el perfil como encabezado, secciones por tema y lo poco usado plegado.
 function settingsV2(owner, book) {
   const sw = (id, on, label, sub = "") => `<label class="sw-row"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span><input type="checkbox" class="sw" id="${id}" ${on ? "checked" : ""}></label>`;
@@ -566,7 +581,8 @@ function settingsV2(owner, book) {
     <div class="me-edit" hidden><label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
 
     <h3>Tu herbario</h3>
-    <p class="set-sub">${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)}${people > 1 ? ` · ${people} personas` : ""}</p>
+    ${feat("quienes") && people > 1 ? `<button class="set-link" id="whois"><span>${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)} · ${people} personas</span><span aria-hidden="true">›</span></button>`
+      : `<p class="set-sub">${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)}${people > 1 ? ` · ${people} personas` : ""}</p>`}
     <p class="muted set-note">${owner ? "Pasale la invitación a quien quieras: cuando entre, te llega su pedido acá arriba y lo aceptás." : "Pasale la invitación a quien quieras: el dueño del herbario recibe su pedido. También sirve para abrirlo en otro dispositivo."}</p>
     <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
 
@@ -746,6 +762,7 @@ function renderSettings() {
     $app.querySelector("#myname").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
     $app.querySelector("#engrave").onchange = autosave; $app.querySelector("#illustrations").onchange = autosave;
     $app.querySelector("#whyai")?.addEventListener("click", openWhyAI);
+    $app.querySelector("#whois")?.addEventListener("click", openPeople);
     $app.querySelector("#editname")?.addEventListener("click", () => { const i = $app.querySelector("#myname"); i.closest(".me-edit").hidden = false; i.focus(); });
   }
   if ($app.querySelector("#save")) $app.querySelector("#save").onclick = () => {
