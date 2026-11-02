@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "prueba", avisoboton: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -957,6 +957,10 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el móvil y en su cuenta.
 const NEWS = [
+  { v: 5, date: "2026-11-02", cta: { label: "Configurar mis avisos", go: "avisos" }, items: [
+    "<b>Avisos.</b> El herbario ahora te puede avisar en el móvil o por mail cuando alguien sume una lámina, cuando se sume alguien nuevo o cuando te llegue tu misión del día. Vos elegís qué querés recibir y por dónde.",
+    "<b>Ajustes renovado.</b> Más ordenado: lo importante arriba y todo se guarda solo.",
+  ] },
   { v: 4, date: "2026-11-01", items: [
     "<b>Fotos más ordenadas.</b> Cada lámina tiene hasta 4 fotos. Podés borrar las que no te gusten y, si te queda lugar, tocar el <b>+</b> junto a las miniaturas para sumar otra ahí mismo.",
     "<b>Elegí tus mejores fotos.</b> Si volvés a cargar una planta que ya tenías, ahora podés elegir con qué fotos se queda: las de antes, las nuevas o una mezcla.",
