@@ -12,7 +12,7 @@ const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&a
 
 // El mail con la estética del herbario: pergamino, filete dorado, emblema y un botón verde.
 // (Los mails no cargan fuentes propias: Georgia es la más parecida que tienen todos.)
-const letter = (title: string, inner: string, site = "https://herbalorium.pages.dev/") => {
+const letter = (title: string, inner: string, foot = "Te llega porque lo elegiste en Ajustes → Avisos. Lo cambiás cuando quieras desde ahí.", site = "https://herbalorium.pages.dev/") => {
   const btn = (inner.match(/<a href="([^"]+)">([^<]+)<\/a>/) || []) as string[];
   const body = inner.replace(/<p><a href="[^"]+">[^<]+<\/a><\/p>/, "");
   return `<!doctype html><html><body style="margin:0;padding:0;background:#e9e2cc">
@@ -31,7 +31,7 @@ ${btn[1] ? `<tr><td align="center" style="padding:16px 34px 30px">
   <a href="${btn[1]}" style="display:inline-block;background:#3e5f34;color:#f3eedb;text-decoration:none;font:600 13px Georgia,serif;letter-spacing:2px;text-transform:uppercase;padding:13px 26px;border:1px solid #2a4423">${btn[2]}</a>
 </td></tr>` : `<tr><td style="padding:0 0 26px"></td></tr>`}
 </table>
-<div style="max-width:520px;margin:14px auto 0;font:italic 13px Georgia,serif;color:#7a7a66;text-align:center">Te llega porque lo elegiste en Ajustes → Avisos. Lo cambiás cuando quieras desde ahí.</div>
+<div style="max-width:520px;margin:14px auto 0;font:italic 13px Georgia,serif;color:#7a7a66;text-align:center">${foot}</div>
 </td></tr></table></body></html>`;
 };
 
@@ -68,13 +68,13 @@ Deno.serve(async (req) => {
     }
     return n;
   };
-  const mail = async (uid: string, subject: string, html: string) => {
+  const mail = async (uid: string, subject: string, html: string, foot?: string) => {
     const key = Deno.env.get("BREVO_API_KEY"), to = users.find((u) => u.id === uid)?.email;
     if (!key || !to) return false;
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST", headers: { "api-key": key, "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ sender: { name: "Herbalorium", email: Deno.env.get("BREVO_SENDER") || owner.email }, to: [{ email: to }], subject,
-        htmlContent: letter(subject, html) }),
+        htmlContent: letter(subject, html, foot) }),
     });
     return r.ok;
   };
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     const n = nameOf(body.user_id);
     // A la persona aceptada: siempre un mail (todavía no eligió avisos) y, si ya activó el móvil, también ahí.
     const welcome = `${nameOf(me.id)} aceptó tu pedido. Ya podés ver todas las láminas y sumar las tuyas.`;
-    const welcomed = await mail(body.user_id, "Ya estás adentro del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`);
+    const welcomed = await mail(body.user_id, "Ya estás adentro del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`, "Te llega porque pediste entrar a este herbario. En Ajustes → Avisos elegís qué más querés recibir.");
     await push(body.user_id, "Ya estás adentro del herbario", welcome, site + "#list", "members");
     const to = [...accepted].filter((u) => u !== body.user_id && u !== me.id);
     return json({ ok: true, welcomed, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
