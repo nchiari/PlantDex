@@ -253,3 +253,15 @@ alter table public.app_secrets enable row level security;
 --   select cron.schedule('herbalorium-avisos', '5 * * * *', $c$ select net.http_post(url := 'https://<proyecto>.supabase.co/functions/v1/notify',
 --     headers := jsonb_build_object('content-type','application/json','x-cron', (select value from public.app_secrets where key = 'cron')), body := '{"kind":"cron"}'::jsonb) $c$);
 create or replace function public.schema_version() returns int language sql immutable as $$ select 16 $$;
+
+-- v17: nombres y fecha de entrada de las personas aceptadas (para «Quiénes están»). Solo para miembros, sin emails.
+create or replace function public.member_list() returns table(name text, joined date)
+language sql stable security definer set search_path = '' as $$
+  select coalesce(nullif(u.raw_user_meta_data->>'name', ''), m.name), coalesce(m.decided_at, u.created_at)::date
+  from public.members m join auth.users u on u.id = m.user_id
+  where m.status = 'accepted' and public.is_member()
+    and coalesce(nullif(u.raw_user_meta_data->>'name', ''), m.name) is not null;
+$$;
+revoke all on function public.member_list() from public, anon;
+grant execute on function public.member_list() to authenticated;
+create or replace function public.schema_version() returns int language sql immutable as $$ select 17 $$;

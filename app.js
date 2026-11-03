@@ -202,17 +202,17 @@ const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load faile
 // Al volver la conexión, se carga el herbario solo.
 addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
 addEventListener("offline", () => { offline = true; });
-let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [];
+let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
-const SCHEMA_NEEDED = 16;
+const SCHEMA_NEEDED = 16; // pasa a 17 cuando se aplique la v17 en la base de Nico
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -230,6 +230,7 @@ async function loadPlants() {
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
   // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
   if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = mn.error ? [] : (mn.data || []).filter(Boolean); }
+  if (feat("desde")) { const ml = await sb.rpc("member_list"); memberSince = ml.error ? {} : Object.fromEntries((ml.data || []).map((x) => [x.name, x.joined])); }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { if (isNetErr(error)) { offline = true; return; } toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data.map(fixNames));
@@ -557,7 +558,7 @@ function openPeople() {
   m.className = "modal";
   m.innerHTML = `<div class="modal-box people" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Quiénes están</h3>
-    <ul>${list.map(([n, c]) => `<li><span class="avatar sm" aria-hidden="true">${esc([...n][0].toUpperCase())}</span><b>${esc(n)}${n === cfg.name ? ` <small>vos</small>` : ""}</b><span>${c ? `${c} ${c === 1 ? "lámina" : "láminas"}` : "todavía ninguna"}</span></li>`).join("")}</ul></div>`;
+    <ul>${list.map(([n, c]) => `<li><span class="avatar sm" aria-hidden="true">${esc([...n][0].toUpperCase())}</span><b>${esc(n)}${n === cfg.name ? ` <small>vos</small>` : ""}</b><span>${c ? `${c} ${c === 1 ? "lámina" : "láminas"}` : "todavía ninguna"}${memberSince[n] ? `<small class="since">desde ${new Date(memberSince[n] + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small>` : ""}</span></li>`).join("")}</ul></div>`;
   const close = () => m.remove();
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
