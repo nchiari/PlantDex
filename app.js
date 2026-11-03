@@ -974,6 +974,9 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el móvil y en su cuenta.
 const NEWS = [
+  { v: 6, date: "2026-11-03", items: [
+    "<b>Quiénes están.</b> En Ajustes → Tu herbario, tocá la línea de personas para ver quién forma parte del herbario y cuántas láminas sumó cada uno.",
+  ] },
   { v: 5, date: "2026-11-02", cta: { label: "Configurar mis avisos", go: "avisos" }, items: [
     "<b>Avisos.</b> El herbario ahora te puede avisar en el móvil o por mail cuando alguien sume una lámina, cuando se sume alguien nuevo o cuando te llegue tu misión del día. Vos elegís qué querés recibir y por dónde.",
     "<b>Ajustes renovado.</b> Más ordenado: lo importante arriba y todo se guarda solo.",
