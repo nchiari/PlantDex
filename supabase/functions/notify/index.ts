@@ -142,8 +142,12 @@ Deno.serve(async (req) => {
   if (kind === "member") { // el dueño aceptó a alguien: a los demás miembros
     if (me.id !== owner?.id || !body.user_id || !accepted.has(body.user_id)) return json({ error: "no corresponde" }, 403);
     const n = nameOf(body.user_id);
+    // A la persona aceptada: siempre un mail (todavía no eligió avisos) y, si ya activó el móvil, también ahí.
+    const welcome = `${nameOf(me.id)} aceptó tu pedido. Ya podés ver todas las láminas y sumar las tuyas.`;
+    const welcomed = await mail(body.user_id, "Ya estás adentro del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`);
+    await push(body.user_id, "Ya estás adentro del herbario", welcome, site + "#list", "members");
     const to = [...accepted].filter((u) => u !== body.user_id && u !== me.id);
-    return json({ ok: true, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
+    return json({ ok: true, welcomed, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
   }
   if (kind === "plant") { // lámina nueva: al móvil de los demás (el mail va en el resumen diario)
     const { data: p } = await db.from("plants").select("id,common_name,author_name,user_id,created_at").eq("id", body.plant_id).maybeSingle();
