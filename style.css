@@ -1032,3 +1032,4 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .seg button small { font: italic 13.5px var(--text); color: var(--ink-soft); }
 .seg button.on { border-color: var(--leaf); box-shadow: inset 0 0 0 1px var(--leaf); background: rgb(var(--line) / .06); }
 .seg-note { font-size: 14px; margin: 2px 0 10px; }
+.facts2.odd > .fx:last-child { grid-column: 1 / -1; }
