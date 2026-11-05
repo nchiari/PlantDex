@@ -21,7 +21,7 @@ let sb = null;
 let user = null;
 let plants = [];
 const urlCache = new Map();
-let filter = { q: "", types: [], who: [], nova: false, open: false };
+let filter = { q: "", types: [], who: [], nova: false, setting: "", open: false };
 let draft = null; // { files: [{blob, url}], data: {}, mode }
 
 const $app = document.getElementById("app");
@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -229,8 +229,8 @@ async function loadPlants() {
   if (!amMember) { plants = []; return; }
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
   // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
-  if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = mn.error ? [] : (mn.data || []).filter(Boolean); }
-  if (feat("desde")) { const ml = await sb.rpc("member_list"); memberSince = ml.error ? {} : Object.fromEntries((ml.data || []).map((x) => [x.name, x.joined])); }
+  if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = !mn.error && Array.isArray(mn.data) ? mn.data.filter(Boolean) : []; }
+  if (feat("desde")) { const ml = await sb.rpc("member_list"); memberSince = !ml.error && Array.isArray(ml.data) ? Object.fromEntries(ml.data.map((x) => [x.name, x.joined])) : {}; }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { if (isNetErr(error)) { offline = true; return; } toast("Error cargando: " + error.message); return; }
   plants = sortPlants(data.map(fixNames));
@@ -482,7 +482,8 @@ El JSON tiene que ser válido y con esta forma exacta:
  "curiosity": "un fun fact de verdad, de esos que hacen decir '¡no lo sabía!': su aparición en la cultura popular (películas, libros, refranes, expresiones del idioma, marcas, deportes), una leyenda, una anécdota histórica rara o un uso inesperado. NO repitas datos de botánica básica (machos y hembras, cómo se reproduce, cuántas semillas da) ni lo que ya contaste en history. 1-3 frases",
  "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
  "fruit_months": [meses 1-12 en que suele dar fruto o cosecharse, mismo criterio],
- "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
+ ${feat("cultivo") ? `"setting": "hallada | cultivada — cultivada si en las fotos se ve que está en una maceta, una huerta, un jardín de una casa o en interior; hallada si la viste afuera (campo, calle, parque). Ante la duda, hallada",
+` : ""} "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
  "doubt": "vacío (\"\") si estás seguro. Si te quedó alguna duda: con qué otra especie se puede confundir y en qué fijarse para diferenciarlas, en 1-2 frases"` : ""}
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
@@ -509,6 +510,7 @@ function normalizeAI(raw) {
   out.fruit_months = months(out.fruit_months);
   delete out.confidence;
   out.iucn = normIucn(out.iucn);
+  out.setting = /cultiv/i.test(out.setting || "") ? "cultivada" : out.setting ? "hallada" : undefined;
   fixNames(out);
   if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Ojo, puede confundirse: ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
   delete out.doubt;
@@ -1514,6 +1516,7 @@ function renderList() {
   const q = filter.q.toLowerCase();
   const list = plants.filter((p) =>
     (!filter.nova || isNova(p)) &&
+    (!filter.setting || (p.setting || "hallada") === filter.setting) &&
     filter.types.every((t) => p.types?.includes(t)) &&
     (!filter.who.length || foundBy(p).some((w) => filter.who.includes(w))) &&
     (!q || [p.common_name, p.other_names, p.scientific_name, p.family, p.location_name].join(" ").toLowerCase().includes(q)));
@@ -1524,7 +1527,8 @@ function renderList() {
   const people = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (!feat("nuevas")) filter.nova = false;
   const novas = feat("nuevas") ? plants.filter(isNova).length : 0;
-  const active = filter.types.length + filter.who.length + (filter.nova ? 1 : 0);
+  if (!feat("cultivo")) filter.setting = "";
+  const active = filter.types.length + filter.who.length + (filter.nova ? 1 : 0) + (filter.setting ? 1 : 0);
   const chipT = (t) => `<span class="chip ${filter.types.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`;
   const chipW = ([w, n]) => `<span class="chip who ${filter.who.includes(w) ? "on" : ""}" data-w="${esc(w)}"><span class="avatar xs">${esc([...w][0].toUpperCase())}</span>${esc(w)} <small>${n}</small></span>`;
   $app.innerHTML = `
@@ -1537,10 +1541,11 @@ function renderList() {
       ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${active ? `<b>${active}</b>` : ""}${feat("contador") && novas && !filter.nova ? `<span class="nova-count" title="${novas} ${novas === 1 ? "lámina nueva" : "láminas nuevas"}">${novas}</span>` : ""}</button>` : ""}</div>
     ${filter.open ? `<div class="filters">
         ${feat("nuevas") ? `<p class="fl-h">Novedades</p><div class="chips"><span class="chip nova-chip ${filter.nova ? "on" : ""}" data-nova>Nuevas <small>${novas}</small></span></div>` : ""}
+        ${feat("cultivo") && plants.some((p) => p.setting === "cultivada") ? `<p class="fl-h">Dónde</p><div class="chips">${[["hallada", "Halladas"], ["cultivada", "Cultivadas"]].map(([k, l]) => `<span class="chip ${filter.setting === k ? "on" : ""}" data-setting="${k}">${l}</span>`).join("")}</div>` : ""}
         ${used.length ? `<p class="fl-h">Tipo</p><div class="chips">${used.map(chipT).join("")}</div>` : ""}
         ${people.length > 1 ? `<p class="fl-h">Encontrada por</p><div class="chips">${people.map(chipW).join("")}</div>` : ""}
         ${active ? `<button class="linkish" id="fclear">Quitar filtros</button>` : ""}
-      </div>` : active ? `<div class="chips active-f">${filter.nova ? `<span class="chip on" data-nova>Nuevas ✕</span>` : ""}${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
+      </div>` : active ? `<div class="chips active-f">${filter.setting ? `<span class="chip on" data-setting="${filter.setting}">${filter.setting === "cultivada" ? "Cultivadas" : "Halladas"} ✕</span>` : ""}${filter.nova ? `<span class="chip on" data-nova>Nuevas ✕</span>` : ""}${filter.types.map((t) => `<span class="chip on" data-t="${t}">${TYPE_LABEL[t]} ✕</span>`).join("")}${filter.who.map((w) => `<span class="chip on" data-w="${esc(w)}">${esc(w)} ✕</span>`).join("")}</div>` : ""}
     ${plants.length === 0 ? `
       <div class="empty"><div class="big">${PLANT_ART}</div><h3>Las páginas están en blanco</h3>
       <p class="lead">Salí a pasear y tocá el sello verde<br>para asentar tu primera lámina.</p>
@@ -1555,7 +1560,8 @@ function renderList() {
   $app.querySelectorAll(".chip[data-w]").forEach((c) => (c.onclick = () => { filter.who = toggle(filter.who, c.dataset.w); renderList(); }));
   $app.querySelector("#legend")?.addEventListener("click", openLegend);
   $app.querySelector("#filt")?.addEventListener("click", () => { filter.open = !filter.open; renderList(); });
-  $app.querySelector("#fclear")?.addEventListener("click", () => { filter.types = []; filter.who = []; filter.nova = false; renderList(); });
+  $app.querySelector("#fclear")?.addEventListener("click", () => { filter.types = []; filter.who = []; filter.nova = false; filter.setting = ""; renderList(); });
+  $app.querySelectorAll("[data-setting]").forEach((c) => (c.onclick = () => { filter.setting = filter.setting === c.dataset.setting ? "" : c.dataset.setting; renderList(); }));
   $app.querySelectorAll("[data-nova]").forEach((c) => (c.onclick = () => { filter.nova = !filter.nova; renderList(); }));
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
@@ -1988,7 +1994,7 @@ function factSheet(p) {
     row("f-globe", "Origen", p.origin),
     row("f-flower", "Florece", monthRanges(p.flower_months)),
     row("f-fruit", "Fruto", monthRanges(p.fruit_months)),
-    row("f-pin", "Hallada", found, p.lat ? ` <a class="maplink" href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>` : ""),
+    feat("cultivo") && p.setting === "cultivada" ? row("f-pin", "Cultivada", [p.found_at && new Date(p.found_at + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })].filter(Boolean).join("") || "En casa") : row("f-pin", "Hallada", found, p.lat ? ` <a class="maplink" href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">mapa</a>` : ""),
   ].join("");
   return rows ? `<h3>Ficha</h3><dl class="facts2">${rows}</dl>` : "";
 }
@@ -2549,6 +2555,9 @@ function renderForm(existing) {
     <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
     <div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
     <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
+    ${feat("cultivo") ? `<label>¿Dónde la conociste?</label>
+    <div class="seg" id="setting">${[["hallada", "Hallada", "Afuera: campo, calle, parque"], ["cultivada", "Cultivada", "En casa: maceta, huerta, jardín"]].map(([k, l, sub]) => `<button type="button" data-set="${k}" class="${(d.setting || "hallada") === k ? "on" : ""}"><b>${l}</b><small>${sub}</small></button>`).join("")}</div>
+    <p class="muted seg-note" id="setnote" ${(d.setting || "hallada") === "cultivada" ? "" : "hidden"}>Las cultivadas no guardan el lugar: así nadie del herbario ve dónde vivís.</p>` : ""}
     <label>Tipos</label>
     <div class="chips" id="types">${TYPES.map((t) => `<span class="chip ${d.types?.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>
     <div class="row"><div><label>¿Es comestible?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
@@ -2566,6 +2575,11 @@ function renderForm(existing) {
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
+  $app.querySelectorAll("#setting button").forEach((b) => (b.onclick = () => {
+    $app.querySelectorAll("#setting button").forEach((x) => x.classList.toggle("on", x === b));
+    d.setting = b.dataset.set; $app.querySelector("#setnote").hidden = d.setting !== "cultivada";
+    const place = $app.querySelector("#location_name"); if (place) place.closest("label, div") && (place.disabled = d.setting === "cultivada");
+  }));
   if (existing) {
     paintEdPhotos(existing);
     if (feat("fotos") && (existing.photos || []).length >= MAX_PHOTOS) $app.querySelector("#addcam")?.closest(".row")?.insertAdjacentHTML("beforebegin", `<p class="muted" style="font-size:14.5px">Ya tiene ${MAX_PHOTOS} fotos. Para sumar otra, borrá alguna con la ✕.</p>`);
@@ -2586,6 +2600,10 @@ function renderForm(existing) {
     fixNames(row);
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
+    if (feat("cultivo")) {
+      row.setting = $app.querySelector("#setting .on")?.dataset.set || "hallada";
+      if (row.setting === "cultivada") { row.lat = null; row.lng = null; row.location_name = null; } // sin dirección de casa
+    }
     if (!row.common_name) return toast("Ponele al menos un nombre");
     // ¿Ya está esta especie? Si la registraste vos, no se repite; si fue otra persona, tu hallazgo se suma a su lámina.
     const dup = !existing && row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));

@@ -265,3 +265,7 @@ $$;
 revoke all on function public.member_list() from public, anon;
 grant execute on function public.member_list() to authenticated;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 17 $$;
+
+-- v18: hallada (afuera) o cultivada (en casa). Las cultivadas no guardan el lugar.
+alter table public.plants add column if not exists setting text check (setting in ('hallada', 'cultivada'));
+create or replace function public.schema_version() returns int language sql immutable as $$ select 18 $$;
