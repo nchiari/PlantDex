@@ -722,7 +722,7 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
 .card .nova-seal { position: absolute; top: 9px; right: 9px; z-index: 1; width: 46px; height: 46px; display: grid; place-items: center;
   filter: drop-shadow(0 2px 3px rgb(var(--line) / .35)); transform: rotate(-8deg); }
 .card .nova-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.card .ph-wrap .nova-seal b { font-size: 9px; }
+.card .ph-wrap .nova-seal b { font-size: 9.8px; }
 .card .nova-seal b { position: relative; font: 700 8px var(--caps); letter-spacing: .9px; text-transform: uppercase; color: #3d2c0c; padding-left: 1px; }
 /* conservación y comestibilidad, ahora en la fila de abajo del nombre */
 .card .pstrip .pc-cons { position: static; width: 24px; height: 24px; border-radius: 50%; flex: none; box-shadow: none !important; }
@@ -1045,9 +1045,9 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 /* centro del sello sobre el arco de la foto: el arco pasa a 14,64% del ancho desde la esquina (1 − cos 45°) */
 .cult-seal svg { width: 19px; height: 19px; }
 .ph-wrap, .hero-ph { position: relative; }
-.ph-wrap .cult-seal { width: 36px; height: 36px; top: 0; right: 0; margin: calc(14.64% - 15.8px) calc(14.64% - 13.8px) 0 0; }
-.ph-wrap .cult-seal svg { width: 20px; height: 20px; }
-.card .ph-wrap .nova-seal { top: auto; bottom: -9px; right: -3px; width: 51px; height: 51px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
+.ph-wrap .cult-seal { width: 32px; height: 32px; top: 0; right: 0; margin: calc(14.64% - 13.8px) calc(14.64% - 11.8px) 0 0; }
+.ph-wrap .cult-seal svg { width: 18px; height: 18px; }
+.card .ph-wrap .nova-seal { top: auto; bottom: -9px; right: -3px; width: 56px; height: 56px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
 .cult-seal.big { top: 0; right: 0; margin: calc(14.64% - 25.5px) calc(14.64% - 25.5px) 0 0; width: 51px; height: 51px; cursor: pointer; }
 .cult-seal.big svg { width: 27px; height: 27px; }
 .cult-tip { position: absolute; top: 0; margin-top: calc(14.64% + 36px); right: 12px; z-index: 3; max-width: 230px; padding: 9px 12px; border-radius: 8px;
