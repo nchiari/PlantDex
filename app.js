@@ -205,14 +205,14 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "prueba", fichapar: "prueba", sellocult: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
-const SCHEMA_NEEDED = 17;
+const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -1225,7 +1225,7 @@ const TOUR = [
   ["list", ".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
   ["list", ".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Con Filtrar elegís tipos de planta o quién la encontró. El número dorado te avisa cuántas láminas nuevas sumaron los demás."],
   ["list", "#app .card .pstrip", "Los símbolos", "Dicen el estado de conservación de cada planta y para qué sirve. El sello dorado «Nova» marca las láminas nuevas de los demás hasta que las abrís. En «Leyenda», arriba a la derecha, está qué significa cada uno."],
-  ["plant", "#app .hero||#app h2", "La ficha", "Tocá la foto para verla en grande. En tus láminas, el + suma fotos (hasta 4). Más abajo: para qué sirve, su historia y quién la encontró."],
+  ["plant", "#app .hero||#app h2", "La ficha", "Tocá la foto para verla en grande. El sello de la esquina dice si la hallaron afuera o vive en una casa: tocalo y te lo explica. En tus láminas, el + suma fotos (hasta 4). Más abajo: para qué sirve, su historia y quién la encontró."],
   ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola. Si la IA duda, te pide otra foto antes. Y si la planta ya está en el herbario, tu hallazgo se suma a esa lámina."],
   ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
   ["stats", "#mission", "Tu misión", "Cada día, una planta que se vio cerca de tu casa para salir a buscar. Cuando la asentás, se cumple, y al día siguiente llega otra.", "misiones"],
@@ -1827,6 +1827,12 @@ function markNovaSeen(p) {
   novaSync = setTimeout(() => Promise.resolve().then(() => sb.auth.updateUser({ data: { nova_seen: keep } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {}), 1500);
 }
 // Sello de cultivada: esquina superior derecha de la foto, como el símbolo de procedencia de una carta.
+// Herbarios con la base sin actualizar (antes de v18) no tienen "setting": se guarda igual, sin ese dato.
+async function writePlant(row, q) {
+  let r = await q(row);
+  if (r.error && "setting" in row && /setting/.test(r.error.message || "")) { delete row.setting; r = await q(row); }
+  return r;
+}
 const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa: maceta, huerta o jardín."], hallada: ["f-compass", "Hallada", "La encontraron afuera: campo, calle o parque."] };
 const cultSeal = (p, tap = false) => {
   if (!feat("sellocult")) return "";
@@ -2640,7 +2646,7 @@ function renderForm(existing) {
     btn.disabled = true; btn.textContent = "Entintando…";
     try {
       if (existing) {
-        const { data, error } = await sb.from("plants").update(row).eq("id", existing.id).select().single();
+        const { data, error } = await writePlant(row, (r) => sb.from("plants").update(r).eq("id", existing.id).select().single());
         if (error) throw error;
         plants = sortPlants(plants.map((x) => (x.id === data.id ? data : x)));
         draft = null; location.hash = "plant/" + data.id;
@@ -2664,7 +2670,7 @@ function renderForm(existing) {
         row.photos = paths;
         row.number = Math.max(0, ...plants.filter((x) => x.user_id === user.id).map((x) => x.number)) + 1;
         row.author_name = cfg.name || null;
-        const { data, error } = await sb.from("plants").insert(row).select().single();
+        const { data, error } = await writePlant(row, (r) => sb.from("plants").insert(r).select().single());
         if (error) throw error;
         plants = sortPlants([...plants, data]);
         notify({ kind: "plant", plant_id: data.id });
