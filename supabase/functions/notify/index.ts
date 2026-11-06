@@ -6,7 +6,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
-const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: false } };
+const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true } };
 type Kind = keyof typeof DEFAULT;
 const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
@@ -120,6 +120,19 @@ Deno.serve(async (req) => {
       }
     }
     return json({ ok: true, missions, digests });
+  }
+
+  // ---------- mail único a todo el herbario (lo dispara la base, con la misma clave que la tarea de cada hora) ----------
+  // body: { subject, html } — en el html, {nombre} se cambia por el nombre de cada persona. No mira las casillas.
+  if (kind === "broadcast") {
+    if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
+    if (!body.subject || !body.html) return json({ error: "faltan datos" }, 400);
+    const sent: string[] = [], failed: string[] = [];
+    for (const uid of accepted) {
+      const n = nameOf(uid);
+      (await mail(uid, String(body.subject), String(body.html).replaceAll("{nombre}", esc(n)), body.foot ? String(body.foot) : undefined) ? sent : failed).push(n);
+    }
+    return json({ ok: true, sent, failed });
   }
 
   // ---------- avisos que dispara alguien desde la app ----------

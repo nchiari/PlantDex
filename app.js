@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1372,7 +1372,7 @@ async function notifyOwner() {
 }
 // Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
 const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"]];
-const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: false } };
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true } };
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
