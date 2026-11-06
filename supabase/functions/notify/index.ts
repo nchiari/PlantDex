@@ -15,8 +15,8 @@ const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&a
 const letter = (title: string, inner: string, foot = "Te llega porque lo elegiste en Ajustes → Avisos. Lo cambiás cuando quieras desde ahí.", site = "https://herbalorium.pages.dev/") => {
   const btn = (inner.match(/<a href="([^"]+)">([^<]+)<\/a>/) || []) as string[];
   const body = inner.replace(/<p><a href="[^"]+">[^<]+<\/a><\/p>/, "");
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#e9e2cc">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9e2cc;padding:28px 12px"><tr><td align="center">
+  return `<!doctype html><html><body style="margin:0;padding:0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#f7f1e1;border:1px solid #c9a24a;outline:4px solid #f7f1e1;outline-offset:-6px">
 <tr><td align="center" style="padding:30px 28px 6px">
   <img src="${site}icons/icon-192.png" width="64" height="64" alt="" style="display:block;border:0;border-radius:50%">
