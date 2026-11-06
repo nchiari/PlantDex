@@ -1827,8 +1827,12 @@ function markNovaSeen(p) {
   novaSync = setTimeout(() => Promise.resolve().then(() => sb.auth.updateUser({ data: { nova_seen: keep } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {}), 1500);
 }
 // Sello de cultivada: esquina superior derecha de la foto, como el símbolo de procedencia de una carta.
-const cultSeal = (p, tap = false) => feat("sellocult") && p.setting === "cultivada"
-  ? `<${tap ? 'button type="button"' : "span"} class="cult-seal${tap ? " big" : ""}" ${tap ? 'id="cultseal" aria-label="Cultivada"' : 'title="Cultivada"'}><svg><use href="#f-pot"/></svg></${tap ? "button" : "span"}>` : "";
+const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa: maceta, huerta o jardín."], hallada: ["f-compass", "Hallada", "La encontraron afuera: campo, calle o parque."] };
+const cultSeal = (p, tap = false) => {
+  if (!feat("sellocult")) return "";
+  const k = p.setting === "cultivada" ? "cultivada" : "hallada", [ic, label] = SEALS[k];
+  return `<${tap ? 'button type="button"' : "span"} class="cult-seal s-${k}${tap ? " big" : ""}" data-seal="${k}" ${tap ? `id="cultseal" aria-label="${label}"` : `title="${label}"`}><svg><use href="#${ic}"/></svg></${tap ? "button" : "span"}>`;
+};
 const novaTag = (p) => (isNova(p) ? `<span class="nova" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : "");
 
 function row(p) {
@@ -2082,7 +2086,7 @@ async function renderDetail(id) {
     let tip = cs.parentNode.querySelector(".cult-tip");
     if (tip) return tip.remove();
     tip = document.createElement("div"); tip.className = "cult-tip";
-    tip.innerHTML = "<b>Cultivada</b>Vive en una casa: maceta, huerta o jardín.";
+    const [, label, txt] = SEALS[cs.dataset.seal]; tip.innerHTML = `<b>${label}</b>${txt}`;
     cs.after(tip); requestAnimationFrame(() => tip.classList.add("on"));
     const off = () => { tip.remove(); document.removeEventListener("click", off); };
     setTimeout(() => document.addEventListener("click", off), 0); setTimeout(off, 3500);

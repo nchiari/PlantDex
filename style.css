@@ -1038,6 +1038,8 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .cult-seal { position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   background: var(--leaf); color: var(--parchment); border: 1.5px solid var(--gold); padding: 0;
   box-shadow: inset 0 0 0 2.5px var(--leaf), inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 4px rgb(var(--line) / .3); transform: rotate(-6deg); }
+.cult-seal.s-hallada { background: #8a6d3b; box-shadow: inset 0 0 0 2.5px #8a6d3b, inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 4px rgb(var(--line) / .3); color: #f6efd9; }
+:root[data-theme="dark"] .cult-seal.s-hallada { background: #b8935a; box-shadow: inset 0 0 0 2.5px #b8935a, inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 6px #000a; color: #1b1a12; }
 .cult-seal svg { width: 19px; height: 19px; }
 .card .nova-seal ~ .cult-seal, .card .cult-seal:has(~ .nova-seal) { top: 58px; }
 .hero { position: relative; }
