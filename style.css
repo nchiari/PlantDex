@@ -1046,7 +1046,7 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .ph-wrap, .hero-ph { position: relative; }
 .ph-wrap .cult-seal { width: 36px; height: 36px; top: 0; right: 0; margin: calc(14.64% - 15.8px) calc(14.64% - 13.8px) 0 0; }
 .ph-wrap .cult-seal svg { width: 20px; height: 20px; }
-.card .ph-wrap .nova-seal { top: auto; bottom: 2px; right: 8px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
+.card .ph-wrap .nova-seal { top: auto; bottom: -9px; right: -3px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
 .cult-seal.big { top: 0; right: 0; margin: calc(14.64% - 25.5px) calc(14.64% - 25.5px) 0 0; width: 51px; height: 51px; cursor: pointer; }
 .cult-seal.big svg { width: 27px; height: 27px; }
 .cult-tip { position: absolute; top: 0; margin-top: calc(14.64% + 36px); right: 12px; z-index: 3; max-width: 230px; padding: 9px 12px; border-radius: 8px;
