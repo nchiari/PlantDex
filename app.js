@@ -1848,8 +1848,7 @@ function card(p) {
   const img = coverOf(p), ill = !!illuOf(p);
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
-    <div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>
-    ${cultSeal(p)}
+    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${cultSeal(p)}</div>
     ${isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>` : ""}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
     ${cardStrip(p)}
@@ -2045,7 +2044,7 @@ async function renderDetail(id) {
       <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
       ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
-    ${figs[0] ? `<figure class="hero" style="margin:0">${cultSeal(p, true)}<img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">
+    ${figs[0] ? `<figure class="hero" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${(() => {
       // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
