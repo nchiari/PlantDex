@@ -1045,7 +1045,7 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 /* centro del sello sobre el arco de la foto: el arco pasa a 14,64% del ancho desde la esquina (1 − cos 45°) */
 .cult-seal svg { width: 19px; height: 19px; }
 .ph-wrap, .hero-ph { position: relative; }
-.ph-wrap .cult-seal { width: 32px; height: 32px; top: 0; right: 0; margin: calc(14.64% - 13.8px) calc(14.64% - 11.8px) 0 0; }
+.ph-wrap .cult-seal { width: 32px; height: 32px; top: 0; right: 0; margin: calc(14.64% - 17.8px) calc(14.64% - 15.8px) 0 0; }
 .ph-wrap .cult-seal svg { width: 18px; height: 18px; }
 .card .ph-wrap .nova-seal { top: auto; bottom: -9px; right: -3px; width: 56px; height: 56px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
 .cult-seal.big { top: 0; right: 0; margin: calc(14.64% - 25.5px) calc(14.64% - 25.5px) 0 0; width: 51px; height: 51px; cursor: pointer; }
