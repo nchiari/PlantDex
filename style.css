@@ -1045,7 +1045,7 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .cult-seal svg { width: 19px; height: 19px; }
 .ph-wrap, .hero-ph { position: relative; }
 .ph-wrap .cult-seal { top: 4px; right: 8px; }
-.card .ph-wrap .nova-seal { top: auto; bottom: 2px; right: 8px; }
+.card .ph-wrap .nova-seal { top: auto; bottom: 2px; right: 8px; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .45)) drop-shadow(0 0 1.5px rgb(0 0 0 / .35)); }
 .cult-seal.big { top: 12px; right: 12px; width: 48px; height: 48px; cursor: pointer; }
 .cult-seal.big svg { width: 26px; height: 26px; }
 .cult-tip { position: absolute; top: 70px; right: 12px; z-index: 3; max-width: 230px; padding: 9px 12px; border-radius: 8px;
