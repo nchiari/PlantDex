@@ -1035,19 +1035,20 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .facts2.odd > .fx:last-child { grid-column: 1 / -1; }
 
 /* sello de cultivada (prueba): maceta en la esquina de la foto; en la lámina se toca y explica */
-.cult-seal { position: absolute; bottom: 8px; right: 8px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+.cult-seal { position: absolute; top: 8px; right: 8px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   background: var(--leaf); color: var(--parchment); border: 1.5px solid var(--gold); padding: 0;
   box-shadow: inset 0 0 0 2.5px var(--leaf), inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 4px rgb(var(--line) / .3); }
 .cult-seal.s-hallada { background: #8a6d3b; box-shadow: inset 0 0 0 2.5px #8a6d3b, inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 4px rgb(var(--line) / .3); color: #f6efd9; }
 :root[data-theme="dark"] .cult-seal.s-hallada { background: #b8935a; box-shadow: inset 0 0 0 2.5px #b8935a, inset 0 0 0 3.5px rgb(255 255 255 / .35), 0 2px 6px #000a; color: #1b1a12; }
 .cult-seal svg { width: 19px; height: 19px; }
 .ph-wrap, .hero-ph { position: relative; }
-.ph-wrap .cult-seal { right: 14px; }
-.cult-seal.big { bottom: 12px; right: 12px; width: 48px; height: 48px; cursor: pointer; }
+.ph-wrap .cult-seal { top: 4px; right: 8px; }
+.card .ph-wrap .nova-seal { top: auto; bottom: 2px; right: 8px; }
+.cult-seal.big { top: 12px; right: 12px; width: 48px; height: 48px; cursor: pointer; }
 .cult-seal.big svg { width: 26px; height: 26px; }
-.cult-tip { position: absolute; bottom: 70px; right: 12px; z-index: 3; max-width: 230px; padding: 9px 12px; border-radius: 8px;
+.cult-tip { position: absolute; top: 70px; right: 12px; z-index: 3; max-width: 230px; padding: 9px 12px; border-radius: 8px;
   background: var(--deep); color: var(--gold-soft); font: 15px/1.35 var(--text); box-shadow: 0 6px 16px rgb(0 0 0 / .25);
-  opacity: 0; transform: translateY(4px); transition: opacity .18s, transform .18s; }
+  opacity: 0; transform: translateY(-4px); transition: opacity .18s, transform .18s; }
 .cult-tip.on { opacity: 1; transform: none; }
-.cult-tip::before { content: ""; position: absolute; bottom: -6px; right: 18px; border: 6px solid transparent; border-bottom: 0; border-top-color: var(--deep); }
+.cult-tip::before { content: ""; position: absolute; top: -6px; right: 18px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--deep); }
 .cult-tip b { display: block; font: 600 11px var(--caps); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; color: var(--gold); }

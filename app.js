@@ -1846,10 +1846,10 @@ function row(p) {
 
 function card(p) {
   const img = coverOf(p), ill = !!illuOf(p);
+  const nova = isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>` : "";
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
-    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${cultSeal(p)}</div>
-    ${isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>` : ""}
+    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${cultSeal(p)}${feat("sellocult") ? nova : ""}</div>${feat("sellocult") ? "" : nova}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
     ${cardStrip(p)}
   </div>`;
