@@ -1020,7 +1020,7 @@ function openNews(all = false) {
   const seen = all ? 0 : newsSeen();
   // Quien entró después de una novedad no la ve: arrancó con la app ya así (aprende con el tutorial).
   const joined = (user?.created_at || "").slice(0, 10);
-  const list = NEWS.filter((n) => n.v > seen && (all || !joined || n.date >= joined));
+  const list = NEWS.filter((n) => n.v > seen && (all || !joined || n.date > joined));
   if (!list.length) { cfg.newsSeen = NEWS[0].v; saveCfg(cfg); return; }
   const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
   const m = document.createElement("div");
