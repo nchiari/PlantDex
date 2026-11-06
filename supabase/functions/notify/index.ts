@@ -1,12 +1,12 @@
 // Avisos de Herbalorium: notificación en el móvil y mail, según lo que cada persona eligió en Ajustes.
-// La llaman las apps (pedido para entrar, persona aceptada, lámina nueva, prueba) y, cada hora, una tarea
+// La llaman las apps (pedido para entrar, persona aceptada, lámina nueva, novedades, prueba) y, cada hora, una tarea
 // de la base ("cron") para la misión nueva de las 9 y el resumen diario de láminas por mail.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import webpush from "npm:web-push@3.6.7";
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
-const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false } };
+const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: false } };
 type Kind = keyof typeof DEFAULT;
 const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
@@ -154,6 +154,24 @@ Deno.serve(async (req) => {
     if (!p || p.user_id !== me.id || Date.now() - new Date(p.created_at).getTime() > 600e3) return json({ error: "no corresponde" }, 403);
     const to = [...accepted].filter((u) => u !== me.id);
     return json({ ok: true, ...(await send(to, "plants", `Lámina nueva: ${p.common_name}`, `${p.author_name || nameOf(me.id)} la sumó al herbario.`, site + "#plant/" + p.id, "", true)) });
+  }
+  if (kind === "news") { // novedades de la app: la app del dueño las manda una sola vez por versión
+    if (me.id !== owner?.id) return json({ error: "no corresponde" }, 403);
+    const v = Number(body.v) || 0, items: string[] = Array.isArray(body.items) ? body.items.slice(0, 8).map(String) : [];
+    if (!v || !items.length) return json({ error: "faltan datos" }, 400);
+    const plain = (t: string) => t.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const first = plain(items[0]), short = first.length > 140 ? first.slice(0, 137) + "…" : first;
+    const html = items.map((t) => `<p>${t.replace(/<(?!\/?b>)[^>]+>/g, "")}</p>`).join("") + `<p><a href="${site}">Abrir Herbalorium</a></p>`;
+    const title = items.length > 1 ? "Novedades en Herbalorium" : "Novedad en Herbalorium";
+    if (body.test) return json({ ok: true, test: true, ...(await send([me.id], "news", title, short, site, html)) });
+    const sent = Number(sec.news_sent || 0);
+    const mark = () => db.from("app_secrets").upsert({ key: "news_sent", value: String(v) });
+    if (!sec.news_sent) { await mark(); return json({ ok: true, skipped: "primera vez: se toma como ya enviada" }); }
+    if (v <= sent) return json({ ok: true, skipped: true });
+    await mark();
+    // A quienes todavía no la vieron en la app.
+    const to = [...accepted].filter((u) => (users.find((x) => x.id === u)?.user_metadata?.news_seen || 0) < v);
+    return json({ ok: true, ...(await send(to, "news", title, short, site, html)) });
   }
   return json({ error: "tipo desconocido" }, 400);
 });

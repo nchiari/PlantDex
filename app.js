@@ -205,7 +205,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -228,6 +228,7 @@ async function loadPlants() {
   amMember = mem.error ? true : !!mem.data;
   if (!amMember) { plants = []; return; }
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
+  pingNews();
   // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
   if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = !mn.error && Array.isArray(mn.data) ? mn.data.filter(Boolean) : []; }
   if (feat("desde")) { const ml = await sb.rpc("member_list"); memberSince = !ml.error && Array.isArray(ml.data) ? Object.fromEntries(ml.data.map((x) => [x.name, x.joined])) : {}; }
@@ -1367,14 +1368,14 @@ async function notifyOwner() {
   try { const r = await sb.functions.invoke("notify", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
 }
 // Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
-const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"]];
-const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false } };
+const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"]];
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: false } };
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
   ${feat("avisoboton") ? `<div class="av-cta" id="avcta" hidden><b>Todavía no te llega nada a este móvil</b><span>Tocá el botón y aceptá el permiso: es una sola vez.</span><button class="btn primary" id="avon2">Activar en este móvil</button></div>` : ""}
   <table class="av-table"><thead><tr><th></th><th>Móvil</th><th>Mail</th></tr></thead><tbody>
-    ${NOTIF_KINDS.filter(([, , own]) => !own || amOwner).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
+    ${NOTIF_KINDS.filter(([, , own, fl]) => (!own || amOwner) && (!fl || feat(fl))).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
   </tbody></table>
   <p class="av-state muted" id="avstate">Revisando…</p>
@@ -1421,6 +1422,17 @@ async function bindAvisos() {
 }
 // Avisar a los demás (cada uno recibe según lo que eligió). Si la función no existe en esa base, no pasa nada.
 const notify = (body) => { if (feat("avisos")) sb.functions.invoke("notify", { body: { ...body, site: SITE_URL() } }).catch(() => {}); };
+// Novedades por aviso: cuando el dueño abre la app con una novedad nueva, la manda (una sola vez por versión).
+// En prueba solo le llega a él, para ver cómo queda.
+async function pingNews() {
+  if (!user || !amOwner || !feat("avisos") || !feat("avisonews")) return;
+  const test = FEATURES.avisonews === "prueba", key = test ? "newsPingTest" : "newsPing";
+  if ((cfg[key] || 0) >= NEWS[0].v) return;
+  try {
+    const r = await sb.functions.invoke("notify", { body: { kind: "news", v: NEWS[0].v, items: NEWS[0].items, test, site: SITE_URL() } });
+    if (!r.error) { cfg[key] = NEWS[0].v; saveCfg(cfg); }
+  } catch {}
+}
 
 // Pedidos para entrar (solo el dueño): aceptar o rechazar a quien llegó con una invitación.
 async function paintRequests() {
