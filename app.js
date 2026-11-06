@@ -977,6 +977,9 @@ function openWhyAI() {
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el móvil y en su cuenta.
 const NEWS = [
+  { v: 7, date: "2026-11-06", items: [
+    "<b>Hallada o cultivada.</b> Ahora cada lámina dice de dónde viene. El sello de la esquina de la foto lo muestra: <b>brújula</b> si la encontraron afuera (campo, calle, parque) y <b>maceta</b> si vive en una casa (maceta, huerta, jardín). En la lámina, tocalo y te lo explica. Lo elegís al asentarla, y en <b>Filtrar</b> podés ver solo las halladas o solo las cultivadas.",
+  ] },
   { v: 6, date: "2026-11-03", items: [
     "<b>Quiénes están.</b> En Ajustes → Tu herbario, tocá la línea de personas para ver quién forma parte del herbario y cuántas láminas sumó cada uno.",
   ] },
