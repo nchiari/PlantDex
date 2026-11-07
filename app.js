@@ -3030,6 +3030,9 @@ function renderExp() {
     <p class="ex-center"><span class="ex-chip">Entre todos</span></p>
     <p class="ex-note">Busquen entre todos ${x.goal} plantas que cumplan con el tema. Cada una que asienten llena un casillero. Termina cuando completen los ${x.goal} o el ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}, lo que pase primero.</p>
     <p class="ex-center"><button class="btn" id="exhint">¿Qué busco?</button></p>
+    ${x.status === "active" ? `<div class="ex-clock" id="exclock"><p class="ex-lbl">Tiempo que queda</p>
+      <div class="ck-tiles">${["d", "h", "m", "s"].map((k) => `<span class="ck"><b data-ck="${k}">–</b><small>${{ d: "días", h: "horas", m: "min", s: "seg" }[k]}</small></span>`).join("")}</div>
+      <span class="ck-bar"><i></i></span></div><p class="ex-lbl">Casilleros</p>` : ""}
     <span class="ex-bar big"><i style="width:${Math.min(100, ((anim ? seenN : en.length) / x.goal) * 100)}%" data-to="${Math.min(100, (en.length / x.goal) * 100)}"></i></span>
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
@@ -3041,6 +3044,7 @@ function renderExp() {
   $app.querySelector("#exhint").onclick = () => openExpHint(x);
   const bar = $app.querySelector(".ex-bar.big i"); if (bar) setTimeout(() => (bar.style.width = bar.dataset.to + "%"), 250);
   hydrateBitacora(x);
+  expClock(x);
   $app.querySelectorAll(".ex-slot[data-id]").forEach((b) => (b.onclick = () => (location.hash = "plant/" + b.dataset.id)));
 }
 function openExpHint(x) {
@@ -3157,6 +3161,22 @@ function bindProgTabs() {
   show(["exp", "mis", "ins"].includes(cfg.progTab) ? cfg.progTab : "exp");
   hydrateMission();
 }
+// Cuenta regresiva de la expedición: días, horas, minutos y segundos, y una barra que se vacía con el tiempo.
+function expClock(x) {
+  const box = $app.querySelector("#exclock"); if (!box) return;
+  const start = new Date(x.starts_at).getTime(), end = new Date(x.ends_at).getTime();
+  const pad = (n) => String(n).padStart(2, "0");
+  const tick = () => {
+    if (!$app.contains(box)) return clearInterval(t);
+    const ms = Math.max(0, end - Date.now()), v = { d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60 };
+    box.querySelectorAll("[data-ck]").forEach((b) => { const nv = b.dataset.ck === "d" ? String(v.d) : pad(v[b.dataset.ck]); if (b.textContent !== nv) { b.textContent = nv; b.classList.remove("tick"); void b.offsetWidth; b.classList.add("tick"); } });
+    const left = Math.max(0, Math.min(1, ms / (end - start)));
+    box.querySelector(".ck-bar i").style.width = left * 100 + "%";
+    box.classList.toggle("hurry", ms < 2 * 864e5);
+  };
+  const t = setInterval(tick, 1000); tick();
+}
+
 // Bitácora de la expedición: mensajes numerados en orden; una respuesta cita al mensaje original y se puede saltar a él.
 async function hydrateBitacora(x, focusNum) {
   const box = $app.querySelector("#bitacora"); if (!box) return;
@@ -3219,7 +3239,7 @@ function openExpIntro(first) {
     <div class="ei-head"><p class="ei-k">Herbalorium</p><p class="ei-t">Llegó una carta para el herbario</p></div>
     <button class="env" aria-label="Abrir la carta">
       <svg class="env-back" viewBox="0 0 320 208"><rect width="320" height="208" rx="8" fill="#d9c793"/><rect x="6" y="6" width="308" height="196" rx="5" fill="#cdb983"/></svg>
-      <div class="env-paper"><span class="fp top"></span><span class="fp mid"><b>Expediciones</b></span><span class="fp bot"></span></div>
+      <div class="env-paper"><span class="fp mid"><svg class="pe"><use href="#i-emblem"/></svg><b>Expediciones</b></span></div>
       <svg class="env-pocket" viewBox="0 0 320 208"><path d="M0 8 L148 112 Q160 120 172 112 L320 8 L320 200 Q320 208 312 208 L8 208 Q0 208 0 200 Z" fill="#e6d6a6"/>
         <path d="M0 208 L150 106 Q160 99 170 106 L320 208 Z" fill="#ecdfb4"/><path d="M0 8 L148 112 M320 8 L172 112" stroke="#c7b178" stroke-width="1.2" fill="none"/>
         <path d="M2 206 L150 106 Q160 99 170 106 L318 206" stroke="#d2bf8a" stroke-width="1" fill="none"/></svg>
@@ -3249,8 +3269,8 @@ function openExpIntro(first) {
     try { navigator.vibrate?.([25, 300, 15, 120, 30]); } catch {}
     const burst = ov.querySelector(".ei-burst");
     setTimeout(() => { for (let i = 0; i < 26; i++) { const b = document.createElement("i"), a = (i / 26) * 360, d = 100 + Math.random() * 120;
-      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 2700);
-    setTimeout(() => ov.classList.add("open"), 3900);
+      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 3300);
+    setTimeout(() => ov.classList.add("open"), 3300);
   };
   ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
 }
