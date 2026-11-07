@@ -3212,7 +3212,12 @@ function openExpIntro(first) {
   const x = first || expCur() || { title: "Sin salir del barrio", icon: "f-pin", goal: 5, hint: "Cualquier planta que encuentres afuera, a pocas cuadras de casa.", ends_at: new Date(Date.now() + 9 * 864e5).toISOString() };
   const ov = document.createElement("div");
   ov.className = "ex-intro";
-  ov.innerHTML = `<div class="env"><div class="env-back"></div><div class="env-letter"><span>Expediciones</span></div><div class="env-front"></div><div class="env-flap"></div><span class="env-seal"><svg><use href="#i-seal-gold"/></svg><svg class="em"><use href="#i-emblem"/></svg></span></div>
+  const seal = `<svg><use href="#i-seal-gold"/></svg><svg class="em"><use href="#i-emblem"/></svg>`;
+  const dust = Array.from({ length: 22 }, () => `<i style="--x:${Math.random() * 100}%;--s:${2 + Math.random() * 4}px;--t:${6 + Math.random() * 8}s;--d:${-Math.random() * 12}s;--o:${0.3 + Math.random() * 0.6}"></i>`).join("");
+  ov.innerHTML = `<div class="ei-dust">${dust}</div><span class="ei-rays"></span>
+    <button class="env" aria-label="Abrir la carta"><div class="env-back"></div><div class="env-letter"><span>Expediciones</span></div><div class="env-front"></div><div class="env-flap"></div>
+      <span class="env-seal">${seal}</span><span class="env-seal half l">${seal}</span><span class="env-seal half r">${seal}</span></button>
+    <p class="ei-hint">Tocá la carta para abrirla</p><div class="ei-burst"></div>
     <div class="li-full"><div class="letter-in">
       <p class="li-k">Herbarium vivum presenta</p>
       <h2>Expediciones</h2><p class="li-sub">del herbario</p>
@@ -3228,8 +3233,17 @@ function openExpIntro(first) {
       <button class="btn primary li-go">¡Vamos!</button>
     </div></div>`;
   document.body.appendChild(ov);
-  try { navigator.vibrate?.([15, 400, 25]); } catch {}
-  setTimeout(() => ov.classList.add("open"), 2900); // la carta sale del sobre y ocupa la pantalla
+  // La carta espera, flotando y con el lacre brillando, hasta que la tocás: se rompe el lacre, se abre la solapa y sale la carta.
+  const env = ov.querySelector(".env");
+  env.onclick = () => {
+    if (ov.classList.contains("opening")) return;
+    ov.classList.add("opening");
+    try { navigator.vibrate?.([25, 300, 15, 120, 30]); } catch {}
+    const burst = ov.querySelector(".ei-burst");
+    setTimeout(() => { for (let i = 0; i < 24; i++) { const b = document.createElement("i"), a = (i / 24) * 360, d = 90 + Math.random() * 110;
+      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 1150);
+    setTimeout(() => ov.classList.add("open"), 2300); // la carta sale del sobre y ocupa la pantalla
+  };
   ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
 }
 
