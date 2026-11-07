@@ -3032,7 +3032,7 @@ function renderExp() {
     <p class="ex-center"><button class="btn" id="exhint">¿Qué busco?</button></p>
     ${x.status === "active" ? `<div class="ex-clock" id="exclock"><p class="ex-lbl">Tiempo que queda</p>
       <div class="ck-tiles">${["d", "h", "m", "s"].map((k) => `<span class="ck"><b data-ck="${k}">–</b><small>${{ d: "días", h: "horas", m: "min", s: "seg" }[k]}</small></span>`).join("")}</div>
-      <span class="ck-bar"><i></i></span></div><p class="ex-lbl">Casilleros</p>` : ""}
+</div><p class="ex-lbl">Casilleros</p>` : ""}
     <span class="ex-bar big"><i style="width:${Math.min(100, ((anim ? seenN : en.length) / x.goal) * 100)}%" data-to="${Math.min(100, (en.length / x.goal) * 100)}"></i></span>
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
@@ -3141,7 +3141,7 @@ function bindProgTabs() {
   const cur = expCur();
   const doneAll = exps.filter((x) => x.status === "done");
   const doneExps = doneAll.filter((x) => expOf(x).some((e) => e.user_id === user.id)); // el sello es de quienes aportaron
-  $app.querySelector("#ptab-exp").innerHTML = `<p class="ex-center"><span class="ex-chip">Expedición del herbario · entre todos</span></p>` + (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
+  $app.querySelector("#ptab-exp").innerHTML = (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
     + (doneAll.length ? `<p class="ex-count">El herbario cumplió <b>${doneAll.length}</b> ${doneAll.length === 1 ? "expedición" : "expediciones"}${doneAll.length > doneExps.length ? ` · vos participaste en ${doneExps.length}` : ""}</p>` : "")
     + `<h3>Hitos</h3>` + (doneExps.length ? doneExps.map((x) => { const ppl = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))]; const d = Math.max(1, Math.ceil((new Date(x.completed_at) - new Date(x.starts_at)) / 864e5));
       return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}<span class="ex-meds hito-meds">${ppl.map((n) => `<span title="${esc(n)}">${esc(initialOf(n))}</span>`).join("")}</span>`); }).join("")
@@ -3170,8 +3170,6 @@ function expClock(x) {
     if (!$app.contains(box)) return clearInterval(t);
     const ms = Math.max(0, end - Date.now()), v = { d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60 };
     box.querySelectorAll("[data-ck]").forEach((b) => { const nv = b.dataset.ck === "d" ? String(v.d) : pad(v[b.dataset.ck]); if (b.textContent !== nv) { b.textContent = nv; b.classList.remove("tick"); void b.offsetWidth; b.classList.add("tick"); } });
-    const left = Math.max(0, Math.min(1, ms / (end - start)));
-    box.querySelector(".ck-bar i").style.width = left * 100 + "%";
     box.classList.toggle("hurry", ms < 2 * 864e5);
   };
   const t = setInterval(tick, 1000); tick();
@@ -3233,13 +3231,14 @@ function openExpIntro(first) {
   const ov = document.createElement("div");
   ov.className = "ex-intro";
   const seal = `<svg><use href="#i-seal-gold"/></svg><svg class="em"><use href="#i-emblem"/></svg>`;
+  const coverHTML = `<span class="cv"><svg class="pe"><use href="#i-emblem"/></svg><b>Expediciones</b><small>Herbalorium</small></span>`;
   const dust = Array.from({ length: 22 }, () => `<i style="--x:${Math.random() * 100}%;--s:${2 + Math.random() * 4}px;--t:${6 + Math.random() * 8}s;--d:${-Math.random() * 12}s;--o:${0.3 + Math.random() * 0.6}"></i>`).join("");
   // El sobre está dibujado en capas: el fondo, el papel doblado adentro, el bolsillo de adelante, la solapa y el lacre.
   ov.innerHTML = `<div class="ei-dust">${dust}</div><span class="ei-rays"></span>
     <div class="ei-head"><p class="ei-k">Herbalorium</p><p class="ei-t">Llegó una carta para el herbario</p></div>
     <button class="env" aria-label="Abrir la carta">
       <svg class="env-back" viewBox="0 0 320 208"><rect width="320" height="208" rx="8" fill="#d9c793"/><rect x="6" y="6" width="308" height="196" rx="5" fill="#cdb983"/></svg>
-      <div class="env-paper"><span class="fp mid"><svg class="pe"><use href="#i-emblem"/></svg><b>Expediciones</b></span></div>
+      <div class="env-paper"><span class="fp mid">${coverHTML}</span></div>
       <svg class="env-pocket" viewBox="0 0 320 208"><path d="M0 8 L148 112 Q160 120 172 112 L320 8 L320 200 Q320 208 312 208 L8 208 Q0 208 0 200 Z" fill="#e6d6a6"/>
         <path d="M0 208 L150 106 Q160 99 170 106 L320 208 Z" fill="#ecdfb4"/><path d="M0 8 L148 112 M320 8 L172 112" stroke="#c7b178" stroke-width="1.2" fill="none"/>
         <path d="M2 206 L150 106 Q160 99 170 106 L318 206" stroke="#d2bf8a" stroke-width="1" fill="none"/></svg>
@@ -3269,10 +3268,49 @@ function openExpIntro(first) {
     try { navigator.vibrate?.([25, 300, 15, 120, 30]); } catch {}
     const burst = ov.querySelector(".ei-burst");
     setTimeout(() => { for (let i = 0; i < 26; i++) { const b = document.createElement("i"), a = (i / 26) * 360, d = 100 + Math.random() * 120;
-      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 3300);
-    setTimeout(() => ov.classList.add("open"), 3300);
+      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 4300);
+    setTimeout(() => unfoldLetter(ov, coverHTML), 3000);
   };
   ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
+}
+
+// GSAP (biblioteca de animación) se carga solo cuando hace falta, desde cdnjs.
+let gsapP = null;
+const loadGsap = () => gsapP ||= new Promise((ok, ko) => { if (window.gsap) return ok(window.gsap);
+  const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js";
+  sc.onload = () => ok(window.gsap); sc.onerror = ko; document.head.appendChild(sc); });
+// La carta está doblada en tres, como una carta de verdad: la parte de arriba tapa el medio (por fuera tiene la tapa)
+// y la de abajo está doblada por detrás. Se despliega primero hacia arriba y después hacia abajo, con su sombra en cada pliegue.
+async function unfoldLetter(ov, coverHTML) {
+  const full = ov.querySelector(".li-full"), letter = full.querySelector(".letter-in"), paper = ov.querySelector(".env-paper");
+  const done = () => { ov.querySelector(".ei-fold")?.remove(); ov.classList.add("open"); };
+  let g; try { g = await loadGsap(); } catch { return done(); }
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return done();
+  full.style.visibility = "hidden"; full.style.opacity = "1";
+  const r = letter.getBoundingClientRect(), W = r.width, H = r.height, T = H / 3;
+  full.style.opacity = ""; full.style.visibility = "";
+  const fold = document.createElement("div");
+  fold.className = "ei-fold";
+  fold.style.cssText = `left:${r.left}px;top:${r.top}px;width:${W}px;height:${H}px`;
+  const slice = (i) => `<div class="fold-face"><div class="letter-in fold-copy" style="width:${W}px;height:${H}px;top:${-i * T}px">${letter.innerHTML}</div><i class="fold-shade"></i></div>`;
+  fold.innerHTML = `<div class="fold-p mid" style="top:${T}px;height:${T}px">${slice(1)}</div>
+    <div class="fold-p bot" style="top:${2 * T}px;height:${T}px">${slice(2)}</div>
+    <div class="fold-p top" style="top:0;height:${T}px">${slice(0)}<div class="fold-back">${coverHTML}</div></div>`;
+  ov.appendChild(fold);
+  const pr = paper.getBoundingClientRect();
+  const sc = pr.width / W, top = fold.querySelector(".top"), bot = fold.querySelector(".bot");
+  g.set(fold, { transformPerspective: 1600, transformOrigin: "50% 50%", x: pr.left + pr.width / 2 - (r.left + W / 2), y: pr.top + pr.height / 2 - (r.top + H / 2), scale: sc, opacity: 0 });
+  g.set(top, { transformOrigin: "50% 100%", rotationX: -180, z: 1 });
+  g.set(bot, { transformOrigin: "50% 0%", rotationX: 180, z: -1 });
+  g.set(fold.querySelectorAll(".fold-shade"), { opacity: 0.35 });
+  const tl = g.timeline({ onComplete: done });
+  tl.to(fold, { opacity: 1, duration: 0.2 })
+    .to(paper, { opacity: 0, duration: 0.2 }, "<")
+    .to(fold, { x: 0, y: 0, scale: 1, duration: 0.8, ease: "power3.inOut" })
+    .to(top, { rotationX: 0, duration: 1.1, ease: "power2.inOut" }, "+=0.15")
+    .to(top.querySelector(".fold-shade"), { opacity: 0, duration: 1.1 }, "<")
+    .to(bot, { rotationX: 0, duration: 1.1, ease: "power2.inOut" }, "-=0.3")
+    .to(fold.querySelectorAll(".fold-shade"), { opacity: 0, duration: 0.6 }, "<0.3");
 }
 
 // Panel de pruebas del dueño de la base de pruebas: cada grupo con su explicación y botones a mano.

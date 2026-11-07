@@ -1435,3 +1435,26 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .ex-intro.open .li-first .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) 1.1s both; }
 .ex-intro.open .li-go { animation: stamp-text .5s ease-out 1.5s both; }
 @media (prefers-reduced-motion: reduce) { .ex-intro.open .letter-in { animation: none; } }
+
+/* ---------- carta v5: tapa con aire y desplegado real en tres partes (GSAP) ---------- */
+.ex-chip + .ex-card { margin-top: 6px; }
+.env-paper .fp.mid::before, .env-paper .fp.mid::after { display: none; }
+.cv { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100%; width: 100%; }
+.cv .pe { width: 34px; height: 34px; color: #4c6b3c; }
+.cv b { font: 700 17px var(--caps); letter-spacing: 5px; text-transform: uppercase; color: #1f3426; padding-left: 5px; }
+.cv small { font: italic 14px var(--text); color: #8a7433; }
+.ex-intro.opening .env-paper { animation: paper-out2 2s cubic-bezier(.3, .9, .3, 1) 1.1s both; }
+.ex-intro .letter-in, .ex-intro .letter-in::before, .ex-intro .letter-in::after { animation: none !important; }
+.ex-intro.open .letter-in::before, .ex-intro.open .letter-in::after { display: none; }
+.ex-intro.open .env { opacity: 0; transition: none; }
+.ei-fold { position: absolute; z-index: 5; transform-style: preserve-3d; pointer-events: none; }
+.fold-p { position: absolute; left: 0; right: 0; transform-style: preserve-3d; }
+.fold-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.fold-copy { position: absolute !important; left: 0; margin: 0 !important; max-width: none !important; max-height: none !important; box-sizing: border-box; }
+.fold-shade { position: absolute; inset: 0; background: linear-gradient(rgb(60 45 15 / .5), rgb(60 45 15 / .15)); pointer-events: none; }
+.fold-p.bot .fold-shade { background: linear-gradient(rgb(60 45 15 / .15), rgb(60 45 15 / .5)); }
+.fold-back { position: absolute; inset: 0; transform: rotateX(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: linear-gradient(#fdfbf3, #f3ecd5); border: 1px solid #d8caa0; display: grid; place-items: center; }
+.fold-back .cv b { font-size: 26px; letter-spacing: 7px; } .fold-back .cv .pe { width: 52px; height: 52px; } .fold-back .cv small { font-size: 18px; }
+.ex-intro.open .li-first .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) .15s both; }
+.ex-intro.open .li-go { animation: stamp-text .5s ease-out .5s both; }
