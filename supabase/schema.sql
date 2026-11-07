@@ -375,3 +375,42 @@ create trigger plant_expedition after insert on public.plants for each row execu
 drop trigger if exists sighting_expedition on public.sightings;
 create trigger sighting_expedition after insert on public.sightings for each row execute function public.on_sighting_expedition();
 create or replace function public.schema_version() returns int language sql immutable as $$ select 19 $$;
+
+-- v20: bitácora de cada expedición. Mensajes numerados (#1, #2…) que pueden responder a otro. Solo miembros;
+-- se escribe mientras la expedición está activa; cada uno borra lo suyo (queda «mensaje borrado») y el dueño, cualquiera.
+create table if not exists public.expedition_comments (
+  id uuid primary key default gen_random_uuid(),
+  expedition_id uuid not null references public.expeditions on delete cascade,
+  num int not null,
+  user_id uuid references auth.users on delete set null,
+  author_name text,
+  body text not null check (char_length(body) between 1 and 1000),
+  reply_to int,
+  deleted boolean not null default false,
+  created_at timestamptz default now(),
+  unique (expedition_id, num)
+);
+alter table public.expedition_comments enable row level security;
+create or replace function public.comment_num() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  perform pg_advisory_xact_lock(hashtext(new.expedition_id::text));
+  select coalesce(max(num), 0) + 1 into new.num from public.expedition_comments where expedition_id = new.expedition_id;
+  new.user_id := auth.uid(); new.deleted := false;
+  return new;
+end $$;
+drop trigger if exists comment_num on public.expedition_comments;
+create trigger comment_num before insert on public.expedition_comments for each row execute function public.comment_num();
+drop policy if exists "read comments" on public.expedition_comments;
+drop policy if exists "write comments" on public.expedition_comments;
+create policy "read comments" on public.expedition_comments for select to authenticated
+  using (exists (select 1 from public.expeditions e where e.id = expedition_id and public.is_member() and (not e.demo or public.is_owner())));
+create policy "write comments" on public.expedition_comments for insert to authenticated
+  with check (public.is_member() and exists (select 1 from public.expeditions e where e.id = expedition_id and e.status = 'active' and (not e.demo or public.is_owner())));
+-- Borrar = vaciar el texto y marcarlo; el número queda para que las citas no se rompan.
+create or replace function public.delete_comment(cid uuid) returns void language sql security definer set search_path = '' as $$
+  update public.expedition_comments set deleted = true, body = '-'
+  where id = cid and (user_id = auth.uid() or public.is_owner());
+$$;
+revoke all on function public.delete_comment(uuid) from public, anon;
+grant execute on function public.delete_comment(uuid) to authenticated;
+create or replace function public.schema_version() returns int language sql immutable as $$ select 20 $$;

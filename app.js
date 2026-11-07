@@ -2998,11 +2998,13 @@ function renderExp() {
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
     ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
+    <h3>Bitácora</h3><div id="bitacora"><p class="ms-hint">Cargando…</p></div>
     <h3>Qué cuenta</h3><ul class="ex-li"><li>${esc(x.hint || "")}</li><li>Solo cuenta lo que se asienta durante la expedición, hallado o cultivado.</li><li>Sumar tu hallazgo a una lámina de otra persona también cuenta, si es la primera vez que la encontrás vos.</li><li>Cada planta llena un solo casillero.</li></ul>
     <h3>Premio</h3><div class="ex-card static">${expSeal(x)}<span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
   $app.querySelector("#bk").onclick = () => go("stats");
   $app.querySelector("#exhint").onclick = () => openExpHint(x);
   const bar = $app.querySelector(".ex-bar.big i"); if (bar) setTimeout(() => (bar.style.width = bar.dataset.to + "%"), 250);
+  hydrateBitacora(x);
   $app.querySelectorAll(".ex-slot[data-id]").forEach((b) => (b.onclick = () => (location.hash = "plant/" + b.dataset.id)));
 }
 function openExpHint(x) {
@@ -3117,6 +3119,45 @@ function bindProgTabs() {
   show(["exp", "mis", "ins"].includes(cfg.progTab) ? cfg.progTab : "exp");
   hydrateMission();
 }
+// Bitácora de la expedición: mensajes numerados en orden; una respuesta cita al mensaje original y se puede saltar a él.
+async function hydrateBitacora(x, focusNum) {
+  const box = $app.querySelector("#bitacora"); if (!box) return;
+  const { data, error } = await sb.from("expedition_comments").select("*").eq("expedition_id", x.id).order("num");
+  if (!$app.contains(box)) return;
+  if (error) { box.innerHTML = `<p class="ms-hint">La bitácora todavía no está disponible en este herbario.</p>`; return; }
+  const list = data || [], byNum = Object.fromEntries(list.map((c) => [c.num, c]));
+  const open = x.status === "active";
+  const ago = (t) => { const m = Math.round((Date.now() - new Date(t)) / 6e4); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : dShort(t); };
+  const quote = (n) => { const q = byNum[n]; if (!q) return ""; const t = q.deleted ? "(mensaje borrado)" : q.body.length > 70 ? q.body.slice(0, 70) + "…" : q.body;
+    return `<button class="bt-quote" data-go="${n}"><b>↳ #${n}</b> · ${esc(q.author_name || "Alguien")}: ${esc(t)}</button>`; };
+  let replyTo = null;
+  box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" id="bt-${c.num}">
+      <div class="bt-head"><span class="bt-av">${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
+      ${c.reply_to ? quote(c.reply_to) : ""}
+      ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${esc(c.body)}</p>`}
+      ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
+    </div>`).join("")}</div>` : `<p class="ms-hint">${open ? "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás." : "Nadie escribió en esta expedición."}</p>`}
+    ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="Escribí en la bitácora…"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">La bitácora quedó cerrada con la expedición.</p>`}`;
+  const jump = (n) => { const el = box.querySelector("#bt-" + n); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };
+  box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => jump(b.dataset.go)));
+  const rep = box.querySelector(".bt-replying"), ta = box.querySelector("#bt-text");
+  const setReply = (n) => { replyTo = n; if (!rep) return; rep.hidden = !n; rep.innerHTML = n ? `Respondiendo a <b>#${n}</b> · ${esc(byNum[n]?.author_name || "")} <button class="linkish" aria-label="No responder">✕</button>` : ""; rep.querySelector("button")?.addEventListener("click", () => setReply(null)); };
+  box.querySelectorAll("[data-reply]").forEach((b) => (b.onclick = () => { setReply(+b.dataset.reply); ta.focus(); ta.scrollIntoView({ block: "center", behavior: "smooth" }); }));
+  box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!(await ask({ title: "Borrar mensaje", text: "Va a quedar como «mensaje borrado», para que las respuestas no pierdan el hilo.", ok: "Borrar", cancel: "Volver" }))) return;
+    const { error: e } = await sb.rpc("delete_comment", { cid: b.dataset.del }); if (e) return toast("No se pudo: " + e.message);
+    hydrateBitacora(x);
+  }));
+  box.querySelector("#bt-send")?.addEventListener("click", async (ev) => {
+    const body = ta.value.trim(); if (!body) return ta.focus();
+    ev.currentTarget.disabled = true;
+    const { data: c, error: e } = await sb.from("expedition_comments").insert({ expedition_id: x.id, author_name: myName(), body, reply_to: replyTo }).select().single();
+    if (e) { ev.currentTarget.disabled = false; return toast("No se pudo enviar: " + e.message); }
+    hydrateBitacora(x, c?.num);
+  });
+  if (focusNum) setTimeout(() => jump(focusNum), 100);
+}
+
 // Panel de pruebas del dueño de la base de pruebas: cada grupo con su explicación y botones a mano.
 const devGroup = (title, note, btns) => `<div class="dev-g"><p class="dev-t">${title}</p><p class="dev-n">${note}</p><div class="dev-btns">${btns}</div></div>`;
 const devBtn = (attr, label, icon) => `<button class="dev-btn" ${attr}><svg><use href="#${icon}"/></svg><span>${label}</span></button>`;
