@@ -1243,3 +1243,62 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .splash .sp-txt h1 { color: #1f3426; }
 .splash .sp-sub, .splash .sp-load { color: #5a6d5c; }
 .splash .sp-rule { border-top-color: #b39a52; }
+
+/* ---------- lanzamiento de las expediciones (prueba) ---------- */
+.ex-card.teaser { background: linear-gradient(135deg, #1f3426, #2c4a33); color: #f3eedb; border-color: #b39a52; box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5px rgb(214 186 108 / .35); }
+.ex-card.teaser .ex-t { color: #f3eedb; }
+.ex-chip.gold { background: rgb(214 186 108 / .2); color: #e2c271; }
+.tz-env { flex: none; width: 58px; height: 58px; display: grid; place-items: center; animation: tz-wobble 3.2s ease-in-out infinite; }
+.tz-env svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .4)); }
+.tz-count { font-size: 15px; color: #d9cfa8; } .tz-count b { color: #e2c271; font-weight: 600; }
+@keyframes tz-wobble { 0%, 86%, 100% { transform: rotate(0); } 90% { transform: rotate(-10deg); } 94% { transform: rotate(8deg); } }
+
+.ex-suma { display: flex; gap: 12px; align-items: center; margin-top: 22px; padding: 12px 14px; border-radius: 8px; font-size: 15px; color: var(--ink-soft); background: rgb(var(--line) / .05); }
+.ex-suma.ok { background: rgb(47 82 118 / .1); color: var(--ink); border: 1px solid rgb(47 82 118 / .35); }
+.ex-suma .ex-seal { width: 44px; height: 44px; }
+.ex-suma b { display: block; font: 600 11px var(--caps); letter-spacing: 1.6px; text-transform: uppercase; color: #2f5276; }
+:root[data-theme="dark"] .ex-suma b { color: #a9c4e4; }
+.ex-count { margin: 18px 0 0; font: italic 15.5px var(--text); color: var(--ink-soft); text-align: center; } .ex-count b { font-style: normal; color: var(--gold); }
+.hito-meds { display: inline-flex; margin-left: 8px; vertical-align: middle; } .hito-meds span { width: 20px; height: 20px; font-size: 9px; }
+
+/* la carta: el sobre baja, el lacre se rompe, la solapa se abre y la carta sale y ocupa la pantalla */
+.ex-intro { position: fixed; inset: 0; z-index: 150; background: radial-gradient(120% 90% at 50% 40%, #2c4228, #101a12 70%); display: grid; place-items: center; overflow: hidden; animation: ex-fade .4s ease-out both; }
+.ex-intro.out { opacity: 0; transition: opacity .4s; }
+.env { position: relative; width: min(84vw, 330px); aspect-ratio: 1.55; animation: env-in .8s cubic-bezier(.2, 1.1, .4, 1) .2s both; perspective: 900px; }
+.env-back, .env-front, .env-flap, .env-letter { position: absolute; inset: 0; }
+.env-back { background: #d9c99c; border-radius: 6px; }
+.env-letter { inset: 8% 6% 4%; background: #fbf8ee; border-radius: 3px; display: grid; place-items: start center; padding-top: 10%; box-shadow: 0 2px 6px rgb(0 0 0 / .15); animation: letter-up .8s cubic-bezier(.3, 1, .4, 1) 2.15s both; }
+.env-letter span { font: 700 18px var(--caps); letter-spacing: 4px; text-transform: uppercase; color: #1f3426; }
+.env-front { background: linear-gradient(#e7dbb6, #dccc9f); clip-path: polygon(0 34%, 50% 66%, 100% 34%, 100% 100%, 0 100%); border-radius: 6px; box-shadow: inset 0 -2px 0 rgb(0 0 0 / .06); }
+.env-flap { background: linear-gradient(#e9dcb3, #d6c493); clip-path: polygon(0 0, 100% 0, 50% 66%); transform-origin: top center; border-radius: 6px 6px 0 0; animation: flap-open .65s ease-in-out 1.45s both; }
+.env-seal { position: absolute; left: 50%; top: 66%; width: 64px; height: 64px; margin: -32px; display: grid; place-items: center; z-index: 3; filter: drop-shadow(0 3px 4px rgb(0 0 0 / .4)); animation: seal-crack .5s ease-in 1.05s both; }
+.env-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; } .env-seal .em { inset: 26%; width: 48%; height: 48%; color: #3d2c0c; }
+.li-full { position: absolute; inset: 0; overflow-y: auto; padding: max(28px, env(safe-area-inset-top)) 18px 40px; opacity: 0; transform: translateY(30px) scale(.85); pointer-events: none; transition: opacity .55s ease, transform .7s cubic-bezier(.2, 1, .3, 1); }
+.ex-intro.open .li-full { opacity: 1; transform: none; pointer-events: auto; }
+.ex-intro.open .env { opacity: 0; transform: translateY(-40px) scale(1.15); transition: opacity .45s, transform .6s; }
+.letter-in { max-width: 460px; margin: 0 auto; padding: 30px 22px 26px; background: #fbf8ee; color: #1f3426; border: 1px solid #b39a52; box-shadow: inset 0 0 0 5px #fbf8ee, inset 0 0 0 6px rgb(179 154 82 / .5), 0 18px 50px rgb(0 0 0 / .5); text-align: center; }
+.letter-in .li-k { margin: 0; font: 600 10.5px var(--caps); letter-spacing: 2.5px; text-transform: uppercase; color: #8a7433; }
+.letter-in h2 { margin: 10px 0 0; font: 700 34px/1.1 var(--caps); letter-spacing: 3px; color: #1f3426; text-transform: uppercase; }
+.li-sub { margin: 2px 0 0; font: italic 20px var(--text); color: #5a6d5c; }
+.li-rule { display: block; width: 60px; margin: 16px auto; border-top: 1px solid #b39a52; }
+.li-steps { text-align: left; }
+.li-steps p { display: flex; gap: 12px; margin: 14px 0; font: 16.5px/1.45 var(--text); color: #2b3a2e; }
+.li-steps svg { flex: none; width: 24px; height: 24px; margin-top: 2px; color: #4c6b3c; }
+.li-steps b { color: #1f3426; }
+.li-first { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+.li-first .ex-seal.big { width: 130px; height: 130px; }
+.li-first .n { margin: 12px 0 0; font: italic 24px var(--text); color: #1f3426; }
+.li-first .s { margin: 6px 0 0; font: 16px/1.45 var(--text); color: #5a6d5c; } .li-first .s.small { font-size: 14.5px; color: #8a7433; }
+.li-go { margin-top: 22px; width: 100%; }
+.ex-intro.open .letter-in > * { animation: stamp-text .5s ease-out both; }
+.ex-intro.open .letter-in > *:nth-child(2) { animation-delay: .15s; } .ex-intro.open .letter-in > *:nth-child(3) { animation-delay: .25s; }
+.ex-intro.open .letter-in > *:nth-child(5) { animation-delay: .4s; } .ex-intro.open .letter-in > *:nth-child(6) { animation-delay: .7s; }
+.ex-intro.open .letter-in > *:nth-child(7) { animation-delay: .9s; } .ex-intro.open .letter-in > *:nth-child(8) { animation-delay: 1.1s; }
+.ex-intro.open .li-first .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) 1s both; }
+@keyframes env-in { from { opacity: 0; transform: translateY(-60px) rotate(-4deg); } }
+@keyframes seal-crack { 0% { transform: none; } 40% { transform: scale(1.15); } 100% { transform: scale(1.5) rotate(25deg); opacity: 0; } }
+@keyframes flap-open { 0% { transform: rotateX(0); z-index: 2; } 49% { z-index: 2; } 50% { z-index: 0; } 100% { transform: rotateX(180deg); z-index: 0; } }
+@keyframes letter-up { from { transform: translateY(0); } to { transform: translateY(-46%); } }
+@media (prefers-reduced-motion: reduce) { .env, .env-letter, .env-flap, .env-seal, .ex-intro .letter-in > *, .tz-env { animation: none !important; } }
+.env-back { z-index: 0; } .env-letter { z-index: 1; } .env-front { z-index: 2; } .env-flap { z-index: 3; } .env-seal { z-index: 4; }
+@keyframes flap-open { 0% { transform: rotateX(0); z-index: 3; } 49% { z-index: 3; } 50% { z-index: 0; } 100% { transform: rotateX(180deg); z-index: 0; } }

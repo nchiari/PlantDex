@@ -1627,7 +1627,7 @@ function renderList() {
     $app.querySelectorAll(".card").forEach((c) => { if (c.querySelector(".nova-seal") && !shone.has(c.dataset.id)) { c.querySelector(".nova-seal").classList.add("shine"); shone.add(c.dataset.id); } });
     cfg.novaShone = [...shone].slice(-200); saveCfg(cfg);
   }
-  if (feat("expediciones")) expListHook();
+  if (feat("expediciones")) { teaserHook(); expListHook(); }
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
@@ -2661,6 +2661,7 @@ function renderForm(existing) {
     ${ta("medicinal_notes", "Usos medicinales")}${ta("uses", "Otros usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
     <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>
+    ${!existing && feat("expediciones") && expCur() ? `<div class="ex-suma" id="exsuma"></div>` : ""}
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
@@ -2669,6 +2670,20 @@ function renderForm(existing) {
     d.setting = b.dataset.set; $app.querySelector("#setnote").hidden = d.setting !== "cultivada";
     const place = $app.querySelector("#location_name"); if (place) place.closest("label, div") && (place.disabled = d.setting === "cultivada");
   }));
+  // ¿Esta planta suma a la expedición en curso? Se ve antes de asentarla y cambia si tocás el tipo o dónde la conociste.
+  const suma = $app.querySelector("#exsuma");
+  if (suma) {
+    const x = expCur();
+    const paintSuma = () => {
+      const now = { ...d, types: [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t), setting: $app.querySelector("#setting .on")?.dataset.set || d.setting };
+      if (!d.traits) { suma.className = "ex-suma no"; suma.innerHTML = `Las láminas cargadas a mano no suman a la expedición.`; return; }
+      const ok = expMatch(x.rule, now);
+      suma.className = "ex-suma" + (ok ? " ok" : " no");
+      suma.innerHTML = ok ? `${expSeal(x)}<span><b>Esta planta suma</b>Llena un casillero de «${esc(x.title)}».</span>` : `No suma a «${esc(x.title)}», pero se guarda en el herbario como siempre.`;
+    };
+    paintSuma();
+    $app.addEventListener("click", (e) => { if (e.target.closest("#types, #setting")) setTimeout(paintSuma, 0); });
+  }
   if (existing) {
     paintEdPhotos(existing);
     if (feat("fotos") && (existing.photos || []).length >= MAX_PHOTOS) $app.querySelector("#addcam")?.closest(".row")?.insertAdjacentHTML("beforebegin", `<p class="muted" style="font-size:14.5px">Ya tiene ${MAX_PHOTOS} fotos. Para sumar otra, borrá alguna con la ✕.</p>`);
@@ -3120,10 +3135,12 @@ function bindProgTabs() {
   while (ins.nextSibling) ins.appendChild(ins.nextSibling); // las insignias son el resto de la pantalla
   const hito = (dt, ic, t, sub, cls = "") => `<div class="ex-hito"><span class="dt">${dt}</span><span class="ex-seal ${cls}"><svg class="xs-f"><use href="#i-xs"/></svg><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sub}</small></span></div>`;
   const cur = expCur();
-  const doneExps = exps.filter((x) => x.status === "done");
+  const doneAll = exps.filter((x) => x.status === "done");
+  const doneExps = doneAll.filter((x) => expOf(x).some((e) => e.user_id === user.id)); // el sello es de quienes aportaron
   $app.querySelector("#ptab-exp").innerHTML = `<p class="ex-center"><span class="ex-chip">Expedición del herbario · entre todos</span></p>` + (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
+    + (doneAll.length ? `<p class="ex-count">El herbario cumplió <b>${doneAll.length}</b> ${doneAll.length === 1 ? "expedición" : "expediciones"}${doneAll.length > doneExps.length ? ` · vos participaste en ${doneExps.length}` : ""}</p>` : "")
     + `<h3>Hitos</h3>` + (doneExps.length ? doneExps.map((x) => { const ppl = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))]; const d = Math.max(1, Math.ceil((new Date(x.completed_at) - new Date(x.starts_at)) / 864e5));
-      return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}${ppl.length ? " · " + esc(ppl.join(", ")) : ""}`); }).join("")
+      return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}<span class="ex-meds hito-meds">${ppl.map((n) => `<span title="${esc(n)}">${esc(initialOf(n))}</span>`).join("")}</span>`); }).join("")
       : `<p class="ms-hint">Acá se van anotando las expediciones que cumplan entre todos.</p>`);
   const md = [...missionsDone()].sort((a, b) => b.done - a.done);
   $app.querySelector("#ptab-mis").innerHTML = `<p class="ex-center"><span class="ex-chip solo">Tu misión · solo para vos</span></p><div id="mission"></div><h3>Hitos</h3>`
@@ -3179,12 +3196,49 @@ async function hydrateBitacora(x, focusNum) {
   if (focusNum) setTimeout(() => jump(focusNum), 100);
 }
 
+// ---------- lanzamiento de las expediciones: una semana de intriga y una carta que se abre sola ----------
+// La fecha de lanzamiento la decide el dueño; mientras tanto, la tarjeta del inicio cuenta los días sin decir qué es.
+function teaserHook() {
+  const at = cfg.expTeaser; if (!at || Date.now() > at) return;
+  const box = $app.querySelector(".grid, ol.index"); if (!box) return;
+  const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5);
+  box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
+    <span class="ex-chip gold">Muy pronto</span><b class="ex-t">Algo se está preparando en el herbario…</b>
+    <span class="tz-count">${d > 0 ? `Faltan <b>${d}</b> ${d === 1 ? "día" : "días"} y <b>${h}</b> h` : `Faltan <b>${h}</b> h`} · sábado a las 9</span></span></button>`);
+  $app.querySelector("[data-teaser]").onclick = () => toast("Pronto lo vas a saber…");
+}
+function openExpIntro(first) {
+  if (document.querySelector(".ex-intro")) return;
+  const x = first || expCur() || { title: "Sin salir del barrio", icon: "f-pin", goal: 5, hint: "Cualquier planta que encuentres afuera, a pocas cuadras de casa.", ends_at: new Date(Date.now() + 9 * 864e5).toISOString() };
+  const ov = document.createElement("div");
+  ov.className = "ex-intro";
+  ov.innerHTML = `<div class="env"><div class="env-back"></div><div class="env-letter"><span>Expediciones</span></div><div class="env-front"></div><div class="env-flap"></div><span class="env-seal"><svg><use href="#i-seal-gold"/></svg><svg class="em"><use href="#i-emblem"/></svg></span></div>
+    <div class="li-full"><div class="letter-in">
+      <p class="li-k">Herbarium vivum presenta</p>
+      <h2>Expediciones</h2><p class="li-sub">del herbario</p>
+      <span class="li-rule"></span>
+      <div class="li-steps">
+        <p><svg><use href="#f-family"/></svg><span><b>Entre todos.</b> Cada dos semanas, una búsqueda en común. Nadie compite: llegamos juntos a la meta.</span></p>
+        <p><svg><use href="#f-flower"/></svg><span><b>Cada planta cuenta.</b> Asentá una que cumpla el tema y llenás un casillero. No hace falta anotarse: si sumás, participás.</span></p>
+        <p><svg><use href="#i-book"/></svg><span><b>Una bitácora.</b> Para contar qué vieron, pedir ayuda o salir a buscar juntos.</span></p>
+        <p><svg><use href="#i-seal-gold"/></svg><span><b>Un sello.</b> Quienes aporten se llevan el sello de la expedición para su colección.</span></p>
+      </div>
+      <p class="li-k" style="margin-top:22px">La primera expedición</p>
+      <div class="li-first">${expSeal(x, "big")}<p class="n">${esc(x.title)}</p><p class="s">${esc(x.hint || "")}</p><p class="s small">Meta entre todos: ${x.goal} plantas</p></div>
+      <button class="btn primary li-go">¡Vamos!</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  try { navigator.vibrate?.([15, 400, 25]); } catch {}
+  setTimeout(() => ov.classList.add("open"), 2900); // la carta sale del sobre y ocupa la pantalla
+  ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
+}
+
 // Panel de pruebas del dueño de la base de pruebas: cada grupo con su explicación y botones a mano.
 const devGroup = (title, note, btns) => `<div class="dev-g"><p class="dev-t">${title}</p><p class="dev-n">${note}</p><div class="dev-btns">${btns}</div></div>`;
 const devBtn = (attr, label, icon) => `<button class="dev-btn" ${attr}><svg><use href="#${icon}"/></svg><span>${label}</span></button>`;
 function devPanelHTML() {
   return (feat("expediciones") ? devGroup("Expediciones", "Una expedición de prueba que solo ves vos. Arrancala y después probá sumar, completar o hacer vencer.",
-      [["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")) : "")
+      [["teaser", "Cuenta regresiva", "i-seal-gold"], ["intro", "Presentación (sobre)", "f-family"], ["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")) : "")
     + (feat("animaciones") ? devGroup("Animaciones", "Mirá cada una sin tener que esperar a que pase de verdad. No guarda nada.",
       [["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
     + devGroup("Misiones", "Vuelve a cero lo de las misiones en tu cuenta (presentación, zona, misiones cumplidas y sus logros), para verlo como alguien nuevo.", devBtn('id="resetmis"', "Empezar de cero", "i-compass"))
@@ -3231,6 +3285,8 @@ async function expSim(k) {
     const { error } = await sb.from("expedition_entries").insert({ expedition_id: x.id, plant_id: p.id, user_id: mine ? user.id : null, author_name: mine ? myName() : others[Math.floor(Math.random() * others.length)] || "Alguien" });
     if (error) throw error;
   };
+  if (k === "teaser") { cfg.expTeaser = cfg.expTeaser ? 0 : Date.now() + 6 * 864e5 + 5 * 36e5; saveCfg(cfg); toast(cfg.expTeaser ? "Cuenta regresiva activada en el inicio" : "Cuenta regresiva apagada"); return go("list"); }
+  if (k === "intro") return openExpIntro(x);
   if (k === "start") {
     await sb.from("expeditions").update({ status: "expired" }).eq("demo", true).eq("status", "active");
     const t = expTemplates[Math.floor(Math.random() * Math.min(5, expTemplates.length))] || { key: "arboles", title: "Árboles del barrio", hint: "", icon: "f-tree", rule: { type: "arbol" }, goal: 5 };
