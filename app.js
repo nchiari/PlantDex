@@ -167,7 +167,7 @@ function route() {
   document.body.classList.toggle("airy", feat("aire"));
   window.scrollTo(0, 0);
   document.getElementById("sheet").hidden = true;
-  const active = { plant: "list", edit: "list", "": "list" }[view] ?? view;
+  const active = { plant: "list", edit: "list", "": "list", exp: "stats" }[view] ?? view;
   $nav.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === active));
   $nav.querySelector(".capture")?.classList.toggle("here", view === "new");
   if (!sb) return renderSetup();
@@ -180,6 +180,7 @@ function route() {
   checkAchievements();
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
+  else if (feat("expediciones") && expOverlay()) {}
   else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
@@ -190,6 +191,7 @@ function route() {
   if (view === "plant" && arg) return renderDetail(arg);
   if (view === "edit" && arg) return renderEdit(arg);
   if (view === "stats") return renderStats();
+  if (view === "exp" && feat("expediciones")) return renderExp();
   if (view === "cal") return renderCalendar();
   return renderList();
 }
@@ -205,7 +207,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -239,6 +241,7 @@ async function loadPlants() {
   const { data: sg } = await sb.from("sightings").select("*").order("created_at");
   plants.forEach((p) => (p.sightings = (sg || []).filter((x) => x.plant_id === p.id)));
   await signUrls(plants.flatMap((p) => p.photos?.slice(0, 1) || []));
+  if (feat("expediciones")) await loadExps();
 }
 
 async function signUrls(paths) {
@@ -630,7 +633,7 @@ function settingsV2(owner, book) {
       <label class="set-label">Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
       <button class="btn ghost" id="save" style="width:100%;margin-top:14px">Guardar conexión</button>
       ${isDevBase() ? `<p class="set-label" style="margin-top:22px">Pruebas</p>
-        <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
+        <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>${expSimHTML()}
         <button class="btn ghost" id="reillus" style="width:100%;margin-top:10px">Volver a buscar las láminas antiguas</button>` : ""}
     </details>` : ""}
 
@@ -684,7 +687,7 @@ function renderSettings() {
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
     ${user && amOwner && isDevBase() ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
       <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
-      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>
+      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>${expSimHTML()}
       <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este móvil y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
       <button class="btn ghost" id="reillus" style="width:100%">Volver a buscar las láminas antiguas</button></details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
@@ -692,6 +695,7 @@ function renderSettings() {
       <div class="row session-btns${feat("botones") ? " solid" : ""}">${owner ? `<button class="btn" id="export">Exportar backup</button>` : ""}<button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
+  bindExpSim();
   $app.querySelector("#resetmis")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
     if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
@@ -1597,6 +1601,7 @@ function renderList() {
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
+  if (feat("expediciones")) expListHook();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
@@ -2695,6 +2700,7 @@ function renderForm(existing) {
           const { data, error } = await sb.from("sightings").insert(s).select().single();
           if (error) throw error;
           (dup.sightings ||= []).push(data);
+          expAfterSave(dup, true);
           clearDraft(); { const won = feat("misiones") && missionCheck(dup.scientific_name); const party = won ? () => missionCelebration(dup.common_name) : null;
           feat("sello") ? stampSeal("Hallazgo sumado", dup.common_name, party) : (toast(`Tu hallazgo se sumó a ${dup.common_name}`), party && setTimeout(party, 600)); }
           location.hash = "plant/" + dup.id; return;
@@ -2706,6 +2712,7 @@ function renderForm(existing) {
         if (error) throw error;
         plants = sortPlants([...plants, data]);
         notify({ kind: "plant", plant_id: data.id });
+        expAfterSave(data, false);
         clearDraft(); { const won = feat("misiones") && missionCheck(data.scientific_name); const party = won ? () => missionCelebration(data.common_name) : null;
         feat("sello") ? stampSeal("Asentada", data.common_name, party) : (toast(`${data.common_name} asentada en el herbario`), party && setTimeout(party, 600)); }
         location.hash = "plant/" + data.id;
@@ -2893,13 +2900,13 @@ function renderStats() {
   const cats = [...new Set(achList().map((a) => a[1]))];
   const pct = Math.round((unlocked.size / achList().length) * 100);
   const badge = (a) => { const ok = unlocked.has(a[0]); const cur = Math.min(S[a[6]], a[7]);
-    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[3]}</b>
+    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[0] === "x1" && feat("expediciones") ? "Primera salida" : a[3]}</b>
       <div class="muted" style="font-size:14px">${a[4]}</div>
       ${!ok && a[7] > 1 ? `<div class="ach-prog"><i style="width:${(cur / a[7]) * 100}%"></i></div><div class="ach-num">${Math.floor(cur)} / ${a[7]}</div>` : ""}</div>`; };
   $app.innerHTML = `
     <h2>Progressus</h2>
     <p class="muted"><i>Herbarium numquam finitur.</i> El herbario nunca se termina.</p>
-    ${feat("misiones") ? `<h3>Misión</h3><div id="mission"></div><h3>Logros</h3>` : ""}
+    ${feat("expediciones") ? progTabs() : feat("misiones") ? `<h3>Misión</h3><div id="mission"></div><h3>Logros</h3>` : ""}
     <div class="stat-grid">
       <div class="stat"><b>${n}</b>láminas</div>
       <div class="stat"><b>${S.families}</b>familias</div>
@@ -2910,7 +2917,218 @@ function renderStats() {
     ${fam.length ? `<h3>Familias más vistas</h3>${fam.map(([f, c]) => `<div class="entry-head"><span class="sci">${esc(f)}</span><span class="tally">${"✦".repeat(Math.min(c, 12))} <b>${c}</b></span></div>`).join("")}` : ""}
     ${cats.map((cat) => { const list = achList().filter((a) => a[1] === cat); const got = list.filter((a) => unlocked.has(a[0])).length;
       return `<h3>${cat} <span class="cat-count">${got}/${list.length}</span></h3><div class="badge-list">${list.map(badge).join("")}</div>`; }).join("")}`;
+  if (feat("expediciones")) bindProgTabs(); else hydrateMission();
+}
+
+// ---------- expediciones del herbario: una meta entre todos, cada dos semanas (sábado 9:00 → domingo de la semana siguiente) ----------
+// Las arma y las cierra la base; las de prueba (demo) solo las ve el dueño y se manejan con el simulador de Ajustes → Pruebas.
+let exps = [], expEntries = [], expTemplates = [];
+async function loadExps() {
+  const [e, t] = await Promise.all([sb.from("expeditions").select("*").order("starts_at", { ascending: false }).limit(40), sb.from("expedition_templates").select("*").order("position")]);
+  if (e.error) { exps = []; expEntries = []; return; }
+  exps = e.data || []; expTemplates = t.data || [];
+  const ids = exps.map((x) => x.id);
+  const en = ids.length ? await sb.from("expedition_entries").select("*").in("expedition_id", ids).order("created_at") : { data: [] };
+  expEntries = en.data || [];
+}
+const expCur = () => exps.find((x) => x.status === "active" && x.demo) || exps.find((x) => x.status === "active" && !x.demo) || null;
+const expOf = (x) => expEntries.filter((e) => e.expedition_id === x.id);
+const expDays = (x) => Math.max(0, Math.ceil((new Date(x.ends_at) - Date.now()) / 864e5));
+const expLeft = (x) => { const d = expDays(x); return d <= 1 ? "último día" : `quedan ${d} días`; };
+const expIcon = (x) => `<svg><use href="#${esc(x.icon || "f-herb")}"/></svg>`;
+const myName = () => user?.user_metadata?.name || cfg.name || "Yo";
+const dShort = (d) => new Date(d).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+function expMatch(r, p, sighting = false) {
+  r = r || {};
+  if (r.sighting) return sighting;
+  if (r.new) return !sighting;
+  if (r.type) return (p.types || []).includes(r.type);
+  if (r.setting) return (p.setting || "hallada") === r.setting;
+  if (r.trait && r.any) return (p.traits?.[r.trait] || []).some((c) => r.any.includes(c));
+  if (r.trait) return !!p.traits?.[r.trait];
+  return false;
+}
+function expCard(x) {
+  const n = expOf(x).length;
+  const people = memberNames.length ? memberNames : [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
+  return `<button class="ex-card" data-exp><span class="ex-seal">${expIcon(x)}</span><span class="ex-grow">
+    <span class="ex-chip">Entre todos · ${expLeft(x)}</span><b class="ex-t">${esc(x.title)}</b>
+    <span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span>
+    <span class="ex-row"><span><b>${n}</b> de ${x.goal}</span><span class="ex-meds">${people.slice(0, 6).map((nm) => `<span>${esc(initialOf(nm))}</span>`).join("")}</span></span></span></button>`;
+}
+function expListHook() {
+  const x = expCur(); if (!x) return;
+  const at = $app.querySelector(".grid, ol.index"); if (!at) return;
+  at.insertAdjacentHTML("beforebegin", expCard(x));
+  $app.querySelector("[data-exp]").onclick = () => go("exp");
+}
+function renderExp() {
+  const x = expCur() || exps[0];
+  if (!x) {
+    $app.innerHTML = `<button class="back" id="bk">← Progreso</button><h2>Expediciones</h2><p class="ms-hint">Todavía no hay ninguna expedición. Arrancan un sábado a las 9 de la mañana y duran hasta el domingo de la semana siguiente.</p>`;
+    $app.querySelector("#bk").onclick = () => go("stats"); return;
+  }
+  const en = expOf(x), who = [...new Set(en.map((e) => e.author_name).filter(Boolean))];
+  const slots = Array.from({ length: x.goal }, (_, i) => {
+    const e = en[i], p = e && plants.find((q) => q.id === e.plant_id), img = p && coverOf(p);
+    return e ? `<button class="ex-slot" data-id="${e.plant_id}" style="${img ? `background-image:url('${img}')` : ""}" aria-label="${esc(p?.common_name || "")}"><span class="ex-who">${esc(initialOf(e.author_name))}</span></button>` : `<span class="ex-slot empty">${i + 1}</span>`;
+  }).join("");
+  const state = x.status === "done" ? `Cumplida el ${dShort(x.completed_at || x.ends_at)}` : x.status === "expired" ? "Terminó el plazo" : `${dShort(x.starts_at)} al ${dShort(x.ends_at)} · ${expLeft(x)}`;
+  $app.innerHTML = `<button class="back" id="bk">← Progreso</button>
+    <div class="plate-head"><div class="tab">Expedición del herbario${x.demo ? " · prueba" : ""}</div><h2>${esc(x.title)}</h2><p class="sci">${state}</p></div>
+    <div class="ex-hero"><span class="ex-seal big">${expIcon(x)}</span></div>
+    <p class="ex-center"><span class="ex-chip">Entre todos</span></p>
+    <p class="ex-note">Busquen entre todos ${x.goal} plantas que cumplan con el tema. Cada una que asienten llena un casillero. Termina cuando completen los ${x.goal} o el ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}, lo que pase primero.</p>
+    <p class="ex-center"><button class="btn" id="exhint">¿Qué busco?</button></p>
+    <span class="ex-bar big"><i style="width:${Math.min(100, (en.length / x.goal) * 100)}%"></i></span>
+    <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
+    <div class="ex-slots">${slots}</div>
+    ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
+    <h3>Qué cuenta</h3><ul class="ex-li"><li>${esc(x.hint || "")}</li><li>Solo cuenta lo que se asienta durante la expedición, hallado o cultivado.</li><li>Sumar tu hallazgo a una lámina de otra persona también cuenta, si es la primera vez que la encontrás vos.</li><li>Cada planta llena un solo casillero.</li></ul>
+    <h3>Premio</h3><div class="ex-card static"><span class="ex-seal">${expIcon(x)}</span><span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
+  $app.querySelector("#bk").onclick = () => go("stats");
+  $app.querySelector("#exhint").onclick = () => openExpHint(x);
+  $app.querySelectorAll(".ex-slot[data-id]").forEach((b) => (b.onclick = () => (location.hash = "plant/" + b.dataset.id)));
+}
+function openExpHint(x) {
+  const ex = plants.filter((p) => expMatch(x.rule, p)).slice(0, 6);
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box ask" role="dialog" aria-modal="true"><h3>¿Qué busco?</h3><p>${esc(x.hint || "")}</p>
+    ${ex.length ? `<p class="ex-m" style="margin-top:12px">Así son algunas que ya están en el herbario (esas no cuentan, porque ya estaban):</p><div class="ex-ex">${ex.map((p) => { const img = coverOf(p); return `<span class="ex-slot" style="${img ? `background-image:url('${img}')` : ""}" title="${esc(p.common_name)}"></span>`; }).join("")}</div>` : ""}
+    <p class="ex-m" style="margin-top:12px">Cuando encuentres una, sacale fotos y asentala como siempre: si cuenta, se llena un casillero solo.</p>
+    <div class="row"><button class="btn primary" data-a="1">Entendido</button></div></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m || e.target.dataset.a) close(); };
+  document.body.appendChild(m);
+}
+// Al asentar o sumar un hallazgo: si llenó un casillero, se avisa con un cartel (después del sello).
+async function expAfterSave(p, sighting) {
+  if (!feat("expediciones")) return;
+  const x = expCur(); if (!x) return;
+  try {
+    if (x.demo) { // en prueba lo cuenta la app (la base solo cuenta las reales)
+      if (!expMatch(x.rule, p, sighting) || expOf(x).some((e) => e.plant_id === p.id)) return;
+      await sb.from("expedition_entries").insert({ expedition_id: x.id, plant_id: p.id, user_id: user.id, author_name: myName() });
+      await expCheckDone(x.id);
+    }
+    await loadExps();
+    if (!expEntries.some((e) => e.expedition_id === x.id && e.plant_id === p.id)) return;
+    const y = exps.find((e) => e.id === x.id) || x;
+    setTimeout(() => expToast(y, p), 1900);
+  } catch {}
+}
+function expToast(x, p) {
+  const n = expOf(x).length, t = document.createElement("button");
+  t.className = "ex-toast";
+  t.innerHTML = `<span class="ex-seal">${expIcon(x)}</span><span class="ex-grow"><b>+1 a la expedición</b><span>${esc(p.common_name)} llena un casillero de «${esc(x.title)}»: ${n} de ${x.goal}.</span><span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span></span>`;
+  t.onclick = () => { t.remove(); go("exp"); };
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+async function expCheckDone(id) {
+  const x = exps.find((e) => e.id === id);
+  const { count } = await sb.from("expedition_entries").select("plant_id", { count: "exact", head: true }).eq("expedition_id", id);
+  if (x && count >= x.goal) await sb.from("expeditions").update({ status: "done", completed_at: new Date().toISOString() }).eq("id", id).eq("status", "active");
+}
+// Carteles grandes, una sola vez cada uno: arrancó una nueva, se cumplió o venció el plazo.
+function expOverlay() {
+  if (document.querySelector(".tour, .modal, .ex-ov")) return false;
+  const seen = cfg.expSeen || {};
+  const cur = expCur();
+  const ended = exps.find((x) => x.status !== "active" && seen[x.id] !== x.status && (x.demo || !exps.some((y) => y.demo)) && Date.now() - new Date(x.completed_at || x.ends_at) < 8 * 864e5);
+  let x, kind;
+  if (ended) { x = ended; kind = ended.status; }
+  else if (cur && !seen[cur.id]) { x = cur; kind = "new"; }
+  else return false;
+  const ov = document.createElement("div");
+  ov.className = "ex-ov";
+  const people = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
+  const list = people.length > 1 ? people.slice(0, -1).join(", ") + " y " + people.at(-1) : people[0] || "el herbario";
+  const days = Math.max(1, Math.ceil((new Date(x.completed_at || Date.now()) - new Date(x.starts_at)) / 864e5));
+  ov.innerHTML = {
+    new: `<span class="ex-seal big">${expIcon(x)}</span><p class="l">Nueva expedición</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos, ${x.goal} plantas antes del ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}.</p><p class="s small">${esc(x.hint || "")}</p><button class="btn primary">¡Vamos!</button>`,
+    done: `<span class="ex-seal big">${expIcon(x)}</span><p class="l">Expedición cumplida</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos llegaron a ${x.goal} en ${days} ${days === 1 ? "día" : "días"}: ${esc(list)}. El sello ya está en tus hitos.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Ver mis hitos</button>`,
+    expired: `<span class="ex-seal big gone">${expIcon(x)}</span><p class="l gone">Terminó el plazo</p><p class="n">${esc(x.title)} · ${expOf(x).length} de ${x.goal}</p><p class="s">Esta vez no llegaron. La expedición vuelve más adelante para otro intento.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Entendido</button>`,
+  }[kind];
+  ov.querySelector("button").onclick = () => {
+    cfg.expSeen = { ...(cfg.expSeen || {}), [x.id]: kind === "new" ? "active" : kind }; if (kind === "new") cfg.expSeen[x.id] = 1; saveCfg(cfg);
+    ov.remove();
+    if (kind === "done") { cfg.progTab = "exp"; saveCfg(cfg); go("stats"); } else if (kind === "new") go("exp");
+  };
+  document.body.appendChild(ov);
+  return true;
+}
+// Progreso en pestañas: la expedición (de todos), tu misión (solo tuya) y las insignias. Cada una con sus hitos.
+const progTabs = () => `<div class="viewsw ptabs" role="tablist">${[["exp", "Expedición"], ["mis", "Misión"], ["ins", "Insignias"]].map(([k, l]) => `<button data-t="${k}">${l}</button>`).join("")}</div>
+  <div id="ptab-exp"></div><div id="ptab-mis"></div><div id="ptab-ins"></div>`;
+function bindProgTabs() {
+  const ins = $app.querySelector("#ptab-ins");
+  while (ins.nextSibling) ins.appendChild(ins.nextSibling); // las insignias son el resto de la pantalla
+  const hito = (dt, ic, t, sub, cls = "") => `<div class="ex-hito"><span class="dt">${dt}</span><span class="ex-seal ${cls}"><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sub}</small></span></div>`;
+  const cur = expCur();
+  const doneExps = exps.filter((x) => x.status === "done");
+  $app.querySelector("#ptab-exp").innerHTML = (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
+    + `<h3>Hitos</h3>` + (doneExps.length ? doneExps.map((x) => { const ppl = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))]; const d = Math.max(1, Math.ceil((new Date(x.completed_at) - new Date(x.starts_at)) / 864e5));
+      return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}${ppl.length ? " · " + esc(ppl.join(", ")) : ""}`); }).join("")
+      : `<p class="ms-hint">Acá se van anotando las expediciones que cumplan entre todos.</p>`);
+  const md = [...missionsDone()].sort((a, b) => b.done - a.done);
+  $app.querySelector("#ptab-mis").innerHTML = `<p class="ex-center"><span class="ex-chip solo">Tu misión · solo para vos</span></p><div id="mission"></div><h3>Hitos</h3>`
+    + (md.length ? md.map((m, i) => { const k = md.length - i, days = Math.max(1, Math.round((m.done - m.given) / 864e5));
+      return hito(dShort(m.done), "i-compass", k === 1 ? `Tu primera misión: ${esc(m.common || m.name)}` : `Misión n.º ${k}: ${esc(m.common || m.name)}`, `La encontraste en ${days} ${days === 1 ? "día" : "días"}`, "mis"); }).join("")
+      : `<p class="ms-hint">Acá se van anotando las misiones que cumplas.</p>`);
+  const show = (k) => {
+    cfg.progTab = k; saveCfg(cfg);
+    $app.querySelectorAll(".ptabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === k));
+    ["exp", "mis", "ins"].forEach((t) => ($app.querySelector("#ptab-" + t).hidden = t !== k));
+  };
+  $app.querySelectorAll(".ptabs button").forEach((b) => (b.onclick = () => show(b.dataset.t)));
+  $app.querySelector("[data-exp]")?.addEventListener("click", () => go("exp"));
+  show(["exp", "mis", "ins"].includes(cfg.progTab) ? cfg.progTab : "exp");
   hydrateMission();
+}
+// Simulador (solo el dueño de la base de pruebas): expediciones falsas para ver todas las pantallas sin molestar a nadie.
+const expSimHTML = () => feat("expediciones") ? `<p class="set-label" style="margin-top:18px">Simulador de expediciones</p>
+  <div class="ex-sim">${[["start", "Arrancar una de prueba"], ["mine", "Sumar un aporte mío"], ["other", "Sumar un aporte de otro"], ["fill", "Completarla"], ["expire", "Hacerla vencer"], ["clear", "Borrar todo lo de prueba"]].map(([k, l]) => `<button class="btn ghost" data-sim="${k}">${l}</button>`).join("")}</div>` : "";
+function bindExpSim() {
+  $app.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    try { await expSim(b.dataset.sim); } catch (e) { toast("No pude: " + (e.message || e)); }
+    b.disabled = false;
+  }));
+}
+async function expSim(k) {
+  const x = exps.find((e) => e.demo && e.status === "active");
+  const used = new Set(x ? expOf(x).map((e) => e.plant_id) : []);
+  const add = async (p, mine) => {
+    const others = memberNames.filter((n) => n !== myName());
+    const { error } = await sb.from("expedition_entries").insert({ expedition_id: x.id, plant_id: p.id, user_id: mine ? user.id : null, author_name: mine ? myName() : others[Math.floor(Math.random() * others.length)] || "Alguien" });
+    if (error) throw error;
+  };
+  if (k === "start") {
+    await sb.from("expeditions").update({ status: "expired" }).eq("demo", true).eq("status", "active");
+    const t = expTemplates[Math.floor(Math.random() * Math.min(5, expTemplates.length))] || { key: "arboles", title: "Árboles del barrio", hint: "", icon: "f-tree", rule: { type: "arbol" }, goal: 5 };
+    const end = new Date(); end.setDate(end.getDate() + 9); end.setHours(23, 59, 0, 0);
+    const { error } = await sb.from("expeditions").insert({ template: t.key, title: t.title, hint: t.hint, icon: t.icon, rule: t.rule, goal: t.goal, starts_at: new Date().toISOString(), ends_at: end.toISOString(), demo: true });
+    if (error) throw error;
+    await loadExps(); return go("list");
+  }
+  if (k === "clear") { const { error } = await sb.from("expeditions").delete().eq("demo", true); if (error) throw error; await loadExps(); return toast("Listo: se borró todo lo de prueba"); }
+  if (!x) return toast("Primero arrancá una de prueba");
+  if (k === "mine" || k === "other") {
+    const pool = plants.filter((p) => !used.has(p.id) && (k === "mine" ? p.user_id === user.id : p.user_id !== user.id));
+    const p = (pool.length ? pool : plants.filter((q) => !used.has(q.id)))[0];
+    if (!p) return toast("No quedan láminas para sumar");
+    await add(p, k === "mine"); await expCheckDone(x.id); await loadExps();
+    const y = exps.find((e) => e.id === x.id) || x;
+    if (k === "mine") setTimeout(() => expToast(y, p), 100); else toast(`${expOf(y).at(-1)?.author_name || "Alguien"} sumó ${p.common_name}: ${expOf(y).length} de ${y.goal}`);
+    return;
+  }
+  if (k === "fill") {
+    for (const p of plants.filter((q) => !used.has(q.id)).slice(0, Math.max(0, x.goal - used.size))) await add(p, p.user_id === user.id);
+    await expCheckDone(x.id); await loadExps(); return go("list");
+  }
+  if (k === "expire") { await sb.from("expeditions").update({ status: "expired", ends_at: new Date().toISOString() }).eq("id", x.id); await loadExps(); return go("list"); }
 }
 
 Object.defineProperty(window, "draft", { get: () => draft, set: (x) => (x ? (draft = x) : clearDraft()) });
