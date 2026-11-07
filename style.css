@@ -1238,3 +1238,8 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 @media (prefers-reduced-motion: reduce) { .splash .sp-emb { animation: none; } }
 /* el fundido entre pantallas nunca deja la pantalla invisible, aunque el móvil no llegue a correr la animación */
 @keyframes view-in { from { opacity: .35; transform: translateY(4px); } }
+/* la portada siempre en claro, como la pantalla del móvil: el modo oscuro aparece recién al entrar */
+.splash { background: #f7f2e3 !important; }
+.splash .sp-txt h1 { color: #1f3426; }
+.splash .sp-sub, .splash .sp-load { color: #5a6d5c; }
+.splash .sp-rule { border-top-color: #b39a52; }
