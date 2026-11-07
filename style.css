@@ -1209,3 +1209,13 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .bt-replying { font-size: 14.5px; color: var(--ink-soft); padding: 6px 10px; border-left: 2px solid var(--gold); background: rgb(var(--line) / .05); }
 .bt-replying .linkish { margin: 0 0 0 6px; padding: 0; }
 .bt-closed { font: italic 15px var(--text); color: var(--ink-soft); }
+/* bitácora con más aire */
+.bt-list { gap: 18px; }
+.bt-msg { padding: 16px 16px 12px; }
+.bt-quote { margin-top: 12px; padding: 8px 12px; }
+.bt-body { margin-top: 12px; }
+.bt-acts { margin-top: 10px; }
+.bt-compose { margin-top: 26px; gap: 12px; }
+.bt-replying { padding: 9px 12px; }
+.bt-closed { margin-top: 22px; }
+#bitacora > .ms-hint { margin-bottom: 16px; }
