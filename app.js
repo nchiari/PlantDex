@@ -148,10 +148,29 @@ async function boot() {
   if (user) {
     // Todavía no se sabe si sos el dueño: para el modo prueba se usa lo que la app sabía la vez anterior.
     if (FEATURES.cargando === "todos" || (FEATURES.cargando === "prueba" && cfg.wasOwner && isDevBase())) $app.innerHTML = loadingHTML();
+    if (FEATURES.portada === "todos" || (FEATURES.portada === "prueba" && cfg.wasOwner && isDevBase())) showSplash();
     await loadPlants();
   }
   await restoreDraft();
   route();
+  hideSplash();
+}
+
+// Portada al abrir: sigue a la pantalla del móvil (el emblema en el mismo lugar) y suma el título mientras carga el herbario.
+let splashAt = 0;
+function showSplash() {
+  if (document.querySelector(".splash")) return;
+  splashAt = Date.now();
+  const el = document.createElement("div");
+  el.className = "splash";
+  el.innerHTML = `<img class="sp-emb" src="icons/icon-512.png" alt="">
+    <div class="sp-txt"><h1>Herbalorium</h1><p class="sp-sub">Herbarium vivum</p><span class="sp-rule"></span><p class="sp-load">Abriendo el herbario…</p></div>`;
+  document.body.appendChild(el);
+  setTimeout(hideSplash, 8000); // por las dudas: nunca queda tapando si algo falla al cargar
+}
+function hideSplash() {
+  const el = document.querySelector(".splash"); if (!el) return;
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 500); }, Math.max(0, 900 - (Date.now() - splashAt)));
 }
 
 function go(view) { if (location.hash === "#" + view) route(); else location.hash = view; }
@@ -210,7 +229,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";

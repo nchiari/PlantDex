@@ -1219,3 +1219,14 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .bt-replying { padding: 9px 12px; }
 .bt-closed { margin-top: 22px; }
 #bitacora > .ms-hint { margin-bottom: 16px; }
+
+/* portada al abrir (prueba): el emblema queda donde lo dejó la pantalla del móvil y aparece el título */
+.splash { position: fixed; inset: 0; z-index: 200; background: var(--parchment); display: grid; place-items: center; }
+.splash.out { opacity: 0; transition: opacity .45s ease; pointer-events: none; }
+.sp-emb { position: absolute; left: 50%; top: 50%; width: min(44vw, 200px); height: auto; transform: translate(-50%, -50%); }
+.sp-txt { position: absolute; left: 0; right: 0; top: calc(50% + min(22vw, 100px) + 26px); text-align: center; animation: stamp-text .6s ease-out .15s both; }
+.sp-txt h1 { margin: 0; font: 700 30px/1.1 var(--caps); letter-spacing: 7px; text-transform: uppercase; color: var(--ink); }
+.sp-sub { margin: 6px 0 0; font: italic 19px var(--text); color: var(--ink-soft); }
+.sp-rule { display: block; width: 56px; margin: 16px auto 0; border-top: 1px solid var(--gold); }
+.sp-load { margin: 14px 0 0; font: italic 15px var(--text); color: var(--ink-soft); animation: busy-breathe 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sp-txt, .sp-load { animation: none; } }
