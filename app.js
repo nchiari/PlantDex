@@ -3202,47 +3202,55 @@ function teaserHook() {
   const at = cfg.expTeaser; if (!at || Date.now() > at) return;
   const box = $app.querySelector(".grid, ol.index"); if (!box) return;
   const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5);
-  box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
+  box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg class="tz-letter" viewBox="0 0 64 44"><rect x="1" y="1" width="62" height="42" rx="4" fill="#e6d6a6" stroke="#b39a52" stroke-width="1.2"/><path d="M1 3 L32 25 L63 3" fill="none" stroke="#b39a52" stroke-width="1.4"/><path d="M1 42 L25 22 M63 42 L39 22" stroke="#c7b178" stroke-width="1" fill="none"/></svg><svg class="tz-seal"><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
     <span class="ex-chip gold">Muy pronto</span><b class="ex-t">Algo se está preparando en el herbario…</b>
     <span class="tz-count">${d > 0 ? `Faltan <b>${d}</b> ${d === 1 ? "día" : "días"} y <b>${h}</b> h` : `Faltan <b>${h}</b> h`} · sábado a las 9</span></span></button>`);
   $app.querySelector("[data-teaser]").onclick = () => toast("Pronto lo vas a saber…");
 }
 function openExpIntro(first) {
   if (document.querySelector(".ex-intro")) return;
-  const x = first || expCur() || { title: "Sin salir del barrio", icon: "f-pin", goal: 5, hint: "Cualquier planta que encuentres afuera, a pocas cuadras de casa.", ends_at: new Date(Date.now() + 9 * 864e5).toISOString() };
+  const x = first || { title: "Primeras láminas", icon: "f-herb", goal: 10, hint: "Una expedición fácil para empezar y familiarizarse con Herbalorium: asienten entre todos 10 plantas, las que sean." };
   const ov = document.createElement("div");
   ov.className = "ex-intro";
   const seal = `<svg><use href="#i-seal-gold"/></svg><svg class="em"><use href="#i-emblem"/></svg>`;
   const dust = Array.from({ length: 22 }, () => `<i style="--x:${Math.random() * 100}%;--s:${2 + Math.random() * 4}px;--t:${6 + Math.random() * 8}s;--d:${-Math.random() * 12}s;--o:${0.3 + Math.random() * 0.6}"></i>`).join("");
+  // El sobre está dibujado en capas: el fondo, el papel doblado adentro, el bolsillo de adelante, la solapa y el lacre.
   ov.innerHTML = `<div class="ei-dust">${dust}</div><span class="ei-rays"></span>
-    <button class="env" aria-label="Abrir la carta"><div class="env-back"></div><div class="env-letter"><span>Expediciones</span></div><div class="env-front"></div><div class="env-flap"></div>
-      <span class="env-seal">${seal}</span><span class="env-seal half l">${seal}</span><span class="env-seal half r">${seal}</span></button>
+    <div class="ei-head"><p class="ei-k">Herbalorium</p><p class="ei-t">Llegó una carta para el herbario</p></div>
+    <button class="env" aria-label="Abrir la carta">
+      <svg class="env-back" viewBox="0 0 320 208"><rect width="320" height="208" rx="8" fill="#d9c793"/><rect x="6" y="6" width="308" height="196" rx="5" fill="#cdb983"/></svg>
+      <div class="env-paper"><span class="fp top"></span><span class="fp mid"><b>Expediciones</b></span><span class="fp bot"></span></div>
+      <svg class="env-pocket" viewBox="0 0 320 208"><path d="M0 8 L148 112 Q160 120 172 112 L320 8 L320 200 Q320 208 312 208 L8 208 Q0 208 0 200 Z" fill="#e6d6a6"/>
+        <path d="M0 208 L150 106 Q160 99 170 106 L320 208 Z" fill="#ecdfb4"/><path d="M0 8 L148 112 M320 8 L172 112" stroke="#c7b178" stroke-width="1.2" fill="none"/>
+        <path d="M2 206 L150 106 Q160 99 170 106 L318 206" stroke="#d2bf8a" stroke-width="1" fill="none"/></svg>
+      <svg class="env-flap" viewBox="0 0 320 130"><path d="M0 8 Q0 0 8 0 L312 0 Q320 0 320 8 L172 122 Q160 131 148 122 Z" fill="#efe3bd" stroke="#cdb983" stroke-width="1.2"/></svg>
+      <span class="env-seal">${seal}</span><span class="env-seal half l">${seal}</span><span class="env-seal half r">${seal}</span>
+    </button>
     <p class="ei-hint">Tocá la carta para abrirla</p><div class="ei-burst"></div>
     <div class="li-full"><div class="letter-in">
-      <p class="li-k">Herbarium vivum presenta</p>
+      <p class="li-k">Herbalorium presenta</p>
       <h2>Expediciones</h2><p class="li-sub">del herbario</p>
       <span class="li-rule"></span>
       <div class="li-steps">
         <p><svg><use href="#f-family"/></svg><span><b>Entre todos.</b> Cada dos semanas, una búsqueda en común. Nadie compite: llegamos juntos a la meta.</span></p>
-        <p><svg><use href="#f-flower"/></svg><span><b>Cada planta cuenta.</b> Asentá una que cumpla el tema y llenás un casillero. No hace falta anotarse: si sumás, participás.</span></p>
-        <p><svg><use href="#i-book"/></svg><span><b>Una bitácora.</b> Para contar qué vieron, pedir ayuda o salir a buscar juntos.</span></p>
-        <p><svg><use href="#i-seal-gold"/></svg><span><b>Un sello.</b> Quienes aporten se llevan el sello de la expedición para su colección.</span></p>
+        <p><svg><use href="#i-seal-gold"/></svg><span><b>Todos participan.</b> Asentás una lámina que cumpla el tema y ya estás adentro: quienes aportan ganan el sello. Si esta vez no llegás, en la próxima podés ganarlo.</span></p>
+        <p><svg><use href="#i-book"/></svg><span><b>La bitácora.</b> Una sección de comentarios para contar qué vieron, pedir ayuda o salir a buscar juntos.</span></p>
       </div>
-      <p class="li-k" style="margin-top:22px">La primera expedición</p>
-      <div class="li-first">${expSeal(x, "big")}<p class="n">${esc(x.title)}</p><p class="s">${esc(x.hint || "")}</p><p class="s small">Meta entre todos: ${x.goal} plantas</p></div>
+      <div class="li-first"><p class="li-k">La primera expedición</p>${expSeal(x, "big")}<p class="n">${esc(x.title)}</p><p class="s">${esc(x.hint || "")}</p><p class="s small">Meta entre todos: ${x.goal} plantas</p></div>
       <button class="btn primary li-go">¡Vamos!</button>
     </div></div>`;
   document.body.appendChild(ov);
-  // La carta espera, flotando y con el lacre brillando, hasta que la tocás: se rompe el lacre, se abre la solapa y sale la carta.
+  // Espera flotando hasta que la tocás. Después: se parte el lacre, se abre la solapa, sale el papel doblado,
+  // el sobre cae y desaparece, el papel se despliega y se agranda hasta ocupar la pantalla.
   const env = ov.querySelector(".env");
   env.onclick = () => {
     if (ov.classList.contains("opening")) return;
     ov.classList.add("opening");
     try { navigator.vibrate?.([25, 300, 15, 120, 30]); } catch {}
     const burst = ov.querySelector(".ei-burst");
-    setTimeout(() => { for (let i = 0; i < 24; i++) { const b = document.createElement("i"), a = (i / 24) * 360, d = 90 + Math.random() * 110;
-      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 1150);
-    setTimeout(() => ov.classList.add("open"), 2300); // la carta sale del sobre y ocupa la pantalla
+    setTimeout(() => { for (let i = 0; i < 26; i++) { const b = document.createElement("i"), a = (i / 26) * 360, d = 100 + Math.random() * 120;
+      b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 2700);
+    setTimeout(() => ov.classList.add("open"), 3900);
   };
   ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
 }
@@ -3300,7 +3308,7 @@ async function expSim(k) {
     if (error) throw error;
   };
   if (k === "teaser") { cfg.expTeaser = cfg.expTeaser ? 0 : Date.now() + 6 * 864e5 + 5 * 36e5; saveCfg(cfg); toast(cfg.expTeaser ? "Cuenta regresiva activada en el inicio" : "Cuenta regresiva apagada"); return go("list"); }
-  if (k === "intro") return openExpIntro(x);
+  if (k === "intro") return openExpIntro();
   if (k === "start") {
     await sb.from("expeditions").update({ status: "expired" }).eq("demo", true).eq("status", "active");
     const t = expTemplates[Math.floor(Math.random() * Math.min(5, expTemplates.length))] || { key: "arboles", title: "Árboles del barrio", hint: "", icon: "f-tree", rule: { type: "arbol" }, goal: 5 };
