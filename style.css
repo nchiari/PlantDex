@@ -1236,3 +1236,5 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .splash .sp-txt { position: static; margin-top: 26px; animation: stamp-text .6s ease-out .25s both; }
 @keyframes sp-up { from { transform: translateY(calc(var(--sp-shift, 92px))); } }
 @media (prefers-reduced-motion: reduce) { .splash .sp-emb { animation: none; } }
+/* el fundido entre pantallas nunca deja la pantalla invisible, aunque el móvil no llegue a correr la animación */
+@keyframes view-in { from { opacity: .35; transform: translateY(4px); } }
