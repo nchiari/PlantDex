@@ -1110,3 +1110,11 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .ex-ov .btn { margin-top: 22px; }
 .ex-sim { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ex-sim .btn { font-size: 11px; padding: 10px 8px; }
+/* sello de expedición decorado: el dibujo (festón, anillos, estrellas) va detrás y el ícono del tema en el centro */
+.ex-seal { position: relative; background: none !important; border: 0 !important; box-shadow: none !important; filter: drop-shadow(0 3px 5px rgb(0 0 0 / .3)); color: #f6efd9; }
+.ex-seal .xs-f { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+.ex-seal > svg:not(.xs-f) { position: relative; width: 44% !important; height: 44% !important; }
+.ex-seal.big > svg:not(.xs-f) { width: 40% !important; height: 40% !important; }
+.ex-seal.big { width: 150px; height: 150px; }
+.ex-seal.mis { --xs-fill: var(--leaf); }
+.ex-seal.gone { filter: grayscale(1) drop-shadow(0 3px 5px rgb(0 0 0 / .3)); opacity: .5; }

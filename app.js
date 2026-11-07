@@ -2935,6 +2935,8 @@ const expCur = () => exps.find((x) => x.status === "active" && x.demo) || exps.f
 const expOf = (x) => expEntries.filter((e) => e.expedition_id === x.id);
 const expDays = (x) => Math.max(0, Math.ceil((new Date(x.ends_at) - Date.now()) / 864e5));
 const expLeft = (x) => { const d = expDays(x); return d <= 1 ? "último día" : `quedan ${d} días`; };
+// Sello de expedición: borde festoneado, anillos y estrellas doradas; el grande lleva «Expeditio · Herbarium» alrededor.
+const expSeal = (x, cls = "") => `<span class="ex-seal ${cls}"><svg class="xs-f"><use href="#i-xs${/big/.test(cls) ? "-big" : ""}"/></svg>${expIcon(x)}</span>`;
 const expIcon = (x) => `<svg><use href="#${esc(x.icon || "f-herb")}"/></svg>`;
 const myName = () => user?.user_metadata?.name || cfg.name || "Yo";
 const dShort = (d) => new Date(d).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
@@ -2951,7 +2953,7 @@ function expMatch(r, p, sighting = false) {
 function expCard(x) {
   const n = expOf(x).length;
   const people = memberNames.length ? memberNames : [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
-  return `<button class="ex-card" data-exp><span class="ex-seal">${expIcon(x)}</span><span class="ex-grow">
+  return `<button class="ex-card" data-exp>${expSeal(x)}<span class="ex-grow">
     <span class="ex-chip">Entre todos · ${expLeft(x)}</span><b class="ex-t">${esc(x.title)}</b>
     <span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span>
     <span class="ex-row"><span><b>${n}</b> de ${x.goal}</span><span class="ex-meds">${people.slice(0, 6).map((nm) => `<span>${esc(initialOf(nm))}</span>`).join("")}</span></span></span></button>`;
@@ -2976,7 +2978,7 @@ function renderExp() {
   const state = x.status === "done" ? `Cumplida el ${dShort(x.completed_at || x.ends_at)}` : x.status === "expired" ? "Terminó el plazo" : `${dShort(x.starts_at)} al ${dShort(x.ends_at)} · ${expLeft(x)}`;
   $app.innerHTML = `<button class="back" id="bk">← Progreso</button>
     <div class="plate-head"><div class="tab">Expedición del herbario${x.demo ? " · prueba" : ""}</div><h2>${esc(x.title)}</h2><p class="sci">${state}</p></div>
-    <div class="ex-hero"><span class="ex-seal big">${expIcon(x)}</span></div>
+    <div class="ex-hero">${expSeal(x, "big")}</div>
     <p class="ex-center"><span class="ex-chip">Entre todos</span></p>
     <p class="ex-note">Busquen entre todos ${x.goal} plantas que cumplan con el tema. Cada una que asienten llena un casillero. Termina cuando completen los ${x.goal} o el ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}, lo que pase primero.</p>
     <p class="ex-center"><button class="btn" id="exhint">¿Qué busco?</button></p>
@@ -2985,7 +2987,7 @@ function renderExp() {
     <div class="ex-slots">${slots}</div>
     ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
     <h3>Qué cuenta</h3><ul class="ex-li"><li>${esc(x.hint || "")}</li><li>Solo cuenta lo que se asienta durante la expedición, hallado o cultivado.</li><li>Sumar tu hallazgo a una lámina de otra persona también cuenta, si es la primera vez que la encontrás vos.</li><li>Cada planta llena un solo casillero.</li></ul>
-    <h3>Premio</h3><div class="ex-card static"><span class="ex-seal">${expIcon(x)}</span><span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
+    <h3>Premio</h3><div class="ex-card static">${expSeal(x)}<span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
   $app.querySelector("#bk").onclick = () => go("stats");
   $app.querySelector("#exhint").onclick = () => openExpHint(x);
   $app.querySelectorAll(".ex-slot[data-id]").forEach((b) => (b.onclick = () => (location.hash = "plant/" + b.dataset.id)));
@@ -3021,7 +3023,7 @@ async function expAfterSave(p, sighting) {
 function expToast(x, p) {
   const n = expOf(x).length, t = document.createElement("button");
   t.className = "ex-toast";
-  t.innerHTML = `<span class="ex-seal">${expIcon(x)}</span><span class="ex-grow"><b>+1 a la expedición</b><span>${esc(p.common_name)} llena un casillero de «${esc(x.title)}»: ${n} de ${x.goal}.</span><span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span></span>`;
+  t.innerHTML = `${expSeal(x)}<span class="ex-grow"><b>+1 a la expedición</b><span>${esc(p.common_name)} llena un casillero de «${esc(x.title)}»: ${n} de ${x.goal}.</span><span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span></span>`;
   t.onclick = () => { t.remove(); go("exp"); };
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 5000);
@@ -3047,9 +3049,9 @@ function expOverlay() {
   const list = people.length > 1 ? people.slice(0, -1).join(", ") + " y " + people.at(-1) : people[0] || "el herbario";
   const days = Math.max(1, Math.ceil((new Date(x.completed_at || Date.now()) - new Date(x.starts_at)) / 864e5));
   ov.innerHTML = {
-    new: `<span class="ex-seal big">${expIcon(x)}</span><p class="l">Nueva expedición</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos, ${x.goal} plantas antes del ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}.</p><p class="s small">${esc(x.hint || "")}</p><button class="btn primary">¡Vamos!</button>`,
-    done: `<span class="ex-seal big">${expIcon(x)}</span><p class="l">Expedición cumplida</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos llegaron a ${x.goal} en ${days} ${days === 1 ? "día" : "días"}: ${esc(list)}. El sello ya está en tus hitos.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Ver mis hitos</button>`,
-    expired: `<span class="ex-seal big gone">${expIcon(x)}</span><p class="l gone">Terminó el plazo</p><p class="n">${esc(x.title)} · ${expOf(x).length} de ${x.goal}</p><p class="s">Esta vez no llegaron. La expedición vuelve más adelante para otro intento.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Entendido</button>`,
+    new: `${expSeal(x, "big")}<p class="l">Nueva expedición</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos, ${x.goal} plantas antes del ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}.</p><p class="s small">${esc(x.hint || "")}</p><button class="btn primary">¡Vamos!</button>`,
+    done: `${expSeal(x, "big")}<p class="l">Expedición cumplida</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos llegaron a ${x.goal} en ${days} ${days === 1 ? "día" : "días"}: ${esc(list)}. El sello ya está en tus hitos.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Ver mis hitos</button>`,
+    expired: `${expSeal(x, "big gone")}<p class="l gone">Terminó el plazo</p><p class="n">${esc(x.title)} · ${expOf(x).length} de ${x.goal}</p><p class="s">Esta vez no llegaron. La expedición vuelve más adelante para otro intento.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Entendido</button>`,
   }[kind];
   ov.querySelector("button").onclick = () => {
     cfg.expSeen = { ...(cfg.expSeen || {}), [x.id]: kind === "new" ? "active" : kind }; if (kind === "new") cfg.expSeen[x.id] = 1; saveCfg(cfg);
@@ -3065,7 +3067,7 @@ const progTabs = () => `<div class="viewsw ptabs" role="tablist">${[["exp", "Exp
 function bindProgTabs() {
   const ins = $app.querySelector("#ptab-ins");
   while (ins.nextSibling) ins.appendChild(ins.nextSibling); // las insignias son el resto de la pantalla
-  const hito = (dt, ic, t, sub, cls = "") => `<div class="ex-hito"><span class="dt">${dt}</span><span class="ex-seal ${cls}"><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sub}</small></span></div>`;
+  const hito = (dt, ic, t, sub, cls = "") => `<div class="ex-hito"><span class="dt">${dt}</span><span class="ex-seal ${cls}"><svg class="xs-f"><use href="#i-xs"/></svg><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sub}</small></span></div>`;
   const cur = expCur();
   const doneExps = exps.filter((x) => x.status === "done");
   $app.querySelector("#ptab-exp").innerHTML = (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
