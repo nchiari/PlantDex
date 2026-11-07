@@ -269,3 +269,109 @@ create or replace function public.schema_version() returns int language sql immu
 -- v18: hallada (afuera) o cultivada (en casa). Las cultivadas no guardan el lugar.
 alter table public.plants add column if not exists setting text check (setting in ('hallada', 'cultivada'));
 create or replace function public.schema_version() returns int language sql immutable as $$ select 18 $$;
+
+-- v19: expediciones del herbario. Cada dos semanas, una meta entre todos (sábado 9:00 → domingo de la semana siguiente).
+-- Rasgos invisibles de cada lámina que pide el prompt (color de flor, fruto, espinas, olor): sirven para armar expediciones.
+alter table public.plants add column if not exists traits jsonb;
+
+-- Plantillas: de acá sale cada expedición nueva, en orden y sin repetir en 6 meses. rule dice qué lámina cuenta:
+--   {"type":"arbol"} · {"trait":"flower_color","any":["amarillo"]} · {"trait":"spines"} · {"setting":"hallada"}
+--   {"new":true} (solo láminas nuevas) · {"sighting":true} (solo sumar tu hallazgo a la lámina de otro)
+create table if not exists public.expedition_templates (
+  key text primary key, title text not null, hint text not null, icon text not null, rule jsonb not null,
+  goal int not null, needs_trait text, position int not null default 100, active boolean not null default true
+);
+alter table public.expedition_templates enable row level security;
+drop policy if exists "read templates" on public.expedition_templates;
+drop policy if exists "owner edits templates" on public.expedition_templates;
+create policy "read templates" on public.expedition_templates for select to authenticated using (public.is_member());
+create policy "owner edits templates" on public.expedition_templates for update to authenticated using (public.is_owner()) with check (public.is_owner());
+insert into public.expedition_templates (key, title, hint, icon, rule, goal, needs_trait, position) values
+  ('arboles', 'Árboles del barrio', 'Tienen un tronco grueso y son más altos que vos. Los de la vereda y la plaza cuentan.', 'f-tree', '{"type":"arbol"}', 5, null, 1),
+  ('pinchan', 'Las que pinchan', 'Espinas o pinchos en el tallo o en las hojas: rosales, cactus, zarzamoras. Mirá sin tocar.', 'f-thorn', '{"trait":"spines"}', 4, 'spines', 2),
+  ('olor', 'Huele rico', 'Frotá suavemente una hoja entre los dedos u olé la flor. Si deja olor, cuenta.', 'f-flower', '{"trait":"scent"}', 4, 'scent', 3),
+  ('amarillas', 'Flores amarillas', 'Cualquier planta con flores amarillas: en canteros, baldíos o entre las baldosas.', 'f-flower', '{"trait":"flower_color","any":["amarillo"]}', 3, 'flower_color', 4),
+  ('casa', 'Plantas de casa', 'Las que viven en macetas, balcones, huertas o jardines: las tuyas, las de tu familia o las de un vecino.', 'f-pot', '{"setting":"cultivada"}', 4, null, 5),
+  ('trepan', 'Las que trepan', 'Plantas que suben por paredes, rejas o árboles, agarradas con zarcillos o enroscadas.', 'f-herb', '{"type":"trepadora"}', 3, null, 6),
+  ('blancas', 'Flores blancas', 'Flores blancas, grandes o chiquitas. Fijate también en arbustos y árboles en flor.', 'f-flower', '{"trait":"flower_color","any":["blanco"]}', 3, 'flower_color', 7),
+  ('barrio', 'Sin salir del barrio', 'Cualquier planta que encuentres afuera, a pocas cuadras de casa.', 'f-pin', '{"setting":"hallada"}', 6, null, 8),
+  ('rojas', 'Flores rojas y naranjas', 'Las que se ven de lejos: rojo, naranja, coral.', 'f-flower', '{"trait":"flower_color","any":["rojo","naranja"]}', 3, 'flower_color', 9),
+  ('frutos', 'Frutos a la vista', 'Bayas, vainas, piñas, bellotas o frutas colgando: cualquier fruto que se vea.', 'f-fruit', '{"trait":"fruit"}', 4, 'fruit', 10),
+  ('nuevas', 'Nuevas para el herbario', 'Plantas que todavía nadie cargó. Mirá el herbario antes de salir.', 'f-herb', '{"new":true}', 4, null, 11),
+  ('rosas', 'Flores rosas', 'Del rosa clarito al fucsia.', 'f-flower', '{"trait":"flower_color","any":["rosa"]}', 3, 'flower_color', 12),
+  ('hongos', 'Hongos y setas', 'Después de la lluvia, en el pasto, en troncos o al pie de los árboles. Mirá, no toques.', 'f-mushroom', '{"type":"hongo"}', 2, null, 13),
+  ('violetas', 'Flores violetas y azules', 'Lilas, violetas, celestes y azules. Suelen ser más chiquitas: mirá de cerca.', 'f-flower', '{"trait":"flower_color","any":["violeta","azul"]}', 3, 'flower_color', 14),
+  ('doble', 'Doble hallazgo', 'Buscá afuera alguna planta que ya cargó otra persona y sumá tu hallazgo a su lámina.', 'f-family', '{"sighting":true}', 4, null, 15)
+on conflict (key) do update set title = excluded.title, hint = excluded.hint, icon = excluded.icon, rule = excluded.rule,
+  goal = excluded.goal, needs_trait = excluded.needs_trait, position = excluded.position;
+
+-- Expediciones (las de prueba, demo = true, solo las ve y las toca el dueño) y sus casilleros llenos.
+create table if not exists public.expeditions (
+  id uuid primary key default gen_random_uuid(), template text, title text not null, hint text, icon text, rule jsonb not null,
+  goal int not null, starts_at timestamptz not null, ends_at timestamptz not null,
+  status text not null default 'active' check (status in ('active', 'done', 'expired')),
+  completed_at timestamptz, reminded_at timestamptz, demo boolean not null default false, created_at timestamptz default now()
+);
+create unique index if not exists expeditions_one_active on public.expeditions (demo) where status = 'active';
+create table if not exists public.expedition_entries (
+  expedition_id uuid not null references public.expeditions on delete cascade,
+  plant_id uuid not null references public.plants on delete cascade,
+  user_id uuid references auth.users on delete set null, author_name text, created_at timestamptz default now(),
+  primary key (expedition_id, plant_id)
+);
+alter table public.expeditions enable row level security;
+alter table public.expedition_entries enable row level security;
+drop policy if exists "read expeditions" on public.expeditions;
+drop policy if exists "owner demo expeditions" on public.expeditions;
+drop policy if exists "read entries" on public.expedition_entries;
+drop policy if exists "owner demo entries" on public.expedition_entries;
+create policy "read expeditions" on public.expeditions for select to authenticated using (public.is_member() and (not demo or public.is_owner()));
+create policy "owner demo expeditions" on public.expeditions for all to authenticated using (demo and public.is_owner()) with check (demo and public.is_owner());
+create policy "read entries" on public.expedition_entries for select to authenticated
+  using (exists (select 1 from public.expeditions e where e.id = expedition_id and public.is_member() and (not e.demo or public.is_owner())));
+create policy "owner demo entries" on public.expedition_entries for all to authenticated
+  using (exists (select 1 from public.expeditions e where e.id = expedition_id and e.demo and public.is_owner()))
+  with check (exists (select 1 from public.expeditions e where e.id = expedition_id and e.demo and public.is_owner()));
+
+-- ¿Esta lámina cuenta para esta regla? (sighting = se sumó como hallazgo a la lámina de otra persona)
+create or replace function public.expedition_match(r jsonb, p public.plants, sighting boolean) returns boolean
+language sql stable set search_path = '' as $$
+  select case
+    when r ? 'sighting' then sighting
+    when r ? 'new' then not sighting
+    when r ? 'type' then coalesce(p.types, '{}') @> array[r->>'type']
+    when r ? 'setting' then coalesce(p.setting, 'hallada') = r->>'setting'
+    when r ? 'trait' and r ? 'any' then exists (select 1 from jsonb_array_elements_text(coalesce(p.traits->(r->>'trait'), '[]'::jsonb)) c where r->'any' ? c)
+    when r ? 'trait' then coalesce((p.traits->>(r->>'trait'))::boolean, false)
+    else false end;
+$$;
+
+-- Llena el casillero de la expedición activa (la real) cuando alguien asienta una lámina o suma su hallazgo.
+create or replace function public.expedition_count(pid uuid, uid uuid, who text, sighting boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+declare e public.expeditions; p public.plants; n int;
+begin
+  select * into e from public.expeditions where status = 'active' and not demo and now() between starts_at and ends_at limit 1;
+  if not found then return; end if;
+  select * into p from public.plants where id = pid;
+  if not found or not public.expedition_match(e.rule, p, sighting) then return; end if;
+  insert into public.expedition_entries (expedition_id, plant_id, user_id, author_name) values (e.id, pid, uid, who) on conflict do nothing;
+  select count(*) into n from public.expedition_entries where expedition_id = e.id;
+  if n >= e.goal then update public.expeditions set status = 'done', completed_at = now() where id = e.id and status = 'active'; end if;
+end $$;
+revoke all on function public.expedition_count(uuid, uuid, text, boolean) from public, anon, authenticated;
+create or replace function public.on_plant_expedition() returns trigger language plpgsql security definer set search_path = '' as $$
+begin perform public.expedition_count(new.id, new.user_id, new.author_name, false); return new; end $$;
+create or replace function public.on_sighting_expedition() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from public.plants where id = new.plant_id and user_id <> new.user_id)
+    and not exists (select 1 from public.sightings where plant_id = new.plant_id and user_id = new.user_id and id <> new.id) then
+    perform public.expedition_count(new.plant_id, new.user_id, new.author_name, true);
+  end if;
+  return new;
+end $$;
+drop trigger if exists plant_expedition on public.plants;
+create trigger plant_expedition after insert on public.plants for each row execute function public.on_plant_expedition();
+drop trigger if exists sighting_expedition on public.sightings;
+create trigger sighting_expedition after insert on public.sightings for each row execute function public.on_sighting_expedition();
+create or replace function public.schema_version() returns int language sql immutable as $$ select 19 $$;
