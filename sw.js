@@ -4,7 +4,9 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (e) => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Herbalorium", body: e.data?.text() || "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "Herbalorium", {
-    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/badge-96.png", data: { url: d.url || "./#settings" }, tag: "pedido",
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/badge-96.png", data: { url: d.url || "./#settings" },
+    // Cada aviso con su propia etiqueta: si no, el siguiente reemplaza al anterior y solo queda uno (por ejemplo, varias láminas seguidas).
+    tag: `${d.tag || "aviso"}-${Date.now()}`,
   }));
 });
 self.addEventListener("notificationclick", (e) => {
