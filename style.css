@@ -1138,3 +1138,37 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 @keyframes ex-ring { 0% { opacity: .9; transform: scale(.9); } 100% { opacity: 0; transform: scale(2.1); } }
 @keyframes ex-bit { 0% { opacity: 0; transform: translate(0, 0) scale(.4) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 40px)) scale(1) rotate(var(--r)); } }
 @media (prefers-reduced-motion: reduce) { .ex-ov, .ex-ov *, .ex-rays, .ex-ring, .ex-bit { animation: none !important; } .ex-bit, .ex-ring { display: none; } }
+
+/* pestañas de Progreso: ocupan todo el ancho y se tocan fácil */
+.ptabs { display: flex; width: 100%; }
+.ptabs button { flex: 1; padding: 11px 6px; font-size: 12px; letter-spacing: 1.6px; }
+
+/* ---------- animaciones (prueba): solo cuando pasa algo, y nunca con «reducir movimiento» ---------- */
+body.anim #app.view-in { animation: view-in .18s ease-out both; }
+@keyframes view-in { from { opacity: 0; transform: translateY(4px); } }
+/* 1 · casilleros nuevos de la expedición: caen como sellos, uno tras otro; la barra avanza desde donde estaba */
+body.anim .ex-slot.fresh { animation: slot-stamp .55s cubic-bezier(.3, 1.5, .5, 1) calc(.35s + var(--d, 0s)) both; }
+@keyframes slot-stamp { 0% { opacity: 0; transform: translateY(-26px) scale(1.25) rotate(-6deg); } 60% { opacity: 1; } 80% { transform: scale(.96) rotate(1deg); } 100% { transform: none; } }
+body.anim .ex-bar.big i { transition: width .9s cubic-bezier(.3, .9, .3, 1); }
+/* 2 · la lámina que acabás de asentar se apoya en la mesa, con un destello dorado */
+body.anim .card.landed, body.anim .hero.landed { animation: landed .7s cubic-bezier(.3, 1.3, .5, 1) .15s both; }
+body.anim .card.landed::after, body.anim .hero.landed::after { content: ""; position: absolute; inset: -2px; border: 2px solid var(--gold); border-radius: inherit; pointer-events: none; opacity: 0; animation: glint 1.4s ease-out .5s both; }
+body.anim .hero.landed { position: relative; }
+@keyframes landed { 0% { opacity: 0; transform: translateY(-14px) scale(1.03) rotate(-1.2deg); } 70% { transform: translateY(1px) scale(.995); } 100% { opacity: 1; transform: none; } }
+@keyframes glint { 0% { opacity: 0; } 25% { opacity: 1; box-shadow: 0 0 18px rgb(214 186 108 / .55); } 100% { opacity: 0; } }
+/* 3 · el Nova brilla una vez, como una moneda nueva */
+body.anim .nova-seal.shine { animation: nova-shine 1.1s ease-out .4s both; }
+@keyframes nova-shine { 0% { transform: rotate(-8deg) scale(.6); opacity: 0; } 40% { transform: rotate(4deg) scale(1.12); opacity: 1; filter: brightness(1.5) drop-shadow(0 0 10px rgb(226 194 113 / .9)); } 100% { transform: rotate(-8deg) scale(1); } }
+/* 4 · barras de Progreso que se llenan al entrar */
+body.anim #ptab-exp .ex-bar i, body.anim #ptab-ins .ach-prog i { animation: bar-grow .8s cubic-bezier(.3, .9, .3, 1) .15s both; }
+@keyframes bar-grow { from { width: 0; } }
+/* 7 · pedido aceptado: tilde dorado y se pliega */
+body.anim .req.req-done { position: relative; overflow: hidden; animation: req-fold .45s ease-in .35s both; }
+body.anim .req.req-done::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; font: 600 30px var(--caps); color: var(--gold); background: rgb(var(--line) / .06); animation: stamp-text .25s ease-out both; }
+@keyframes req-fold { to { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; } }
+body.anim .req.req-done { max-height: 160px; }
+/* 8 · insignia recién ganada: un «pop» y un brillo, para encontrarla en la lista */
+body.anim .badge.fresh .e { animation: badge-pop .7s cubic-bezier(.3, 1.6, .5, 1) .3s both; }
+body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radius: 8px; }
+@keyframes badge-pop { 0% { transform: scale(.4); } 100% { transform: none; } }
+@keyframes glint-b { 30% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgb(214 186 108 / .45); } 100% { box-shadow: none; } }

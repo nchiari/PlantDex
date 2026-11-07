@@ -163,7 +163,10 @@ function route() {
   const [view, arg] = location.hash.slice(1).split("/");
   // Si salís de la carga de una planta sin asentarla, sus fotos se descartan.
   if (lastView === "new" && view !== "new" && draft && !draft.editing && feat("fotos")) clearDraft();
+  const changed = lastView !== view;
   lastView = view;
+  document.body.classList.toggle("anim", feat("animaciones") && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+  if (changed && document.body.classList.contains("anim")) { $app.classList.remove("view-in"); void $app.offsetWidth; $app.classList.add("view-in"); }
   document.body.classList.toggle("airy", feat("aire"));
   window.scrollTo(0, 0);
   document.getElementById("sheet").hidden = true;
@@ -207,7 +210,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1473,6 +1476,7 @@ async function paintRequests() {
       if (e) return toast("No se pudo: " + e.message);
       toast(status === "accepted" ? `Listo: ${r.name || r.email} ya puede entrar` : "Pedido rechazado");
       if (status === "accepted") notify({ kind: "member", user_id: r.user_id });
+      if (status === "accepted" && document.body.classList.contains("anim")) { row.classList.add("req-done"); await new Promise((ok) => setTimeout(ok, 750)); }
       paintRequests();
     };
     row.querySelector("[data-ok]").onclick = () => decide("accepted");
@@ -1601,6 +1605,12 @@ function renderList() {
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
+  if (justAdded) { $app.querySelector(`.card[data-id="${justAdded}"], .index li[data-id="${justAdded}"]`)?.classList.add("landed"); justAdded = null; }
+  if (document.body.classList.contains("anim")) { // 3: el Nova brilla una sola vez, la primera vez que lo ves
+    const shone = new Set(cfg.novaShone || []);
+    $app.querySelectorAll(".card").forEach((c) => { if (c.querySelector(".nova-seal") && !shone.has(c.dataset.id)) { c.querySelector(".nova-seal").classList.add("shine"); shone.add(c.dataset.id); } });
+    cfg.novaShone = [...shone].slice(-200); saveCfg(cfg);
+  }
   if (feat("expediciones")) expListHook();
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
@@ -2086,7 +2096,7 @@ async function renderDetail(id) {
       <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
       ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
-    ${figs[0] ? `<figure class="hero" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
+    ${figs[0] ? `<figure class="hero${justAdded === p.id ? " landed" : ""}" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${(() => {
       // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
@@ -2159,6 +2169,7 @@ async function renderDetail(id) {
     const f = figs[i]; if (!f) return;
     curFig = i;
     const hero = $app.querySelector("#hero"); hero.src = f.src; hero.classList.toggle("illu", !!f.illu);
+    if (document.body.classList.contains("anim")) hero.animate?.([{ opacity: 0.15 }, { opacity: 1 }], { duration: 260, easing: "ease-out" });
     $app.querySelector("#figcap").innerHTML = `Fig. ${roman(i + 1)} · ${f.cap}`;
     $app.querySelectorAll(".thumbs img").forEach((t) => t.classList.toggle("on", +t.dataset.i === i));
     const act = $app.querySelector("#figact");
@@ -2713,6 +2724,7 @@ function renderForm(existing) {
         plants = sortPlants([...plants, data]);
         notify({ kind: "plant", plant_id: data.id });
         expAfterSave(data, false);
+        justAdded = data.id;
         clearDraft(); { const won = feat("misiones") && missionCheck(data.scientific_name); const party = won ? () => missionCelebration(data.common_name) : null;
         feat("sello") ? stampSeal("Asentada", data.common_name, party) : (toast(`${data.common_name} asentada en el herbario`), party && setTimeout(party, 600)); }
         location.hash = "plant/" + data.id;
@@ -2899,8 +2911,10 @@ function renderStats() {
   const fam = Object.entries(plants.reduce((a, p) => (p.family && (a[p.family] = (a[p.family] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const cats = [...new Set(achList().map((a) => a[1]))];
   const pct = Math.round((unlocked.size / achList().length) * 100);
+  const seenB = cfg.achSeenProg ? new Set(cfg.achSeenProg) : null; // la primera vez se marcan todas sin festejo
+  cfg.achSeenProg = [...unlocked]; saveCfg(cfg);
   const badge = (a) => { const ok = unlocked.has(a[0]); const cur = Math.min(S[a[6]], a[7]);
-    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[0] === "x1" && feat("expediciones") ? "Primera salida" : a[3]}</b>
+    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}${ok && seenB && !seenB.has(a[0]) && feat("animaciones") ? " fresh" : ""}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[0] === "x1" && feat("expediciones") ? "Primera salida" : a[3]}</b>
       <div class="muted" style="font-size:14px">${a[4]}</div>
       ${!ok && a[7] > 1 ? `<div class="ach-prog"><i style="width:${(cur / a[7]) * 100}%"></i></div><div class="ach-num">${Math.floor(cur)} / ${a[7]}</div>` : ""}</div>`; };
   $app.innerHTML = `
@@ -2923,6 +2937,7 @@ function renderStats() {
 // ---------- expediciones del herbario: una meta entre todos, cada dos semanas (sábado 9:00 → domingo de la semana siguiente) ----------
 // Las arma y las cierra la base; las de prueba (demo) solo las ve el dueño y se manejan con el simulador de Ajustes → Pruebas.
 let exps = [], expEntries = [], expTemplates = [];
+let justAdded = null; // la lámina que acabás de asentar: entra al herbario con un pequeño «apoyo»
 async function loadExps() {
   const [e, t] = await Promise.all([sb.from("expeditions").select("*").order("starts_at", { ascending: false }).limit(40), sb.from("expedition_templates").select("*").order("position")]);
   if (e.error) { exps = []; expEntries = []; return; }
@@ -2971,9 +2986,11 @@ function renderExp() {
     $app.querySelector("#bk").onclick = () => go("stats"); return;
   }
   const en = expOf(x), who = [...new Set(en.map((e) => e.author_name).filter(Boolean))];
+  const seenN = Math.min(en.length, (cfg.expSlots || {})[x.id] ?? 0), anim = document.body.classList.contains("anim");
+  cfg.expSlots = { ...(cfg.expSlots || {}), [x.id]: en.length }; saveCfg(cfg);
   const slots = Array.from({ length: x.goal }, (_, i) => {
     const e = en[i], p = e && plants.find((q) => q.id === e.plant_id), img = p && coverOf(p);
-    return e ? `<button class="ex-slot" data-id="${e.plant_id}" style="${img ? `background-image:url('${img}')` : ""}" aria-label="${esc(p?.common_name || "")}"><span class="ex-who">${esc(initialOf(e.author_name))}</span></button>` : `<span class="ex-slot empty">${i + 1}</span>`;
+    return e ? `<button class="ex-slot${anim && i >= seenN ? " fresh" : ""}" data-id="${e.plant_id}" style="--d:${(i - seenN) * 0.18}s;${img ? `background-image:url('${img}')` : ""}" aria-label="${esc(p?.common_name || "")}"><span class="ex-who">${esc(initialOf(e.author_name))}</span></button>` : `<span class="ex-slot empty">${i + 1}</span>`;
   }).join("");
   const state = x.status === "done" ? `Cumplida el ${dShort(x.completed_at || x.ends_at)}` : x.status === "expired" ? "Terminó el plazo" : `${dShort(x.starts_at)} al ${dShort(x.ends_at)} · ${expLeft(x)}`;
   $app.innerHTML = `<button class="back" id="bk">← Progreso</button>
@@ -2982,7 +2999,7 @@ function renderExp() {
     <p class="ex-center"><span class="ex-chip">Entre todos</span></p>
     <p class="ex-note">Busquen entre todos ${x.goal} plantas que cumplan con el tema. Cada una que asienten llena un casillero. Termina cuando completen los ${x.goal} o el ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}, lo que pase primero.</p>
     <p class="ex-center"><button class="btn" id="exhint">¿Qué busco?</button></p>
-    <span class="ex-bar big"><i style="width:${Math.min(100, (en.length / x.goal) * 100)}%"></i></span>
+    <span class="ex-bar big"><i style="width:${Math.min(100, ((anim ? seenN : en.length) / x.goal) * 100)}%" data-to="${Math.min(100, (en.length / x.goal) * 100)}"></i></span>
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
     ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
@@ -2990,6 +3007,7 @@ function renderExp() {
     <h3>Premio</h3><div class="ex-card static">${expSeal(x)}<span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
   $app.querySelector("#bk").onclick = () => go("stats");
   $app.querySelector("#exhint").onclick = () => openExpHint(x);
+  const bar = $app.querySelector(".ex-bar.big i"); if (bar) setTimeout(() => (bar.style.width = bar.dataset.to + "%"), 250);
   $app.querySelectorAll(".ex-slot[data-id]").forEach((b) => (b.onclick = () => (location.hash = "plant/" + b.dataset.id)));
 }
 function openExpHint(x) {
@@ -3081,7 +3099,7 @@ function bindProgTabs() {
   const hito = (dt, ic, t, sub, cls = "") => `<div class="ex-hito"><span class="dt">${dt}</span><span class="ex-seal ${cls}"><svg class="xs-f"><use href="#i-xs"/></svg><svg><use href="#${ic}"/></svg></span><span><b>${t}</b><small>${sub}</small></span></div>`;
   const cur = expCur();
   const doneExps = exps.filter((x) => x.status === "done");
-  $app.querySelector("#ptab-exp").innerHTML = (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
+  $app.querySelector("#ptab-exp").innerHTML = `<p class="ex-center"><span class="ex-chip">Expedición del herbario · entre todos</span></p>` + (cur ? expCard(cur) : `<p class="ms-hint">No hay ninguna expedición en curso. La próxima arranca un sábado a las 9 de la mañana.</p>`)
     + `<h3>Hitos</h3>` + (doneExps.length ? doneExps.map((x) => { const ppl = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))]; const d = Math.max(1, Math.ceil((new Date(x.completed_at) - new Date(x.starts_at)) / 864e5));
       return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}${ppl.length ? " · " + esc(ppl.join(", ")) : ""}`); }).join("")
       : `<p class="ms-hint">Acá se van anotando las expediciones que cumplan entre todos.</p>`);
