@@ -484,7 +484,8 @@ El JSON tiene que ser válido y con esta forma exacta:
  "flower_months": [meses 1-12 en que suele florecer en su zona habitual, en el hemisferio del hallazgo],
  "fruit_months": [meses 1-12 en que suele dar fruto o cosecharse, mismo criterio],
  ${feat("cultivo") ? `"setting": "hallada | cultivada — cultivada si en las fotos se ve que está en una maceta, una huerta, un jardín de una casa o en interior; hallada si la viste afuera (campo, calle, parque). Ante la duda, hallada",
-` : ""} "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
+` : ""} "traits": {"flower_color": [1 o 2 de: blanco, amarillo, naranja, rojo, rosa, violeta, azul, verde; [] si no tiene flor vistosa], "fruit": true si da un fruto que se ve a simple vista (baya, vaina, piña, bellota, fruta), "spines": true si tiene espinas, pinchos o aguijones, "scent": true si la flor o la hoja tiene olor que se nota al acercarse o al frotarla},
+ "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
  "doubt": "vacío (\"\") si estás seguro. Si te quedó alguna duda: con qué otra especie se puede confundir y en qué fijarse para diferenciarlas, en 1-2 frases"` : ""}
 }
 Ante la duda sé conservador con la comestibilidad: usá "desconocido".
@@ -501,6 +502,17 @@ const cleanDeep = (v) => (typeof v === "string" ? cleanCites(v) : Array.isArray(
 const capName = (t) => { const x = String(t || "").trim(); return x ? x.charAt(0).toLocaleUpperCase("es") + x.slice(1) : x; };
 const sciName = (t) => { const x = String(t || "").trim().replace(/\s+/g, " "); return x ? x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() : x; };
 const fixNames = (p) => { if (p) { if (p.common_name) p.common_name = capName(p.common_name); if (p.scientific_name) p.scientific_name = sciName(p.scientific_name); } return p; };
+// Rasgos invisibles (sirven para las expediciones): solo valores de una lista cerrada; lo demás se descarta.
+const FLOWER_COLORS = ["blanco", "amarillo", "naranja", "rojo", "rosa", "violeta", "azul", "verde"];
+const COLOR_KEYS = [[/^(amarill)/, "amarillo"], [/^blanc/, "blanco"], [/^(naranj|anaranj)/, "naranja"], [/^roj/, "rojo"], [/^(ros|fucs)/, "rosa"], [/^(violet|lila|morad|purp)/, "violeta"], [/^(azul|celest)/, "azul"], [/^verd/, "verde"]];
+const colorKey = (c) => (COLOR_KEYS.find(([re]) => re.test(c)) || [])[1] || c;
+function normTraits(t) {
+  if (!t || typeof t !== "object") return undefined;
+  const plain = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const yes = (x) => x === true || /^(true|si|yes)$/.test(plain(x));
+  const colors = [...new Set((Array.isArray(t.flower_color) ? t.flower_color : [t.flower_color]).filter(Boolean).map(plain).map(colorKey))].filter((c) => FLOWER_COLORS.includes(c)).slice(0, 2);
+  return { flower_color: colors, fruit: yes(t.fruit), spines: yes(t.spines), scent: yes(t.scent) };
+}
 function normalizeAI(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
   if (!m) { const e = new Error("No encontré la ficha en la respuesta"); e.noJson = true; throw e; }
@@ -512,6 +524,7 @@ function normalizeAI(raw) {
   delete out.confidence;
   out.iucn = normIucn(out.iucn);
   out.setting = /cultiv/i.test(out.setting || "") ? "cultivada" : out.setting ? "hallada" : undefined;
+  out.traits = normTraits(out.traits);
   fixNames(out);
   if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Ojo, puede confundirse: ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
   delete out.doubt;
@@ -1845,10 +1858,10 @@ function markNovaSeen(p) {
   novaSync = setTimeout(() => Promise.resolve().then(() => sb.auth.updateUser({ data: { nova_seen: keep } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {}), 1500);
 }
 // Sello de cultivada: esquina superior derecha de la foto, como el símbolo de procedencia de una carta.
-// Herbarios con la base sin actualizar (antes de v18) no tienen "setting": se guarda igual, sin ese dato.
+// Herbarios con la base sin actualizar no tienen "setting" (v18) o "traits" (v19): se guarda igual, sin ese dato.
 async function writePlant(row, q) {
   let r = await q(row);
-  if (r.error && "setting" in row && /setting/.test(r.error.message || "")) { delete row.setting; r = await q(row); }
+  for (const k of ["setting", "traits"]) if (r.error && k in row && new RegExp(k).test(r.error.message || "")) { delete row[k]; r = await q(row); }
   return r;
 }
 const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa: maceta, huerta o jardín."], hallada: ["f-compass", "Hallada", "La encontraron afuera: campo, calle o parque."] };
@@ -2644,6 +2657,7 @@ function renderForm(existing) {
     fixNames(row);
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
+    if (d.traits) row.traits = d.traits;
     if (feat("cultivo")) {
       row.setting = $app.querySelector("#setting .on")?.dataset.set || "hallada";
       if (row.setting === "cultivada") { row.lat = null; row.lng = null; row.location_name = null; } // sin dirección de casa
