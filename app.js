@@ -635,10 +635,9 @@ function settingsV2(owner, book) {
       <label class="set-label">Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label class="set-label">Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}">
       <button class="btn ghost" id="save" style="width:100%;margin-top:14px">Guardar conexión</button>
-      ${isDevBase() ? `<p class="set-label" style="margin-top:22px">Pruebas</p>
-        <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>${expSimHTML()}
-        <button class="btn ghost" id="reillus" style="width:100%;margin-top:10px">Volver a buscar las láminas antiguas</button>` : ""}
+
     </details>` : ""}
+    ${owner && isDevBase() ? `<details class="set-fold dev"><summary>Pruebas · solo la ves vos</summary>${devPanelHTML()}</details>` : ""}
 
     <div class="set-out">
       ${owner ? `<button class="set-link quiet" id="switchbook"><span>Cambiar de herbario</span><span aria-hidden="true">›</span></button>` : `<button class="set-link quiet" id="leavebook"><span>Salir de este herbario</span><span aria-hidden="true">›</span></button>`}
@@ -688,17 +687,13 @@ function renderSettings() {
       <p class="muted" style="font-size:14.5px">Ojo: en el plan gratis, si nadie abre el herbario durante 7 días, Supabase lo pone en pausa. No se pierde nada: se reactiva desde supabase.com con <i>Restore project</i>.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(cfg.sbUrl)}">
       <label>Anon / publishable key</label><input id="sbKey" placeholder="eyJ… o sb_publishable_…" value="${esc(cfg.sbKey)}"></details>` : ""}
-    ${user && amOwner && isDevBase() ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>
-      <p class="muted">Vuelve a cero lo de las misiones en tu cuenta: la carta de presentación, la zona, la misión, las misiones cumplidas y sus logros. Sirve para ver todo como alguien que entra por primera vez.</p>
-      <button class="btn ghost" id="resetmis" style="width:100%">Empezar las misiones de cero</button>${expSimHTML()}
-      <p class="muted" style="margin-top:18px">Olvida las láminas antiguas encontradas en este móvil y las vuelve a buscar con el método actual. Las que quitaste a mano no vuelven.</p>
-      <button class="btn ghost" id="reillus" style="width:100%">Volver a buscar las láminas antiguas</button></details>` : ""}
+    ${user && amOwner && isDevBase() ? `<details class="owner-db"><summary>Pruebas · solo la ves vos</summary>${devPanelHTML()}</details>` : ""}
     ${user ? `<hr><p class="muted" style="text-align:center">Sesión: ${esc(user.email)}${owner ? " · dueño del herbario" : ""}<br><button class="linkish" id="news">Novedades</button></p>
       <div class="row session-btns${feat("botones") ? " solid" : ""}"><button class="btn ghost" id="retour">Ver el tutorial</button>${owner ? `<button class="btn ghost" id="switchbook">Cambiar de herbario</button>` : `<button class="btn ghost" id="leavebook">Salir de este herbario</button>`}</div>
       <div class="row session-btns${feat("botones") ? " solid" : ""}">${owner ? `<button class="btn" id="export">Exportar backup</button>` : ""}<button class="btn ghost" id="logout">Cerrar sesión</button></div>` : ""}
   `;
   $app.querySelector("#myname").oninput = (e) => ($app.querySelector("#avatar").textContent = initialOf(e.target.value));
-  bindExpSim();
+  bindExpSim(); bindAnimDemo();
   $app.querySelector("#resetmis")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
     if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
@@ -3061,9 +3056,13 @@ function expOverlay() {
   if (ended) { x = ended; kind = ended.status; }
   else if (cur && !seen[cur.id]) { x = cur; kind = "new"; }
   else return false;
+  expShow(x, kind);
+  return true;
+}
+function expShow(x, kind, demoPeople) {
   const ov = document.createElement("div");
   ov.className = "ex-ov";
-  const people = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
+  const people = demoPeople || [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
   const list = people.length > 1 ? people.slice(0, -1).join(", ") + " y " + people.at(-1) : people[0] || "el herbario";
   const days = Math.max(1, Math.ceil((new Date(x.completed_at || Date.now()) - new Date(x.starts_at)) / 864e5));
   ov.className = "ex-ov " + kind;
@@ -3118,8 +3117,42 @@ function bindProgTabs() {
   show(["exp", "mis", "ins"].includes(cfg.progTab) ? cfg.progTab : "exp");
   hydrateMission();
 }
+// Panel de pruebas del dueño de la base de pruebas: cada grupo con su explicación y botones a mano.
+const devGroup = (title, note, btns) => `<div class="dev-g"><p class="dev-t">${title}</p><p class="dev-n">${note}</p><div class="dev-btns">${btns}</div></div>`;
+const devBtn = (attr, label, icon) => `<button class="dev-btn" ${attr}><svg><use href="#${icon}"/></svg><span>${label}</span></button>`;
+function devPanelHTML() {
+  return (feat("expediciones") ? devGroup("Expediciones", "Una expedición de prueba que solo ves vos. Arrancala y después probá sumar, completar o hacer vencer.",
+      [["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")) : "")
+    + (feat("animaciones") ? devGroup("Animaciones", "Mirá cada una sin tener que esperar a que pase de verdad. No guarda nada.",
+      [["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
+    + devGroup("Misiones", "Vuelve a cero lo de las misiones en tu cuenta (presentación, zona, misiones cumplidas y sus logros), para verlo como alguien nuevo.", devBtn('id="resetmis"', "Empezar de cero", "i-compass"))
+    + devGroup("Láminas antiguas", "Olvida las ilustraciones encontradas en este móvil y las vuelve a buscar. Las que quitaste a mano no vuelven.", devBtn('id="reillus"', "Volver a buscar", "i-book"));
+}
+function bindAnimDemo() {
+  $app.querySelectorAll("[data-anim]").forEach((b) => (b.onclick = () => animDemo(b.dataset.anim, b)));
+}
+function animDemo(k, b) {
+  const p = plants[0], demo = { id: "demo", title: "Árboles del barrio", icon: "f-tree", goal: 5, hint: "Tienen un tronco grueso y son más altos que vos.", starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 6 * 864e5).toISOString(), completed_at: new Date().toISOString() };
+  if (k === "stamp") return stampSeal("Asentada", p?.common_name || "Romero");
+  if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina"); justAdded = p.id; return go("list"); }
+  if (k === "nova") { cfg.novaShone = []; saveCfg(cfg); toast("Se ve en las láminas con sello Nova del herbario"); return go("list"); }
+  if (k === "slots") { const x = expCur(); if (!x) return toast("Primero arrancá una expedición de prueba y sumale algo"); cfg.expSlots = { ...(cfg.expSlots || {}), [x.id]: 0 }; saveCfg(cfg); return go("exp"); }
+  if (k === "bars") { cfg.progTab = "ins"; saveCfg(cfg); return go("stats"); }
+  if (k === "badge") { const seen = cfg.achSeenProg || []; if (!seen.length) return toast("Todavía no ganaste ninguna insignia"); cfg.achSeenProg = seen.slice(1); cfg.progTab = "ins"; saveCfg(cfg); toast("Bajá hasta la que brilla"); return go("stats"); }
+  if (k === "ach") { achQueue.push(ACH[0]); if (!achShowing) showNextAch(); return; }
+  if (k === "req") {
+    const row = document.createElement("div"); row.className = "req"; row.innerHTML = `<span class="avatar sm">J</span><div class="req-txt"><b>Juan (prueba)</b><span>juan@ejemplo.com</span></div>`;
+    b.closest(".dev-g").appendChild(row); setTimeout(() => row.classList.add("req-done"), 500); setTimeout(() => row.remove(), 1500); return;
+  }
+  if (k === "mission") return missionCelebration(p?.common_name || "Madroño");
+  const people = [...new Set([myName(), ...memberNames])].slice(0, 3);
+  if (k === "expnew") return expShow(demo, "new", people);
+  if (k === "expdone") return expShow(demo, "done", people);
+  if (k === "expgone") return expShow({ ...demo, status: "expired" }, "expired", people);
+}
+
 // Simulador (solo el dueño de la base de pruebas): expediciones falsas para ver todas las pantallas sin molestar a nadie.
-const expSimHTML = () => feat("expediciones") ? `<p class="set-label" style="margin-top:18px">Simulador de expediciones</p>
+const expSimHTML = () => false ? `<p class="set-label" style="margin-top:18px">Simulador de expediciones</p>
   <div class="ex-sim">${[["start", "Arrancar una de prueba"], ["mine", "Sumar un aporte mío"], ["other", "Sumar un aporte de otro"], ["fill", "Completarla"], ["expire", "Hacerla vencer"], ["clear", "Borrar todo lo de prueba"]].map(([k, l]) => `<button class="btn ghost" data-sim="${k}">${l}</button>`).join("")}</div>` : "";
 function bindExpSim() {
   $app.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = async () => {

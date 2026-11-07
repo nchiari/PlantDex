@@ -1172,3 +1172,16 @@ body.anim .badge.fresh .e { animation: badge-pop .7s cubic-bezier(.3, 1.6, .5, 1
 body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radius: 8px; }
 @keyframes badge-pop { 0% { transform: scale(.4); } 100% { transform: none; } }
 @keyframes glint-b { 30% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgb(214 186 108 / .45); } 100% { box-shadow: none; } }
+
+/* panel de pruebas del dueño: grupos con explicación y botones en grilla */
+.dev-g { margin: 14px 0 6px; padding-bottom: 14px; border-bottom: 1px solid rgb(var(--line) / .12); }
+.dev-g:last-child { border-bottom: 0; }
+.dev-t { margin: 0; font: 600 11px var(--caps); letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+.dev-n { margin: 4px 0 10px; font: italic 14.5px/1.45 var(--text); color: var(--ink-soft); }
+.dev-btns { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.dev-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 76px; padding: 10px 6px; cursor: pointer;
+  background: var(--parchment-2); color: var(--ink); border: 1px solid rgb(var(--line) / .3); border-radius: 8px; font: 14px/1.2 var(--text); text-align: center; }
+.dev-btn svg { width: 22px; height: 22px; color: var(--leaf); }
+.dev-btn:active { transform: scale(.97); background: rgb(var(--line) / .06); }
+.dev-btn:disabled { opacity: .5; }
+.dev-g .req { margin-top: 10px; }
