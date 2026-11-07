@@ -1118,3 +1118,23 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 .ex-seal.big { width: 150px; height: 150px; }
 .ex-seal.mis { --xs-fill: var(--leaf); }
 .ex-seal.gone { filter: grayscale(1) drop-shadow(0 3px 5px rgb(0 0 0 / .3)); opacity: .5; }
+/* entrada de los carteles de expedición; el de cumplida, con festejo */
+.ex-ov { animation: ex-fade .35s ease-out both; }
+.ex-ov.new .ex-seal.big, .ex-ov.done .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) both; }
+.ex-ov .l, .ex-ov .n, .ex-ov .s, .ex-ov .btn { animation: stamp-text .45s ease-out both; }
+.ex-ov .l { animation-delay: .65s; } .ex-ov .n { animation-delay: .8s; } .ex-ov .s { animation-delay: .95s; } .ex-ov .s.small { animation-delay: 1.05s; } .ex-ov .btn { animation-delay: 1.2s; }
+.ex-win { position: relative; display: grid; place-items: center; width: 150px; height: 150px; }
+.ex-rays { position: absolute; width: 340px; height: 340px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(rgb(226 194 113 / .22) 0 6deg, transparent 6deg 18deg);
+  mask: radial-gradient(circle, #000 18%, transparent 68%); -webkit-mask: radial-gradient(circle, #000 18%, transparent 68%);
+  animation: ex-rays-in .8s ease-out .5s both, fi-turn 24s linear 1.3s infinite; }
+.ex-ring { position: absolute; width: 150px; height: 150px; border-radius: 50%; border: 2px solid #e2c271; opacity: 0; pointer-events: none; animation: ex-ring 1s ease-out .55s both; }
+.ex-ring.r2 { animation-delay: .75s; border-width: 1px; }
+.ex-bit { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; pointer-events: none; opacity: 0;
+  background: #e2c271; clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); animation: ex-bit 1.4s cubic-bezier(.15, .7, .3, 1) both; }
+.ex-bit.leaf { width: 10px; height: 6px; margin: -3px -5px; border-radius: 0 100%; clip-path: none; background: #9fbf86; }
+@keyframes ex-fade { from { opacity: 0; } }
+@keyframes ex-rays-in { from { opacity: 0; transform: scale(.4); } }
+@keyframes ex-ring { 0% { opacity: .9; transform: scale(.9); } 100% { opacity: 0; transform: scale(2.1); } }
+@keyframes ex-bit { 0% { opacity: 0; transform: translate(0, 0) scale(.4) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 40px)) scale(1) rotate(var(--r)); } }
+@media (prefers-reduced-motion: reduce) { .ex-ov, .ex-ov *, .ex-rays, .ex-ring, .ex-bit { animation: none !important; } .ex-bit, .ex-ring { display: none; } }

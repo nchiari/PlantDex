@@ -3048,9 +3048,10 @@ function expOverlay() {
   const people = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))];
   const list = people.length > 1 ? people.slice(0, -1).join(", ") + " y " + people.at(-1) : people[0] || "el herbario";
   const days = Math.max(1, Math.ceil((new Date(x.completed_at || Date.now()) - new Date(x.starts_at)) / 864e5));
+  ov.className = "ex-ov " + kind;
   ov.innerHTML = {
     new: `${expSeal(x, "big")}<p class="l">Nueva expedición</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos, ${x.goal} plantas antes del ${new Date(x.ends_at).toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}.</p><p class="s small">${esc(x.hint || "")}</p><button class="btn primary">¡Vamos!</button>`,
-    done: `${expSeal(x, "big")}<p class="l">Expedición cumplida</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos llegaron a ${x.goal} en ${days} ${days === 1 ? "día" : "días"}: ${esc(list)}. El sello ya está en tus hitos.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Ver mis hitos</button>`,
+    done: `<div class="ex-win"><span class="ex-rays"></span><span class="ex-ring"></span><span class="ex-ring r2"></span>${expSeal(x, "big")}</div><p class="l">Expedición cumplida</p><p class="n">${esc(x.title)}</p><p class="s">Entre todos llegaron a ${x.goal} en ${days} ${days === 1 ? "día" : "días"}: ${esc(list)}. El sello ya está en tus hitos.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Ver mis hitos</button>`,
     expired: `${expSeal(x, "big gone")}<p class="l gone">Terminó el plazo</p><p class="n">${esc(x.title)} · ${expOf(x).length} de ${x.goal}</p><p class="s">Esta vez no llegaron. La expedición vuelve más adelante para otro intento.</p><p class="s small">La próxima arranca un sábado a las 9.</p><button class="btn primary">Entendido</button>`,
   }[kind];
   ov.querySelector("button").onclick = () => {
@@ -3058,6 +3059,16 @@ function expOverlay() {
     ov.remove();
     if (kind === "done") { cfg.progTab = "exp"; saveCfg(cfg); go("stats"); } else if (kind === "new") go("exp");
   };
+  if (kind === "done") { // festejo: hojitas y estrellas doradas que salen del sello
+    const win = ov.querySelector(".ex-win");
+    for (let i = 0; i < 26; i++) {
+      const b = document.createElement("i"), ang = (i / 26) * 360 + Math.random() * 10, d = 110 + Math.random() * 90;
+      b.className = "ex-bit" + (i % 3 ? "" : " leaf");
+      b.style.cssText = `--dx:${Math.cos(ang * Math.PI / 180) * d}px;--dy:${Math.sin(ang * Math.PI / 180) * d}px;--r:${Math.random() * 540 - 270}deg;animation-delay:${0.55 + Math.random() * 0.25}s`;
+      win.appendChild(b);
+    }
+    try { navigator.vibrate?.([30, 80, 30, 80, 60]); } catch {}
+  }
   document.body.appendChild(ov);
   return true;
 }
