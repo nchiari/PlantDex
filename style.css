@@ -1230,3 +1230,9 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .sp-rule { display: block; width: 56px; margin: 16px auto 0; border-top: 1px solid var(--gold); }
 .sp-load { margin: 14px 0 0; font: italic 15px var(--text); color: var(--ink-soft); animation: busy-breathe 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .sp-txt, .sp-load { animation: none; } }
+/* portada: emblema y título centrados juntos; el emblema arranca donde lo dejó el móvil y sube a su lugar */
+.splash { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.splash .sp-emb { position: static; transform: none; animation: sp-up .6s cubic-bezier(.3, .9, .3, 1) both; }
+.splash .sp-txt { position: static; margin-top: 26px; animation: stamp-text .6s ease-out .25s both; }
+@keyframes sp-up { from { transform: translateY(calc(var(--sp-shift, 92px))); } }
+@media (prefers-reduced-motion: reduce) { .splash .sp-emb { animation: none; } }

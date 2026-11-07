@@ -166,6 +166,8 @@ function showSplash() {
   el.innerHTML = `<img class="sp-emb" src="icons/icon-512.png" alt="">
     <div class="sp-txt"><h1>Herbalorium</h1><p class="sp-sub">Herbarium vivum</p><span class="sp-rule"></span><p class="sp-load">Abriendo el herbario…</p></div>`;
   document.body.appendChild(el);
+  // El emblema arranca centrado (como lo deja el móvil) y sube lo justo para dejar lugar al título.
+  const t = el.querySelector(".sp-txt"); el.style.setProperty("--sp-shift", (t.offsetHeight + 26) / 2 + "px");
   setTimeout(hideSplash, 8000); // por las dudas: nunca queda tapando si algo falla al cargar
 }
 function hideSplash() {
