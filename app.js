@@ -3379,7 +3379,10 @@ async function expSim(k) {
     if (error) throw error;
     await loadExps(); return go("list");
   }
-  if (k === "clear") { const { error } = await sb.from("expeditions").delete().eq("demo", true); if (error) throw error; await loadExps(); return toast("Listo: se borró todo lo de prueba"); }
+  if (k === "clear") { const { error } = await sb.from("expeditions").delete().eq("demo", true); if (error) throw error;
+    // también lo que queda guardado en este móvil: la cuenta regresiva, la carta ya vista y los carteles vistos
+    for (const key of ["expTeaser", "expIntroSeen", "expSeen", "expSlots"]) delete cfg[key]; saveCfg(cfg);
+    await loadExps(); return toast("Listo: se borró todo lo de prueba"); }
   if (!x) return toast("Primero arrancá una de prueba");
   if (k === "mine" || k === "other") {
     const pool = plants.filter((p) => !used.has(p.id) && (k === "mine" ? p.user_id === user.id : p.user_id !== user.id));
