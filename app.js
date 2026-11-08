@@ -3322,6 +3322,7 @@ function devPanelHTML() {
     + (feat("animaciones") ? devGroup("Animaciones", "Mirá cada una sin tener que esperar a que pase de verdad. No guarda nada.",
       [["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
     + devGroup("Misiones", "Vuelve a cero lo de las misiones en tu cuenta (presentación, zona, misiones cumplidas y sus logros), para verlo como alguien nuevo.", devBtn('id="resetmis"', "Empezar de cero", "i-compass"))
+    + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`
     + devGroup("Láminas antiguas", "Olvida las ilustraciones encontradas en este móvil y las vuelve a buscar. Las que quitaste a mano no vuelven.", devBtn('id="reillus"', "Volver a buscar", "i-book"));
 }
 function bindAnimDemo() {
