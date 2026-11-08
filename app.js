@@ -150,11 +150,57 @@ async function boot() {
     // Todavía no se sabe si sos el dueño: para el modo prueba se usa lo que la app sabía la vez anterior.
     if (FEATURES.cargando === "todos" || (FEATURES.cargando === "prueba" && cfg.wasOwner && isDevBase())) $app.innerHTML = loadingHTML();
     if (FEATURES.portada === "todos" || (FEATURES.portada === "prueba" && cfg.wasOwner && isDevBase())) showSplash();
+    // Si el herbario no responde en 12 segundos, se avisa en vez de dejar la pantalla esperando para siempre.
+    const watchdog = setTimeout(showStuck, 12000);
     await loadPlants();
+    clearTimeout(watchdog);
   }
   await restoreDraft();
   route();
   hideSplash();
+}
+
+function showStuck() {
+  hideSplash();
+  $nav.hidden = true;
+  $app.innerHTML = `<div class="empty"><div class="big">${PLANT_ART}</div>
+    <h2>El herbario no responde</h2>
+    <p class="lead">Puede ser tu conexión o que el servidor esté caído un rato. Tus láminas están a salvo: probá de nuevo en unos minutos.</p>
+    <button class="btn primary" id="stuck-retry">Reintentar</button></div>`;
+  $app.querySelector("#stuck-retry").onclick = () => location.reload();
+}
+
+// ---------- instalar la app en el móvil: pasos según el navegador ----------
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
+const isInstalled = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function openInstall(first) {
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua), samsung = /SamsungBrowser/.test(ua), android = /Android/.test(ua);
+  const iosSafari = ios && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  const steps = samsung
+    ? `<div class="in-warn"><b>Con el navegador de Samsung no se puede instalar bien</b>: Android la bloquea como «app no segura». Abrí este link en <b>Chrome</b> y seguí los pasos desde ahí.</div>
+       <div class="row"><button class="btn primary" id="in-copy">Copiar el link</button></div>`
+    : ios && !iosSafari
+    ? `<div class="in-warn">En iPhone se instala desde <b>Safari</b>. Copiá el link, abrilo en Safari y seguí los pasos.</div><div class="row"><button class="btn primary" id="in-copy">Copiar el link</button></div>`
+    : ios
+    ? `<ol class="in-steps"><li>Tocá el botón <b>Compartir</b> <span class="in-ic">⎙</span> (abajo, el cuadrado con la flecha).</li><li>Bajá y elegí <b>«Agregar a inicio»</b>.</li><li>Tocá <b>Agregar</b>. Ya está: abrí Herbalorium desde su ícono.</li></ol>`
+    : android
+    ? `${installEvt ? `<div class="row"><button class="btn primary" id="in-go">Instalar ahora</button></div><p class="muted in-or">O, si no aparece:</p>` : ""}
+       <ol class="in-steps"><li>En <b>Chrome</b>, tocá el menú <b>⋮</b> (arriba a la derecha).</li><li>Elegí <b>«Instalar app»</b> o <b>«Agregar a la pantalla principal»</b>.</li><li>Confirmá. Ya está: abrí Herbalorium desde su ícono.</li></ol>`
+    : `<p>Herbalorium está pensada para el móvil. Abrí este link en tu móvil (en Android, con <b>Chrome</b>; en iPhone, con <b>Safari</b>) e instalala desde ahí.</p><div class="row"><button class="btn primary" id="in-copy">Copiar el link</button></div>`;
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box install" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <img class="in-icon" src="icons/icon-192.png" alt=""><h3>Instalá Herbalorium en tu móvil</h3>
+    <p class="muted">Queda como una app más, con su ícono, se abre más rápido y te pueden llegar los avisos.</p>${steps}
+    ${first ? `<div class="row"><button class="btn ghost" id="in-later">Ahora no</button></div>` : ""}</div>`;
+  const close = () => { m.remove(); cfg.installSeen = 1; saveCfg(cfg); };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelector("#in-later")?.addEventListener("click", close);
+  m.querySelector("#in-copy")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(SITE_URL()); toast("Link copiado"); } catch { toast(SITE_URL()); } });
+  m.querySelector("#in-go")?.addEventListener("click", async () => { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); installEvt = null; if (r?.outcome === "accepted") { close(); toast("¡Listo! Ya la tenés en tu móvil"); } });
+  document.body.appendChild(m);
 }
 
 // Portada al abrir: sigue a la pantalla del móvil (el emblema en el mismo lugar) y suma el título mientras carga el herbario.
@@ -206,6 +252,7 @@ function route() {
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   else if (feat("expediciones") && expOverlay()) {}
+  else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
   else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
@@ -232,7 +279,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -240,7 +287,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.3", APP_DATE = "2026-11-08";
+const APP_VERSION = "1.7.4", APP_DATE = "2026-11-08";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -648,7 +695,7 @@ function settingsV2(owner, book) {
     ${sw("illustrations", cfg.illustrations, "Láminas antiguas", "Ilustraciones de época como imagen principal")}
 
     <h3>Ayuda</h3>
-    <div class="set-links">${link("retour", "Ver el tutorial")}${link("news", "Novedades")}${link("whyai", "¿Por qué usamos IA?")}</div>
+    <div class="set-links">${feat("instalar") && !isInstalled() ? link("install", "Instalar la app en tu móvil") : ""}${link("retour", "Ver el tutorial")}${link("news", "Novedades")}${link("whyai", "¿Por qué usamos IA?")}</div>
 
     ${plants.length || owner ? `<details class="set-fold"><summary>Herramientas</summary>
       ${iucnBatchBox()}
@@ -822,6 +869,7 @@ function renderSettings() {
     else go("list");
   };
   $app.querySelector("#logout")?.addEventListener("click", async () => { await sb.auth.signOut(); go("list"); });
+  $app.querySelector("#install")?.addEventListener("click", () => openInstall());
   $app.querySelector("#retour")?.addEventListener("click", () => { cfg.tourPending = true; saveCfg(cfg); go("list"); });
   $app.querySelector("#switchbook")?.addEventListener("click", async () => {
     if (!(await ask({ title: "Cambiar de herbario", text: "Vas a salir de este herbario y elegir otro. Tus láminas se quedan acá: si te cambiás, dejás de verlas.", ok: "Cambiar", cancel: "Quedarme" }))) return;

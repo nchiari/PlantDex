@@ -1462,3 +1462,11 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 /* el sello y el botón no van en el papel que se despliega: aparecen después, con su animación */
 .fold-copy .li-first .ex-seal, .fold-copy .li-go { visibility: hidden; }
 .app-ver { margin: 26px 0 8px; text-align: center; font: italic 13.5px var(--text); color: var(--ink-soft); opacity: .8; }
+
+/* instalar la app (prueba) */
+.modal-box.install { text-align: center; }
+.in-icon { width: 72px; height: 72px; border-radius: 18px; margin: 6px auto 0; display: block; box-shadow: 0 3px 10px rgb(0 0 0 / .2); }
+.in-steps { text-align: left; margin: 14px 0 6px; padding-left: 22px; } .in-steps li { margin: 10px 0; font-size: 16.5px; line-height: 1.45; }
+.in-ic { display: inline-block; padding: 0 4px; border: 1px solid rgb(var(--line) / .3); border-radius: 4px; font-size: 13px; }
+.in-warn { text-align: left; margin: 14px 0; padding: 12px 14px; border-radius: 8px; background: rgb(180 83 46 / .1); border-left: 3px solid #b4532e; font-size: 16px; line-height: 1.45; }
+.in-or { margin: 10px 0 0; font-size: 14px; }
