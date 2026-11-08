@@ -1461,3 +1461,4 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .fold-back.blank { background: linear-gradient(#f6f0dd, #fdfbf3); }
 /* el sello y el botón no van en el papel que se despliega: aparecen después, con su animación */
 .fold-copy .li-first .ex-seal, .fold-copy .li-go { visibility: hidden; }
+.app-ver { margin: 26px 0 8px; text-align: center; font: italic 13.5px var(--text); color: var(--ink-soft); opacity: .8; }

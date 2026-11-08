@@ -1,6 +1,7 @@
 # Herbalorium · notas para trabajar en el repo
 
 - App en vanilla JS (`app.js`, `style.css`, `index.html`). Cada cambio sube el `?v=` de CSS y JS en `index.html`.
+- Versión visible (`APP_VERSION` y `APP_DATE` en `app.js`, al pie de Ajustes): MAYOR.MENOR.ARREGLO. Cada publicación para todos sube el ARREGLO y pone la fecha del día; cuando se publica una novedad, la MENOR pasa a ser el número de esa novedad y el ARREGLO vuelve a 0. Lo que sale solo en "prueba" no cambia la versión.
 - Textos para la gente: castellano rioplatense, simple y sin palabras técnicas. Se dice **móvil**, no celular.
 - **Novedades** (`NEWS` en `app.js`): se agregan **solo cuando Nico lo pide**, nunca por iniciativa propia, y **antes de publicarlas siempre se le muestra el texto para que lo apruebe**. Cada entrada nueva va primero y sube `v`. Cada persona la ve una sola vez (queda guardado en el celular y en su cuenta). Al lanzarlas, subir también `<meta name="news">` en `index.html` al mismo número: eso hace que las apps abiertas se recarguen solas al volver. Los cambios chicos no lo tocan.
 - Cambios en la base: se agregan al final de `supabase/schema.sql` como una nueva versión (`-- vN`), siempre de forma que el archivo entero se pueda volver a correr sin riesgo. En cada versión nueva, subir el número que devuelve `schema_version()` y `SCHEMA_NEEDED` en `app.js`: así los dueños de otros herbarios ven el aviso de "Tu herbario necesita una actualización".

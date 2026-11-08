@@ -238,6 +238,8 @@ const DEV_BASE = "ssrbytherfljgxfgvhlc";
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
+// Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
+const APP_VERSION = "1.7.1", APP_DATE = "2026-11-08";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -664,6 +666,7 @@ function settingsV2(owner, book) {
       ${owner ? `<button class="set-link quiet" id="switchbook"><span>Cambiar de herbario</span><span aria-hidden="true">›</span></button>` : `<button class="set-link quiet" id="leavebook"><span>Salir de este herbario</span><span aria-hidden="true">›</span></button>`}
       <button class="set-link quiet" id="logout"><span>Cerrar sesión</span><span aria-hidden="true">›</span></button>
     </div>
+    <p class="app-ver">Herbalorium ${APP_VERSION} · ${new Date(APP_DATE + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}</p>
   </div>`;
 }
 
