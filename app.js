@@ -239,7 +239,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.1", APP_DATE = "2026-11-08";
+const APP_VERSION = "1.7.2", APP_DATE = "2026-11-08";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -2794,8 +2794,10 @@ function renderCalendar() {
 // ---------- progreso ----------
 // ---------- logros ----------
 // Todo se calcula con los datos de las láminas: funciona igual en cualquier dispositivo.
+// Las insignias son de cada persona: cuentan sus láminas y las de otros donde sumó su hallazgo (también las encontró).
+const myPlants = () => plants.filter((p) => p.user_id === user?.id || (p.sightings || []).some((x) => x.user_id === user?.id));
 function achStats() {
-  const P = plants, has = (p, t) => p.types?.includes(t), uses = (p) => Object.keys(p.parts || {});
+  const P = myPlants(), has = (p, t) => p.types?.includes(t), uses = (p) => Object.keys(p.parts || {});
   const kind = (p) => plain(p.kind);
   const set = (f) => new Set(P.map(f).filter(Boolean));
   const byDay = {}; P.forEach((p) => p.found_at && (byDay[p.found_at] = (byDay[p.found_at] || 0) + 1));
@@ -2916,7 +2918,7 @@ function checkAchievements() {
   let seen = null;
   try { seen = JSON.parse(localStorage.getItem(ACH_KEY)); } catch {}
   const fresh = seen ? now.filter((id) => !seen.includes(id)) : [];
-  try { localStorage.setItem(ACH_KEY, JSON.stringify([...new Set([...(seen || []), ...now])])); } catch {}
+  try { localStorage.setItem(ACH_KEY, JSON.stringify(now)); } catch {}
   fresh.forEach((id) => achQueue.push(ACH.find((a) => a[0] === id)));
   if (fresh.length && !achShowing) showNextAch();
 }
@@ -2956,7 +2958,7 @@ function renderStats() {
     <p class="muted"><i>Herbarium numquam finitur.</i> El herbario nunca se termina.</p>
     ${feat("expediciones") ? progTabs() : feat("misiones") ? `<h3>Misión</h3><div id="mission"></div><h3>Logros</h3>` : ""}
     <div class="stat-grid">
-      <div class="stat"><b>${n}</b>láminas</div>
+      <div class="stat"><b>${n}</b>tus láminas</div>
       <div class="stat"><b>${S.families}</b>familias</div>
       <div class="stat"><b>${S.edible}</b>comestibles</div>
       <div class="stat"><b>${S.toxic}</b>tóxicas</div>
