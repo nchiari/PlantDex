@@ -1459,3 +1459,5 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .ex-intro.open .li-first .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) .15s both; }
 .ex-intro.open .li-go { animation: stamp-text .5s ease-out .5s both; }
 .fold-back.blank { background: linear-gradient(#f6f0dd, #fdfbf3); }
+/* el sello y el botón no van en el papel que se despliega: aparecen después, con su animación */
+.fold-copy .li-first .ex-seal, .fold-copy .li-go { visibility: hidden; }
