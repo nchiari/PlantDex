@@ -1458,3 +1458,4 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .fold-back .cv b { font-size: 26px; letter-spacing: 7px; } .fold-back .cv .pe { width: 52px; height: 52px; } .fold-back .cv small { font-size: 18px; }
 .ex-intro.open .li-first .ex-seal.big { animation: stamp-drop .7s cubic-bezier(.3, 1.5, .5, 1) .15s both; }
 .ex-intro.open .li-go { animation: stamp-text .5s ease-out .5s both; }
+.fold-back.blank { background: linear-gradient(#f6f0dd, #fdfbf3); }

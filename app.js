@@ -3279,8 +3279,8 @@ let gsapP = null;
 const loadGsap = () => gsapP ||= new Promise((ok, ko) => { if (window.gsap) return ok(window.gsap);
   const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js";
   sc.onload = () => ok(window.gsap); sc.onerror = ko; document.head.appendChild(sc); });
-// La carta está doblada en tres, como una carta de verdad: la parte de arriba tapa el medio (por fuera tiene la tapa)
-// y la de abajo está doblada por detrás. Se despliega primero hacia arriba y después hacia abajo, con su sombra en cada pliegue.
+// La carta está doblada en tres, como una carta de verdad: primero se dobló la parte de abajo sobre el medio
+// (por detrás es papel liso) y encima la de arriba, que por fuera tiene la tapa. Se despliega primero hacia arriba y después hacia abajo, con su sombra en cada pliegue.
 async function unfoldLetter(ov, coverHTML) {
   const full = ov.querySelector(".li-full"), letter = full.querySelector(".letter-in"), paper = ov.querySelector(".env-paper");
   const done = () => { ov.querySelector(".ei-fold")?.remove(); ov.classList.add("open"); };
@@ -3294,14 +3294,14 @@ async function unfoldLetter(ov, coverHTML) {
   fold.style.cssText = `left:${r.left}px;top:${r.top}px;width:${W}px;height:${H}px`;
   const slice = (i) => `<div class="fold-face"><div class="letter-in fold-copy" style="width:${W}px;height:${H}px;top:${-i * T}px">${letter.innerHTML}</div><i class="fold-shade"></i></div>`;
   fold.innerHTML = `<div class="fold-p mid" style="top:${T}px;height:${T}px">${slice(1)}</div>
-    <div class="fold-p bot" style="top:${2 * T}px;height:${T}px">${slice(2)}</div>
+    <div class="fold-p bot" style="top:${2 * T}px;height:${T}px">${slice(2)}<div class="fold-back blank"></div></div>
     <div class="fold-p top" style="top:0;height:${T}px">${slice(0)}<div class="fold-back">${coverHTML}</div></div>`;
   ov.appendChild(fold);
   const pr = paper.getBoundingClientRect();
   const sc = pr.width / W, top = fold.querySelector(".top"), bot = fold.querySelector(".bot");
   g.set(fold, { transformPerspective: 1600, transformOrigin: "50% 50%", x: pr.left + pr.width / 2 - (r.left + W / 2), y: pr.top + pr.height / 2 - (r.top + H / 2), scale: sc, opacity: 0 });
   g.set(top, { transformOrigin: "50% 100%", rotationX: -180, z: 1 });
-  g.set(bot, { transformOrigin: "50% 0%", rotationX: 180, z: -1 });
+  g.set(bot, { transformOrigin: "50% 0%", rotationX: 180, z: 0.5 }); // doblada hacia adelante: tapa el medio hasta que se abre
   g.set(fold.querySelectorAll(".fold-shade"), { opacity: 0.35 });
   const tl = g.timeline({ onComplete: done });
   tl.to(fold, { opacity: 1, duration: 0.2 })
