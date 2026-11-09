@@ -444,3 +444,58 @@ create or replace function public.delete_comment(cid uuid) returns void language
     or exists (select 1 from public.plants p where p.id = c.plant_id and p.user_id = auth.uid()));
 $$;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 21 $$;
+
+-- v22: las expediciones listas para arrancar solas. Todo queda apagado hasta que el dueño lo prenda (app_secrets 'expeditions_on' = '1').
+-- · La primera es «Primeras láminas» (10 plantas cualquiera) y la segunda «Plantas de casa».
+-- · Las láminas cargadas a mano (sin los rasgos que da la IA) no cuentan.
+-- · Cada hora se revisa: se cierra la que venció y, si es sábado desde las 9 (hora de España) y hay al menos 2 personas, arranca la siguiente.
+--   Dura hasta el domingo de la semana siguiente a las 23:59. Si se cumple antes, la próxima espera al sábado que viene.
+insert into public.expedition_templates (key, title, hint, icon, rule, goal, needs_trait, position) values
+  ('primeras', 'Primeras láminas', 'Una expedición fácil para empezar y familiarizarse con Herbalorium: asienten entre todos 10 plantas, las que sean.', 'f-herb', '{"new":true}', 10, null, 0)
+on conflict (key) do update set title = excluded.title, hint = excluded.hint, icon = excluded.icon, rule = excluded.rule, goal = excluded.goal, position = excluded.position;
+update public.expedition_templates set position = 1 where key = 'casa';
+update public.expedition_templates set position = 2 where key = 'arboles';
+
+create or replace function public.expedition_count(pid uuid, uid uuid, who text, sighting boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+declare e public.expeditions; p public.plants; n int;
+begin
+  select * into e from public.expeditions where status = 'active' and not demo and now() between starts_at and ends_at limit 1;
+  if not found then return; end if;
+  select * into p from public.plants where id = pid;
+  if not found or p.traits is null then return; end if; -- cargada a mano: no cuenta
+  if not public.expedition_match(e.rule, p, sighting) then return; end if;
+  insert into public.expedition_entries (expedition_id, plant_id, user_id, author_name) values (e.id, pid, uid, who) on conflict do nothing;
+  select count(*) into n from public.expedition_entries where expedition_id = e.id;
+  if n >= e.goal then update public.expeditions set status = 'done', completed_at = now() where id = e.id and status = 'active'; end if;
+end $$;
+revoke all on function public.expedition_count(uuid, uuid, text, boolean) from public, anon, authenticated;
+
+create or replace function public.expedition_tick() returns text
+language plpgsql security definer set search_path = '' as $$
+declare loc timestamp := (now() at time zone 'Europe/Madrid'); t public.expedition_templates; ends timestamptz; members int;
+begin
+  update public.expeditions set status = 'expired' where status = 'active' and not demo and now() > ends_at;
+  if coalesce((select value from public.app_secrets where key = 'expeditions_on'), '0') <> '1' then return 'apagadas'; end if;
+  if exists (select 1 from public.expeditions where status = 'active' and not demo) then return 'hay una en curso'; end if;
+  if extract(isodow from loc) <> 6 or extract(hour from loc) < 9 then return 'no es sábado a la mañana'; end if;
+  if exists (select 1 from public.expeditions where not demo and starts_at > now() - interval '6 days') then return 'ya arrancó una esta semana'; end if;
+  select count(*) into members from public.members where status = 'accepted';
+  if members < 2 then return 'falta gente'; end if;
+  -- La siguiente plantilla: en orden, sin repetir en 6 meses (si ya se usaron todas, la que hace más que no sale).
+  select tp.* into t from public.expedition_templates tp where tp.active
+    order by (select max(x.starts_at) from public.expeditions x where x.template = tp.key and not x.demo) is not null
+               and (select max(x.starts_at) from public.expeditions x where x.template = tp.key and not x.demo) > now() - interval '180 days',
+             (select max(x.starts_at) from public.expeditions x where x.template = tp.key and not x.demo) nulls first, tp.position
+    limit 1;
+  if not found then return 'sin plantillas'; end if;
+  ends := ((date_trunc('day', loc) + interval '8 days 23 hours 59 minutes') at time zone 'Europe/Madrid');
+  insert into public.expeditions (template, title, hint, icon, rule, goal, starts_at, ends_at)
+    values (t.key, t.title, t.hint, t.icon, t.rule, t.goal, now(), ends);
+  return 'arrancó: ' || t.title;
+end $$;
+revoke all on function public.expedition_tick() from public, anon, authenticated;
+-- Tarea de cada hora (a los 7 minutos). Mientras 'expeditions_on' no sea '1', solo cierra las vencidas.
+select cron.unschedule('herbalorium-expediciones') where exists (select 1 from cron.job where jobname = 'herbalorium-expediciones');
+select cron.schedule('herbalorium-expediciones', '7 * * * *', $c$ select public.expedition_tick() $c$);
+create or replace function public.schema_version() returns int language sql immutable as $$ select 22 $$;
