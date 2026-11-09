@@ -256,6 +256,7 @@ function route() {
   document.body.classList.remove("onboarding");
   checkAchievements();
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
+  else if (cfg.demoNews) { delete cfg.demoNews; saveCfg(cfg); setTimeout(() => openNews(true, DEMO_NEWS), 900); }
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   else if (feat("expediciones") && expOverlay()) {}
   else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
@@ -3545,11 +3546,13 @@ function devPanelHTML() {
 function bindAnimDemo() {
   $app.querySelectorAll("[data-anim]").forEach((b) => (b.onclick = () => animDemo(b.dataset.anim, b)));
 }
+// Novedad de ejemplo (Pruebas): se lanza sola al volver a abrir la app, igual que una de verdad.
+const DEMO_NEWS = [{ v: 99, date: APP_DATE, items: ["<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. En la lámina, tocalo y te dice quién fue y cuándo."],
+    tour: [["list", "#app .card .auth-seal", "Quién la asentó", "Arriba a la izquierda de cada lámina, la inicial de quien la cargó en el herbario."],
+           ["plant", "#authseal", "Tocalo y te cuenta", "En la lámina, el medallón se toca: te dice quién la asentó y cuándo."]] }];
 function animDemo(k, b) {
   const p = plants[0], demo = { id: "demo", title: "Árboles del barrio", icon: "f-tree", goal: 5, hint: "Tienen un tronco grueso y son más altos que vos.", starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 6 * 864e5).toISOString(), completed_at: new Date().toISOString() };
-  if (k === "newstour") return openNews(true, [{ v: 99, date: APP_DATE, items: ["<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. En la lámina, tocalo y te dice quién fue y cuándo."],
-    tour: [["list", "#app .card .auth-seal", "Quién la asentó", "Arriba a la izquierda de cada lámina, la inicial de quien la cargó en el herbario."],
-           ["plant", "#authseal", "Tocalo y te cuenta", "En la lámina, el medallón se toca: te dice quién la asentó y cuándo."]] }]);
+  if (k === "newstour") { cfg.demoNews = 1; saveCfg(cfg); toast("Volviendo a abrir el herbario…"); setTimeout(() => { history.replaceState(null, "", "#list"); location.reload(); }, 700); return; }
   if (k === "stamp") return stampSeal("Asentada", p?.common_name || "Romero");
   if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina"); justAdded = p.id; return go("list"); }
   if (k === "nova") { cfg.novaShone = []; saveCfg(cfg); toast("Se ve en las láminas con sello Nova del herbario"); return go("list"); }
