@@ -1131,11 +1131,13 @@ const NEWS = [
 ];
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
-function openNews(all = false) {
+// Una novedad puede traer «tour»: pasos [pantalla, elemento, título, texto] que muestran lo nuevo en la app misma.
+function openNews(all = false, only) {
   const seen = all ? 0 : newsSeen();
   // Quien entró después de una novedad no la ve: arrancó con la app ya así (aprende con el tutorial).
   const joined = (user?.created_at || "").slice(0, 10);
-  const list = NEWS.filter((n) => n.v > seen && (all || !joined || n.date > joined));
+  const list = only || NEWS.filter((n) => n.v > seen && (all || !joined || n.date > joined));
+  const tourSteps = list.flatMap((n) => n.tour || []);
   if (!list.length) { cfg.newsSeen = NEWS[0].v; saveCfg(cfg); return; }
   const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
   const m = document.createElement("div");
@@ -1143,14 +1145,16 @@ function openNews(all = false) {
   m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Novedades del herbario</h3>
     ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>${n.cta ? `<button class="btn news-cta" data-go="${n.cta.go}">${n.cta.label}</button>` : ""}`).join("")}
-    <div class="row"><button class="btn primary" id="news-ok">A explorar</button></div></div>`;
+    <div class="row">${tourSteps.length ? `<button class="btn ghost" id="news-ok">Ahora no</button><button class="btn primary" id="news-tour">Mostrame</button>` : `<button class="btn primary" id="news-ok">A explorar</button>`}</div></div>`;
   const close = () => {
-    m.remove(); cfg.newsSeen = NEWS[0].v; saveCfg(cfg); if (!all) maybeMissionsIntro(450);
+    m.remove(); if (only) return;
+    cfg.newsSeen = NEWS[0].v; saveCfg(cfg); if (!all && !tourSteps.length) maybeMissionsIntro(450);
     if ((user?.user_metadata?.news_seen || 0) < NEWS[0].v) Promise.resolve().then(() => sb.auth.updateUser({ data: { news_seen: NEWS[0].v } })).then(({ data }) => data?.user && (user = data.user)).catch(() => {});
   };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   m.querySelector("#news-ok").onclick = close;
+  m.querySelector("#news-tour")?.addEventListener("click", () => { close(); setTimeout(() => startTour(tourSteps), 300); });
   // Botón de una novedad: cierra el panel y lleva directo a donde se configura (por ejemplo, los avisos).
   m.querySelectorAll(".news-cta").forEach((b) => (b.onclick = () => { close(); if (b.dataset.go === "avisos") { cfg.focusAvisos = true; saveCfg(cfg); } go(b.dataset.go === "avisos" ? "settings" : b.dataset.go); }));
   document.body.appendChild(m);
@@ -1361,9 +1365,9 @@ const waitFor = async (sel, ms = 2500) => {
   for (let t = 0; t < ms; t += 100) { const el = document.querySelector(sel); if (el && el.offsetParent !== null) return el; await new Promise((r) => setTimeout(r, 100)); }
   return null;
 };
-function startTour() {
+function startTour(custom) {
   if (document.querySelector(".tour")) return;
-  const steps = TOUR.filter((t) => !t[4] || feat(t[4])).map((t0) => {
+  const steps = custom ? custom.map((t) => [...t]) : TOUR.filter((t) => !t[4] || feat(t[4])).map((t0) => {
     const t = [...t0];
     if (!feat("misiones")) return t;
     if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
@@ -1406,13 +1410,13 @@ function startTour() {
     card.querySelector("small").textContent = `${i + 1} de ${steps.length}`;
     card.querySelector("b").textContent = t; card.querySelector("p").textContent = d;
     card.querySelector(".tour-dots").innerHTML = steps.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("");
-    card.querySelector("[data-next]").textContent = i === steps.length - 1 ? "Empezar" : "Siguiente";
+    card.querySelector("[data-next]").textContent = i === steps.length - 1 ? (custom ? "Listo" : "Empezar") : "Siguiente";
     place(); card.classList.remove("out"); busy = false;
   };
   const end = () => {
     ov.classList.add("out"); setTimeout(() => ov.remove(), 250);
-    cfg.view = prevView; cfg.tourPending = false; cfg.tourDone = true; saveCfg(cfg); removeEventListener("resize", place);
-    maybeMissionsIntro(700);
+    cfg.view = prevView; if (!custom) { cfg.tourPending = false; cfg.tourDone = true; } saveCfg(cfg); removeEventListener("resize", place);
+    if (!custom) maybeMissionsIntro(700);
     if (currentView() !== "list") go("list"); else renderList();
   };
   ov.querySelector("[data-skip]").onclick = end;
@@ -3533,7 +3537,7 @@ function devPanelHTML() {
   return (feat("expediciones") ? devGroup("Expediciones", "Una expedición de prueba que solo ves vos. Arrancala y después probá sumar, completar o hacer vencer.",
       [["teaser", "Cuenta regresiva", "i-seal-gold"], ["intro", "Presentación (sobre)", "f-family"], ["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")) : "")
     + (feat("animaciones") ? devGroup("Animaciones", "Mirá cada una sin tener que esperar a que pase de verdad. No guarda nada.",
-      [["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
+      [["newstour", "Novedad con recorrido", "i-book"], ["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
     + devGroup("Misiones", "Vuelve a cero lo de las misiones en tu cuenta (presentación, zona, misiones cumplidas y sus logros), para verlo como alguien nuevo.", devBtn('id="resetmis"', "Empezar de cero", "i-compass"))
     + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`
     + devGroup("Láminas antiguas", "Olvida las ilustraciones encontradas en este móvil y las vuelve a buscar. Las que quitaste a mano no vuelven.", devBtn('id="reillus"', "Volver a buscar", "i-book"));
@@ -3543,6 +3547,9 @@ function bindAnimDemo() {
 }
 function animDemo(k, b) {
   const p = plants[0], demo = { id: "demo", title: "Árboles del barrio", icon: "f-tree", goal: 5, hint: "Tienen un tronco grueso y son más altos que vos.", starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 6 * 864e5).toISOString(), completed_at: new Date().toISOString() };
+  if (k === "newstour") return openNews(true, [{ v: 99, date: APP_DATE, items: ["<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. En la lámina, tocalo y te dice quién fue y cuándo."],
+    tour: [["list", "#app .card .auth-seal", "Quién la asentó", "Arriba a la izquierda de cada lámina, la inicial de quien la cargó en el herbario."],
+           ["plant", "#authseal", "Tocalo y te cuenta", "En la lámina, el medallón se toca: te dice quién la asentó y cuándo."]] }]);
   if (k === "stamp") return stampSeal("Asentada", p?.common_name || "Romero");
   if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina"); justAdded = p.id; return go("list"); }
   if (k === "nova") { cfg.novaShone = []; saveCfg(cfg); toast("Se ve en las láminas con sello Nova del herbario"); return go("list"); }
