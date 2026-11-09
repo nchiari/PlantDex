@@ -2240,8 +2240,8 @@ async function renderDetail(id) {
     let tip = au.parentNode.querySelector(".auth-tip");
     if (tip) return tip.remove();
     tip = document.createElement("div"); tip.className = "cult-tip auth-tip";
-    const when = p.found_at || p.created_at, others = [...new Set((p.sightings || []).map((x) => x.author_name).filter((n) => n && n !== p.author_name))];
-    tip.innerHTML = `<b>La encontró ${esc(p.author_name)}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}${others.length ? `<br>También la ${others.length === 1 ? "encontró" : "encontraron"} ${esc(others.join(", "))}.` : ""}`;
+    const when = p.found_at || p.created_at;
+    tip.innerHTML = `<b>La encontró ${esc(p.author_name)}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}`;
     au.after(tip); requestAnimationFrame(() => tip.classList.add("on"));
     const off = () => { tip.remove(); document.removeEventListener("click", off); };
     setTimeout(() => document.addEventListener("click", off), 0); setTimeout(off, 3500);
