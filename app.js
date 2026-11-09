@@ -2168,12 +2168,12 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
-      ${feat("notas") ? notesBtn(p) : ""}
       <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
       ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
     ${figs[0] ? `<figure class="hero${justAdded === p.id ? " landed" : ""}" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
+    ${feat("notas") ? notesBtn(p) : ""}
     ${(() => {
       // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
       const mine = feat("fotos") && p.user_id === user.id;
@@ -3246,14 +3246,19 @@ const hydrateBitacora = (x, focusNum) => hydrateThread($app.querySelector("#bita
   empty: "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás.", closedEmpty: "Nadie escribió en esta expedición.",
   ph: "Escribí en la bitácora…", closed: "La bitácora quedó cerrada con la expedición.", missing: "La bitácora todavía no está disponible en este herbario." }, focusNum);
 // ---------- notas al margen de cada lámina: se abren en una hoja aparte para no alargar la página ----------
-let noteCounts = {}; // lámina → cuántas notas tiene (para el botón y el puntito de «nuevas»)
+let noteCounts = {}, noteLast = {}; // lámina → cuántas notas tiene y la última (para el marbete y el puntito de «nuevas»)
 async function loadNoteCounts() {
-  const { data, error } = await sb.from("expedition_comments").select("plant_id").not("plant_id", "is", null);
-  noteCounts = {}; if (error) return;
-  (data || []).forEach((r) => (noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1));
+  const { data, error } = await sb.from("expedition_comments").select("plant_id,num,body,author_name,deleted").not("plant_id", "is", null).order("num");
+  noteCounts = {}; noteLast = {}; if (error) return;
+  (data || []).forEach((r) => { noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1; if (!r.deleted) noteLast[r.plant_id] = r; });
 }
-const notesBtn = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0);
-  return `<button class="note-btn${fresh ? " fresh" : ""}" id="notes"><svg><use href="#f-pen"/></svg><span>${n ? `${n} ${n === 1 ? "nota" : "notas"} al margen` : "Dejar una nota"}</span></button>`; };
+// Marbete: el papelito escrito a mano que los botánicos dejaban prendido al pie de la lámina.
+const notesBtn = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0), last = noteLast[p.id];
+  const txt = last ? (last.body.length > 64 ? last.body.slice(0, 64).trim() + "…" : last.body) : "";
+  return `<button class="marbete${fresh ? " fresh" : ""}" id="notes" aria-label="Notas al margen"><span class="mb-pin"></span>
+    <span class="mb-k">Notas al margen${n ? ` · ${n}` : ""}</span>
+    ${last ? `<span class="mb-q">«${esc(txt)}»</span><span class="mb-a">— ${esc(last.author_name || "Alguien")}</span>` : `<span class="mb-q empty">Dejá la primera: dónde la viste, un uso, una duda…</span>`}
+    ${fresh ? `<span class="mb-new">Nuevas</span>` : ""}</button>`; };
 function openNotes(p) {
   const m = document.createElement("div");
   m.className = "modal";

@@ -1480,3 +1480,21 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .modal-box.notes { max-height: 88vh; overflow-y: auto; }
 .modal-box.notes h3 { margin-top: 4px; }
 .notes-sub { margin-top: -4px; font-size: 15px; }
+
+/* marbete de notas: un papel escrito a mano prendido al pie de la lámina, un poco torcido */
+.note-btn { display: none; }
+.marbete { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: min(78%, 300px); margin: -18px 10px 6px auto; z-index: 2;
+  padding: 16px 16px 12px; text-align: left; cursor: pointer; transform: rotate(-1.6deg); color: #3a3220;
+  background: linear-gradient(170deg, #fbf6e4, #f1e7c8); border: 1px solid #d6c592; border-radius: 2px;
+  box-shadow: 0 6px 14px rgb(0 0 0 / .18), 0 1px 0 rgb(255 255 255 / .6) inset; font: inherit; transition: transform .2s; }
+.marbete:active { transform: rotate(-1.6deg) scale(.98); }
+.marbete::before { content: ""; position: absolute; inset: 5px; border: 1px dashed rgb(150 125 60 / .35); pointer-events: none; }
+.mb-pin { position: absolute; top: -7px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f3d98c, #b38a2e 60%, #7a5a14); box-shadow: 0 2px 3px rgb(0 0 0 / .35); }
+.mb-k { font: 600 10px var(--caps); letter-spacing: 2px; text-transform: uppercase; color: #8a7433; }
+.mb-q { font: italic 16.5px/1.35 var(--text); color: #3a3220; } .mb-q.empty { color: #7d7254; font-size: 15.5px; }
+.mb-a { align-self: flex-end; font: italic 14px var(--text); color: #7d7254; }
+.mb-new { position: absolute; top: -9px; right: -8px; padding: 3px 8px; border-radius: 99px; background: #b4532e; color: #fbf6e4; font: 600 9px var(--caps); letter-spacing: 1.2px; text-transform: uppercase; transform: rotate(6deg); box-shadow: 0 2px 4px rgb(0 0 0 / .25); }
+:root[data-theme="dark"] .marbete { box-shadow: 0 8px 18px rgb(0 0 0 / .5); }
+.marbete { margin: -6px 10px 16px auto; }
+.mb-q, .mb-k { align-self: stretch; text-align: left; }
