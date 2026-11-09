@@ -454,7 +454,7 @@ insert into public.expedition_templates (key, title, hint, icon, rule, goal, nee
   ('primeras', 'Primeras láminas', 'Una expedición fácil para empezar y familiarizarse con Herbalorium: asienten entre todos 10 plantas, las que sean.', 'f-herb', '{"new":true}', 10, null, 0)
 on conflict (key) do update set title = excluded.title, hint = excluded.hint, icon = excluded.icon, rule = excluded.rule, goal = excluded.goal, position = excluded.position;
 update public.expedition_templates set position = 1 where key = 'casa';
-update public.expedition_templates set position = 2 where key = 'arboles';
+update public.expedition_templates set position = case key when 'arboles' then 2 when 'pinchan' then 3 when 'olor' then 4 when 'amarillas' then 5 else position end where key in ('arboles','pinchan','olor','amarillas');
 
 create or replace function public.expedition_count(pid uuid, uid uuid, who text, sighting boolean) returns void
 language plpgsql security definer set search_path = '' as $$
