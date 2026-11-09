@@ -3293,7 +3293,7 @@ function openNotes(p) {
   m.querySelector(".modal-x").onclick = close;
   document.body.appendChild(m);
   hydrateThread(m.querySelector("#notes-thread"), { key: "plant_id", id: p.id, open: true, canDelete: p.user_id === user.id,
-    empty: "Todavía no hay notas. Contá dónde la viste, si florecía, un uso que conocés o lo que te dé curiosidad.", ph: "Escribí una nota…",
+    empty: "", ph: "Escribí una nota…",
     missing: "Las notas al margen todavía no están disponibles en este herbario.",
     onLoad: (list) => { noteCounts[p.id] = list.length; cfg.notesSeen = { ...(cfg.notesSeen || {}), [p.id]: list.length }; saveCfg(cfg); } });
 }
@@ -3316,7 +3316,7 @@ async function hydrateThread(box, T, focusNum) {
       ${c.reply_to ? quote(c.reply_to) : ""}
       ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${esc(c.body)}</p>`}
       ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
-    </div>`).join("")}</div>` : `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>`}
+    </div>`).join("")}</div>` : (open ? T.empty : T.closedEmpty) ? `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>` : ""}
     ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="${T.ph}"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">${T.closed}</p>`}`;
   const jump = (n) => { const el = box.querySelector(`[data-num="${n}"]`); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };
   box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => jump(b.dataset.go)));
