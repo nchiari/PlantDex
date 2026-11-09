@@ -1514,3 +1514,11 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .notes-fab:active { transform: scale(.95); }
 :root[data-theme="dark"] .notes-fab { box-shadow: 0 6px 18px rgb(0 0 0 / .6); }
 @media (prefers-reduced-motion: reduce) { .notes-fab, .notes-fab.fresh::after { transition: none; animation: none; } }
+
+/* menciones con @ (prueba) */
+.mention { color: #8a6d1f; background: rgb(214 186 108 / .22); padding: 0 3px; border-radius: 4px; font-weight: 600; }
+:root[data-theme="dark"] .mention { color: #e9d8a2; background: rgb(214 186 108 / .2); }
+.mention-pop { display: flex; flex-direction: column; gap: 2px; padding: 6px; margin-bottom: 6px; border-radius: 10px; background: var(--parchment-2); border: 1px solid rgb(var(--line) / .25); box-shadow: 0 6px 16px rgb(0 0 0 / .15); }
+.mention-pop[hidden] { display: none; }
+.mention-pop button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 16px var(--text); text-align: left; cursor: pointer; }
+.mention-pop button:active, .mention-pop button:hover { background: rgb(var(--line) / .08); }

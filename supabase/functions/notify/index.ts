@@ -6,7 +6,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
-const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true } };
+const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false } };
 type Kind = keyof typeof DEFAULT;
 const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
@@ -185,6 +185,16 @@ Deno.serve(async (req) => {
     // A quienes todavía no la vieron en la app.
     const to = [...accepted].filter((u) => (users.find((x) => x.id === u)?.user_metadata?.news_seen || 0) < v);
     return json({ ok: true, ...(await send(to, "news", title, short, site, html)) });
+  }
+  if (kind === "mention") { // alguien mencionó con @ en una nota al margen o en la bitácora
+    const { data: c } = await db.from("expedition_comments").select("id,user_id,author_name,body,plant_id,expedition_id,created_at").eq("id", body.comment_id).maybeSingle();
+    if (!c || c.user_id !== me.id || Date.now() - new Date(c.created_at).getTime() > 600e3) return json({ error: "no corresponde" }, 403);
+    const txt = String(c.body || "").toLowerCase();
+    const to = [...accepted].filter((uid) => { const n = String(nameOf(uid) || "").toLowerCase(); return n && new RegExp("@" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "u").test(txt); });
+    let where = "la bitácora", url = site + "#exp";
+    if (c.plant_id) { const { data: p } = await db.from("plants").select("common_name").eq("id", c.plant_id).maybeSingle(); where = `una nota del ${p?.common_name || "herbario"}`; url = site + "#plant/" + c.plant_id; }
+    const who = c.author_name || nameOf(me.id), short = c.body.length > 120 ? c.body.slice(0, 117) + "…" : c.body;
+    return json({ ok: true, to: to.length, ...(await send(to, "mentions", `${who} te mencionó en ${where}`, short, url)) });
   }
   return json({ error: "tipo desconocido" }, 400);
 });

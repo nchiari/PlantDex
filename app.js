@@ -259,6 +259,10 @@ function route() {
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   else if (feat("expediciones") && expOverlay()) {}
   else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
+  else if (user && nameDup() && !route.dupAsked) { route.dupAsked = true; setTimeout(async () => {
+    if (document.querySelector(".modal, .tour")) return;
+    if (await ask({ title: "Hay otra persona con tu nombre", text: `En el herbario hay dos «${esc(myName())}». Para que no se confundan las láminas, las notas y los avisos, cambiá el tuyo: por ejemplo, sumale una inicial.`, ok: "Cambiar mi nombre", cancel: "Más tarde" })) { go("settings"); setTimeout(() => $app.querySelector("#editname")?.click(), 400); }
+  }, 1200); }
   else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
   $nav.querySelector('[data-go="stats"]').lastChild.textContent = feat("misiones") ? "Progreso" : "Logros";
@@ -283,9 +287,17 @@ const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load faile
 addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
 addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
+// Nombres únicos en el herbario: dos personas con el mismo nombre se confunden en filtros, notas y menciones.
+const normName = (n) => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+function nameTaken(n) {
+  const others = [...memberNames], mine = normName(user?.user_metadata?.name || cfg.name), i = others.findIndex((x) => normName(x) === mine);
+  if (i >= 0) others.splice(i, 1);
+  return others.some((x) => normName(x) === normName(n));
+}
+const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.user_metadata?.name || cfg.name)).length > 1;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -293,7 +305,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.7", APP_DATE = "2026-11-09";
+const APP_VERSION = "1.7.8", APP_DATE = "2026-11-09";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -851,7 +863,13 @@ function renderSettings() {
     try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copiá este enlace:", url); }
   });
   // Diseño nuevo: todo se guarda solo (nombre, grabado, láminas antiguas); "Guardar" queda solo para la conexión.
-  const autosave = () => { cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
+  const autosave = () => {
+    const nn = v("myname").replace(/\s+/g, " ").trim();
+    if (nn && normName(nn) !== normName(cfg.name) && nameTaken(nn)) {
+      $app.querySelector("#myname").value = cfg.name || "";
+      return ask({ title: "Ese nombre ya está", text: `Ya hay alguien en el herbario que se llama ${esc(nn)}. Probá con una inicial o un apodo, por ejemplo «${esc(nn)} ${esc(initialOf(user?.email))}.».`, ok: "Entendido", cancel: "Cerrar" });
+    }
+    cfg = { ...cfg, name: nn || cfg.name, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
     saveCfg(cfg); document.body.classList.toggle("engrave", cfg.engrave);
     if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
     $app.querySelector("#mename") && ($app.querySelector("#mename").textContent = cfg.name || "Tu nombre"); toast("Guardado"); };
@@ -866,7 +884,9 @@ function renderSettings() {
   if ($app.querySelector("#save")) $app.querySelector("#save").onclick = () => {
     const prevSb = cfg.sbUrl + cfg.sbKey;
     const sbUrlEl = document.getElementById("sbUrl");
-    cfg = { ...cfg, name: v("myname").split(" ")[0] || cfg.name,
+    const nn2 = v("myname").replace(/\s+/g, " ").trim();
+    if (nn2 && normName(nn2) !== normName(cfg.name) && nameTaken(nn2)) { $app.querySelector("#myname").value = cfg.name || ""; return toast(`Ya hay alguien que se llama ${nn2}: probá con una inicial o un apodo`); }
+    cfg = { ...cfg, name: nn2 || cfg.name,
       sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
     saveCfg(cfg);
     if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
@@ -1466,8 +1486,8 @@ async function notifyOwner() {
   try { const r = await sb.functions.invoke("notify", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
 }
 // Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
-const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"]];
-const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true } };
+const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"], ["mentions", "Alguien te mencionó con @", false, "menciones"]];
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false } };
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
@@ -3314,7 +3334,7 @@ async function hydrateThread(box, T, focusNum) {
   box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" data-num="${c.num}">
       <div class="bt-head"><span class="bt-av">${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
       ${c.reply_to ? quote(c.reply_to) : ""}
-      ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${esc(c.body)}</p>`}
+      ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${feat("menciones") ? withMentions(c.body) : esc(c.body)}</p>`}
       ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
     </div>`).join("")}</div>` : (open ? T.empty : T.closedEmpty) ? `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>` : ""}
     ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="${T.ph}"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">${T.closed}</p>`}`;
@@ -3334,9 +3354,39 @@ async function hydrateThread(box, T, focusNum) {
     const { data: c, error: e } = await sb.from("expedition_comments").insert({ [T.key]: T.id, author_name: myName(), body, reply_to: replyTo }).select().single();
     if (e) { ev.currentTarget.disabled = false; return toast("No se pudo enviar: " + e.message); }
     T.onSend?.(c);
+    if (feat("menciones") && /@/.test(body)) notify({ kind: "mention", comment_id: c.id });
     hydrateThread(box, T, c?.num);
   });
   if (focusNum) setTimeout(() => jump(focusNum), 100);
+  if (ta && feat("menciones")) bindMentions(ta);
+}
+
+// ---------- menciones con @: al escribir @ aparece la gente del herbario; la persona mencionada recibe un aviso ----------
+function withMentions(text) {
+  let h = esc(text);
+  [...memberNames].sort((a, b) => b.length - a.length).forEach((n) => {
+    const re = new RegExp("@" + esc(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "giu");
+    h = h.replace(re, (m) => `<b class="mention">${m}</b>`);
+  });
+  return h;
+}
+function bindMentions(ta) {
+  const pop = document.createElement("div"); pop.className = "mention-pop"; pop.hidden = true; ta.before(pop);
+  const word = () => { const pre = ta.value.slice(0, ta.selectionStart); const m = pre.match(/(?:^|\s)@([\p{L}\p{N}.\- ]{0,20})$/u); return m ? m[1] : null; };
+  const paint = () => {
+    const w = word(); if (w === null) return (pop.hidden = true);
+    const list = [...new Set(memberNames)].filter((n) => normName(n).startsWith(normName(w))).slice(0, 5);
+    if (!list.length) return (pop.hidden = true);
+    pop.innerHTML = list.map((n) => `<button type="button" data-n="${esc(n)}"><span class="bt-av">${esc(initialOf(n))}</span>${esc(n)}</button>`).join("");
+    pop.hidden = false;
+    pop.querySelectorAll("button").forEach((b) => (b.onmousedown = b.ontouchstart = (e) => {
+      e.preventDefault();
+      const pos = ta.selectionStart, pre = ta.value.slice(0, pos), at = pre.lastIndexOf("@");
+      ta.value = pre.slice(0, at) + "@" + b.dataset.n + " " + ta.value.slice(pos);
+      const np = at + b.dataset.n.length + 2; ta.setSelectionRange(np, np); ta.focus(); pop.hidden = true;
+    }));
+  };
+  ta.addEventListener("input", paint); ta.addEventListener("click", paint); ta.addEventListener("blur", () => setTimeout(() => (pop.hidden = true), 150));
 }
 
 // ---------- lanzamiento de las expediciones: una semana de intriga y una carta que se abre sola ----------
