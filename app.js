@@ -1980,11 +1980,11 @@ const cultSeal = (p, tap = false) => {
   const k = p.setting === "cultivada" ? "cultivada" : "hallada", [ic, label] = SEALS[k];
   return `<${tap ? 'button type="button"' : "span"} class="cult-seal s-${k}${tap ? " big" : ""}" data-seal="${k}" ${tap ? `id="cultseal" aria-label="${label}"` : `title="${label}"`}><svg><use href="#${ic}"/></svg></${tap ? "button" : "span"}>`;
 };
-// Sello de quien la encontró: su inicial, arriba a la izquierda de la foto (del otro lado del de hallada/cultivada).
+// Sello de quien la asentó (la cargó en el herbario): su inicial, arriba a la izquierda de la foto (del otro lado del de hallada/cultivada).
 // En la lámina se toca y dice quién la subió y cuándo (hay iniciales repetidas: Laura y Leandro).
 const authorSeal = (p, tap = false) => {
   if (!feat("autor") || !p.author_name) return "";
-  const t = `${tap ? 'button type="button" id="authseal"' : "span"} class="auth-seal${tap ? " big" : ""}" aria-label="La encontró ${esc(p.author_name)}"`;
+  const t = `${tap ? 'button type="button" id="authseal"' : "span"} class="auth-seal${tap ? " big" : ""}" aria-label="La asentó ${esc(p.author_name)}"`;
   return `<${t}>${esc(initialOf(p.author_name))}</${tap ? "button" : "span"}>`;
 };
 const novaTag = (p) => (isNova(p) ? `<span class="nova" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : "");
@@ -2241,7 +2241,7 @@ async function renderDetail(id) {
     if (tip) return tip.remove();
     tip = document.createElement("div"); tip.className = "cult-tip auth-tip";
     const when = p.found_at || p.created_at;
-    tip.innerHTML = `<b>La encontró ${esc(p.author_name)}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}`;
+    tip.innerHTML = `<b>La asentó ${esc(p.author_name)}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}`;
     au.after(tip); requestAnimationFrame(() => tip.classList.add("on"));
     const off = () => { tip.remove(); document.removeEventListener("click", off); };
     setTimeout(() => document.addEventListener("click", off), 0); setTimeout(off, 3500);
