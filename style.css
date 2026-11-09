@@ -1544,3 +1544,15 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .auth-seal.big { width: 51px; height: 51px; font-size: 24px; cursor: pointer; margin: calc(14.64% - 25.5px) 0 0 calc(14.64% - 25.5px); }
 .auth-tip { left: 12px; right: auto; }
 .auth-tip::before { left: 20px; right: auto; }
+
+/* índice: solo quién la asentó y si es hallada o cultivada */
+.ix-seals { flex: none; display: flex; gap: 8px; margin-left: auto; }
+.ix-seals .auth-seal, .ix-seals .cult-seal { position: static; margin: 0; width: 32px; height: 32px; }
+.ix-seals .cult-seal svg { width: 18px; height: 18px; }
+[data-tip] { cursor: pointer; }
+/* cartelito flotante de los sellos chicos */
+.seal-tip { position: fixed; z-index: 70; max-width: 240px; padding: 9px 12px; border-radius: 8px; background: var(--deep); color: var(--gold-soft); border: 1px solid var(--gold);
+  font: 15px/1.35 var(--text); box-shadow: 0 6px 16px rgb(0 0 0 / .3); opacity: 0; transform: translateY(-4px); transition: opacity .18s, transform .18s; pointer-events: none; }
+.seal-tip.on { opacity: 1; transform: none; }
+.seal-tip::before { content: ""; position: absolute; top: -6px; left: calc(var(--ax) - 5px); width: 10px; height: 10px; background: var(--deep); border: 1px solid var(--gold); border-right: 0; border-bottom: 0; transform: rotate(45deg); }
+.seal-tip b { display: block; font: 600 11px var(--caps); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; color: var(--gold); }

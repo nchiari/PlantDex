@@ -298,7 +298,7 @@ function nameTaken(n) {
 const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.user_metadata?.name || cfg.name)).length > 1;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -306,7 +306,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.8", APP_DATE = "2026-11-09";
+const APP_VERSION = "1.7.9", APP_DATE = "2026-11-09";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1703,6 +1703,7 @@ function renderList() {
   $app.querySelectorAll("[data-setting]").forEach((c) => (c.onclick = () => { filter.setting = filter.setting === c.dataset.setting ? "" : c.dataset.setting; renderList(); }));
   $app.querySelectorAll("[data-nova]").forEach((c) => (c.onclick = () => { filter.nova = !filter.nova; renderList(); }));
   $app.querySelectorAll(".card, .index li").forEach((c) => (c.onclick = () => (location.hash = "plant/" + c.dataset.id)));
+  $app.querySelectorAll("[data-tip]").forEach((el) => (el.onclick = (e) => { e.stopPropagation(); sealTip(el); }));
   $app.querySelectorAll(".viewsw button").forEach((b) => (b.onclick = () => { cfg.view = b.dataset.v; saveCfg(cfg); renderList(); }));
   hydrateIllustrations();
   if (justAdded) { $app.querySelector(`.card[data-id="${justAdded}"], .index li[data-id="${justAdded}"]`)?.classList.add("landed"); justAdded = null; }
@@ -1983,15 +1984,33 @@ const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa: maceta, hue
 const cultSeal = (p, tap = false) => {
   if (!feat("sellocult")) return "";
   const k = p.setting === "cultivada" ? "cultivada" : "hallada", [ic, label] = SEALS[k];
-  return `<${tap ? 'button type="button"' : "span"} class="cult-seal s-${k}${tap ? " big" : ""}" data-seal="${k}" ${tap ? `id="cultseal" aria-label="${label}"` : `title="${label}"`}><svg><use href="#${ic}"/></svg></${tap ? "button" : "span"}>`;
+  return `<${tap ? 'button type="button"' : "span"} class="cult-seal s-${k}${tap ? " big" : ""}" data-seal="${k}" ${tap ? `id="cultseal" aria-label="${label}"` : `data-tip="setting" data-id="${p.id}" aria-label="${label}"`}><svg><use href="#${ic}"/></svg></${tap ? "button" : "span"}>`;
 };
 // Sello de quien la asentó (la cargó en el herbario): su inicial, arriba a la izquierda de la foto (del otro lado del de hallada/cultivada).
 // En la lámina se toca y dice quién la subió y cuándo (hay iniciales repetidas: Laura y Leandro).
 const authorSeal = (p, tap = false) => {
   if (!feat("autor") || !p.author_name) return "";
-  const t = `${tap ? 'button type="button" id="authseal"' : "span"} class="auth-seal${tap ? " big" : ""}" aria-label="La asentó ${esc(p.author_name)}"`;
+  const t = `${tap ? 'button type="button" id="authseal"' : `span data-tip="author" data-id="${p.id}"`} class="auth-seal${tap ? " big" : ""}" aria-label="La asentó ${esc(p.author_name)}"`;
   return `<${t}>${esc(initialOf(p.author_name))}</${tap ? "button" : "span"}>`;
 };
+// Cartelito flotante para los sellos chicos (tarjetas e índice): quién la asentó, o si es hallada o cultivada.
+function sealTip(el) {
+  const old = document.querySelector(".seal-tip"); if (old) { old.remove(); if (old.dataset.for === el.dataset.tip + el.dataset.id) return; }
+  const p = plants.find((x) => x.id === el.dataset.id); if (!p) return;
+  let html;
+  if (el.dataset.tip === "author") { const when = p.found_at || p.created_at;
+    html = `<b>La asentó ${esc(p.author_name || "")}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}`; }
+  else { const [, label, txt] = SEALS[p.setting === "cultivada" ? "cultivada" : "hallada"]; html = `<b>${label}</b>${txt}`; }
+  const tip = document.createElement("div"); tip.className = "seal-tip"; tip.dataset.for = el.dataset.tip + el.dataset.id; tip.innerHTML = html;
+  document.body.appendChild(tip);
+  const r = el.getBoundingClientRect(), w = tip.offsetWidth;
+  const x = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2));
+  tip.style.left = x + "px"; tip.style.top = r.bottom + 10 + "px";
+  tip.style.setProperty("--ax", r.left + r.width / 2 - x + "px");
+  requestAnimationFrame(() => tip.classList.add("on"));
+  const off = () => { tip.remove(); removeEventListener("click", off, true); removeEventListener("scroll", off, true); };
+  setTimeout(() => { addEventListener("click", off, true); addEventListener("scroll", off, true); }, 0); setTimeout(off, 3500);
+}
 const novaTag = (p) => (isNova(p) ? `<span class="nova" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : "");
 
 function row(p) {
@@ -1999,7 +2018,7 @@ function row(p) {
   return `<li data-id="${p.id}">
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
     <span class="ix-txt"><b>${esc(p.common_name)}${novaTag(p)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
-    ${consBadge(p.iucn, "cons ix-cons")}${edibleBadge(p, "dog ix-mark")}
+    <span class="ix-seals">${authorSeal(p)}${cultSeal(p)}</span>
   </li>`;
 }
 
