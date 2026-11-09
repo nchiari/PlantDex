@@ -414,3 +414,33 @@ $$;
 revoke all on function public.delete_comment(uuid) from public, anon;
 grant execute on function public.delete_comment(uuid) to authenticated;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 20 $$;
+
+-- v21: notas al margen de cada lámina. Usan la misma tabla que la bitácora: cada mensaje cuelga de una expedición o de una lámina.
+-- Las notas de una lámina siempre están abiertas; quien cargó la lámina también puede borrar las notas de su lámina.
+alter table public.expedition_comments alter column expedition_id drop not null;
+alter table public.expedition_comments add column if not exists plant_id uuid references public.plants on delete cascade;
+alter table public.expedition_comments drop constraint if exists comment_target;
+alter table public.expedition_comments add constraint comment_target check ((expedition_id is null) <> (plant_id is null));
+alter table public.expedition_comments drop constraint if exists expedition_comments_expedition_id_num_key;
+create unique index if not exists comments_exp_num on public.expedition_comments (expedition_id, num) where expedition_id is not null;
+create unique index if not exists comments_plant_num on public.expedition_comments (plant_id, num) where plant_id is not null;
+create or replace function public.comment_num() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  perform pg_advisory_xact_lock(hashtext(coalesce(new.expedition_id, new.plant_id)::text));
+  select coalesce(max(num), 0) + 1 into new.num from public.expedition_comments
+    where (new.expedition_id is not null and expedition_id = new.expedition_id) or (new.plant_id is not null and plant_id = new.plant_id);
+  new.user_id := auth.uid(); new.deleted := false;
+  return new;
+end $$;
+drop policy if exists "read comments" on public.expedition_comments;
+drop policy if exists "write comments" on public.expedition_comments;
+create policy "read comments" on public.expedition_comments for select to authenticated using (public.is_member() and (plant_id is not null
+  or exists (select 1 from public.expeditions e where e.id = expedition_id and (not e.demo or public.is_owner()))));
+create policy "write comments" on public.expedition_comments for insert to authenticated with check (public.is_member() and (plant_id is not null
+  or exists (select 1 from public.expeditions e where e.id = expedition_id and e.status = 'active' and (not e.demo or public.is_owner()))));
+create or replace function public.delete_comment(cid uuid) returns void language sql security definer set search_path = '' as $$
+  update public.expedition_comments c set deleted = true, body = '-'
+  where c.id = cid and (c.user_id = auth.uid() or public.is_owner()
+    or exists (select 1 from public.plants p where p.id = c.plant_id and p.user_id = auth.uid()));
+$$;
+create or replace function public.schema_version() returns int language sql immutable as $$ select 21 $$;

@@ -1471,3 +1471,12 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .in-warn { text-align: left; margin: 14px 0; padding: 12px 14px; border-radius: 8px; background: rgb(180 83 46 / .1); border-left: 3px solid #b4532e; font-size: 16px; line-height: 1.45; }
 .in-or { margin: 10px 0 0; font-size: 14px; }
 .share-tip { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: rgb(var(--line) / .06); border-left: 3px solid var(--gold); font-size: 15px; line-height: 1.45; }
+
+/* notas al margen (prueba): un botón chico en la lámina y la conversación en una hoja aparte */
+.note-btn { position: relative; display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 7px 14px; cursor: pointer; border-radius: 99px;
+  background: none; border: 1px solid rgb(var(--line) / .3); color: var(--ink-soft); font: italic 15.5px var(--text); }
+.note-btn svg { width: 17px; height: 17px; color: var(--gold); }
+.note-btn.fresh::after { content: ""; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--parchment); }
+.modal-box.notes { max-height: 88vh; overflow-y: auto; }
+.modal-box.notes h3 { margin-top: 4px; }
+.notes-sub { margin-top: -4px; font-size: 15px; }

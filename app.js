@@ -284,7 +284,7 @@ addEventListener("offline", () => { offline = true; });
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -321,6 +321,7 @@ async function loadPlants() {
   plants.forEach((p) => (p.sightings = (sg || []).filter((x) => x.plant_id === p.id)));
   await signUrls(plants.flatMap((p) => p.photos?.slice(0, 1) || []));
   if (feat("expediciones")) await loadExps();
+  if (feat("notas")) await loadNoteCounts();
 }
 
 async function signUrls(paths) {
@@ -2167,6 +2168,7 @@ async function renderDetail(id) {
       <h2>${esc(p.common_name)}</h2>
       <div class="sci">${esc(p.scientific_name || "species ignota")}</div>
       ${p.other_names ? `<div class="muted" style="font-size:15px">${esc(p.other_names)}</div>` : ""}
+      ${feat("notas") ? notesBtn(p) : ""}
       <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
       ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
@@ -2235,6 +2237,7 @@ async function renderDetail(id) {
   });
   let curFig = 0;
   const plainTxt = (h) => String(h || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  $app.querySelector("#notes")?.addEventListener("click", () => openNotes(p));
   $app.querySelector("#hero")?.addEventListener("click", () => openViewer(figs.map((f) => ({
     src: f.src, small: f.src, title: p.common_name, sub: f.illu ? "Lámina antigua" : plainTxt(f.cap),
     credit: f.illu && ill ? `${ill.credit} · ${ill.license} · Wikimedia Commons` : "",
@@ -3239,25 +3242,55 @@ function expClock(x) {
 }
 
 // Bitácora de la expedición: mensajes numerados en orden; una respuesta cita al mensaje original y se puede saltar a él.
-async function hydrateBitacora(x, focusNum) {
-  const box = $app.querySelector("#bitacora"); if (!box) return;
-  const { data, error } = await sb.from("expedition_comments").select("*").eq("expedition_id", x.id).order("num");
-  if (!$app.contains(box)) return;
-  if (error) { box.innerHTML = `<p class="ms-hint">La bitácora todavía no está disponible en este herbario.</p>`; return; }
+const hydrateBitacora = (x, focusNum) => hydrateThread($app.querySelector("#bitacora"), { key: "expedition_id", id: x.id, open: x.status === "active",
+  empty: "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás.", closedEmpty: "Nadie escribió en esta expedición.",
+  ph: "Escribí en la bitácora…", closed: "La bitácora quedó cerrada con la expedición.", missing: "La bitácora todavía no está disponible en este herbario." }, focusNum);
+// ---------- notas al margen de cada lámina: se abren en una hoja aparte para no alargar la página ----------
+let noteCounts = {}; // lámina → cuántas notas tiene (para el botón y el puntito de «nuevas»)
+async function loadNoteCounts() {
+  const { data, error } = await sb.from("expedition_comments").select("plant_id").not("plant_id", "is", null);
+  noteCounts = {}; if (error) return;
+  (data || []).forEach((r) => (noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1));
+}
+const notesBtn = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0);
+  return `<button class="note-btn${fresh ? " fresh" : ""}" id="notes"><svg><use href="#f-pen"/></svg><span>${n ? `${n} ${n === 1 ? "nota" : "notas"} al margen` : "Dejar una nota"}</span></button>`; };
+function openNotes(p) {
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box notes" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>Notas al margen</h3><p class="muted notes-sub">${esc(p.common_name)} · lo que el herbario sabe, vio o se pregunta de esta planta.</p>
+    <div id="notes-thread"><p class="ms-hint">Cargando…</p></div></div>`;
+  const close = () => { m.remove(); const b = $app.querySelector("#notes"); if (b) b.outerHTML = notesBtn(p), $app.querySelector("#notes").onclick = () => openNotes(p); };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  document.body.appendChild(m);
+  hydrateThread(m.querySelector("#notes-thread"), { key: "plant_id", id: p.id, open: true, canDelete: p.user_id === user.id,
+    empty: "Todavía no hay notas. Contá dónde la viste, si florecía, un uso que conocés o lo que te dé curiosidad.", ph: "Escribí una nota…",
+    missing: "Las notas al margen todavía no están disponibles en este herbario.",
+    onLoad: (list) => { noteCounts[p.id] = list.length; cfg.notesSeen = { ...(cfg.notesSeen || {}), [p.id]: list.length }; saveCfg(cfg); } });
+}
+
+// Conversación numerada (la bitácora de una expedición o las notas al margen de una lámina): responder citando, saltar a la cita y borrar.
+async function hydrateThread(box, T, focusNum) {
+  if (!box) return;
+  const { data, error } = await sb.from("expedition_comments").select("*").eq(T.key, T.id).order("num");
+  if (!box.isConnected) return;
+  if (error) { box.innerHTML = `<p class="ms-hint">${T.missing}</p>`; return; }
   const list = data || [], byNum = Object.fromEntries(list.map((c) => [c.num, c]));
-  const open = x.status === "active";
+  const open = T.open;
+  T.onLoad?.(list);
   const ago = (t) => { const m = Math.round((Date.now() - new Date(t)) / 6e4); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : dShort(t); };
   const quote = (n) => { const q = byNum[n]; if (!q) return ""; const t = q.deleted ? "(mensaje borrado)" : q.body.length > 70 ? q.body.slice(0, 70) + "…" : q.body;
     return `<button class="bt-quote" data-go="${n}"><b>↳ #${n}</b> · ${esc(q.author_name || "Alguien")}: ${esc(t)}</button>`; };
   let replyTo = null;
-  box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" id="bt-${c.num}">
+  box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" data-num="${c.num}">
       <div class="bt-head"><span class="bt-av">${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
       ${c.reply_to ? quote(c.reply_to) : ""}
       ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${esc(c.body)}</p>`}
-      ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
-    </div>`).join("")}</div>` : `<p class="ms-hint">${open ? "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás." : "Nadie escribió en esta expedición."}</p>`}
-    ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="Escribí en la bitácora…"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">La bitácora quedó cerrada con la expedición.</p>`}`;
-  const jump = (n) => { const el = box.querySelector("#bt-" + n); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };
+      ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
+    </div>`).join("")}</div>` : `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>`}
+    ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="${T.ph}"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">${T.closed}</p>`}`;
+  const jump = (n) => { const el = box.querySelector(`[data-num="${n}"]`); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };
   box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => jump(b.dataset.go)));
   const rep = box.querySelector(".bt-replying"), ta = box.querySelector("#bt-text");
   const setReply = (n) => { replyTo = n; if (!rep) return; rep.hidden = !n; rep.innerHTML = n ? `Respondiendo a <b>#${n}</b> · ${esc(byNum[n]?.author_name || "")} <button class="linkish" aria-label="No responder">✕</button>` : ""; rep.querySelector("button")?.addEventListener("click", () => setReply(null)); };
@@ -3265,14 +3298,15 @@ async function hydrateBitacora(x, focusNum) {
   box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     if (!(await ask({ title: "Borrar mensaje", text: "Va a quedar como «mensaje borrado», para que las respuestas no pierdan el hilo.", ok: "Borrar", cancel: "Volver" }))) return;
     const { error: e } = await sb.rpc("delete_comment", { cid: b.dataset.del }); if (e) return toast("No se pudo: " + e.message);
-    hydrateBitacora(x);
+    hydrateThread(box, T);
   }));
   box.querySelector("#bt-send")?.addEventListener("click", async (ev) => {
     const body = ta.value.trim(); if (!body) return ta.focus();
     ev.currentTarget.disabled = true;
-    const { data: c, error: e } = await sb.from("expedition_comments").insert({ expedition_id: x.id, author_name: myName(), body, reply_to: replyTo }).select().single();
+    const { data: c, error: e } = await sb.from("expedition_comments").insert({ [T.key]: T.id, author_name: myName(), body, reply_to: replyTo }).select().single();
     if (e) { ev.currentTarget.disabled = false; return toast("No se pudo enviar: " + e.message); }
-    hydrateBitacora(x, c?.num);
+    T.onSend?.(c);
+    hydrateThread(box, T, c?.num);
   });
   if (focusNum) setTimeout(() => jump(focusNum), 100);
 }
