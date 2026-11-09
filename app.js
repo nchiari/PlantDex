@@ -297,7 +297,7 @@ function nameTaken(n) {
 const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.user_metadata?.name || cfg.name)).length > 1;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1980,6 +1980,13 @@ const cultSeal = (p, tap = false) => {
   const k = p.setting === "cultivada" ? "cultivada" : "hallada", [ic, label] = SEALS[k];
   return `<${tap ? 'button type="button"' : "span"} class="cult-seal s-${k}${tap ? " big" : ""}" data-seal="${k}" ${tap ? `id="cultseal" aria-label="${label}"` : `title="${label}"`}><svg><use href="#${ic}"/></svg></${tap ? "button" : "span"}>`;
 };
+// Sello de quien la encontró: su inicial, arriba a la izquierda de la foto (del otro lado del de hallada/cultivada).
+// En la lámina se toca y dice quién la subió y cuándo (hay iniciales repetidas: Laura y Leandro).
+const authorSeal = (p, tap = false) => {
+  if (!feat("autor") || !p.author_name) return "";
+  const t = `${tap ? 'button type="button" id="authseal"' : "span"} class="auth-seal${tap ? " big" : ""}" aria-label="La encontró ${esc(p.author_name)}"`;
+  return `<${t}>${esc(initialOf(p.author_name))}</${tap ? "button" : "span"}>`;
+};
 const novaTag = (p) => (isNova(p) ? `<span class="nova" title="Nueva, de ${esc(p.author_name || "otra persona")}">Nova</span>` : "");
 
 function row(p) {
@@ -1996,7 +2003,7 @@ function card(p) {
   const nova = isNova(p) ? `<span class="nova-seal" title="Nueva, de ${esc(p.author_name || "otra persona")}"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>` : "";
   const mark = markOf(p);
   return `<div class="card" data-id="${p.id}">
-    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${cultSeal(p)}${feat("sellocult") ? nova : ""}</div>${feat("sellocult") ? "" : nova}
+    <div class="ph-wrap"><div class="ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></div>${cultSeal(p)}${authorSeal(p)}${feat("sellocult") ? nova : ""}</div>${feat("sellocult") ? "" : nova}
     <div class="name">${esc(p.common_name)}</div><div class="sci">${esc(p.scientific_name || "")}</div>
     ${cardStrip(p)}
   </div>`;
@@ -2192,7 +2199,7 @@ async function renderDetail(id) {
       <div class="cons-row">${iucnPill(p.iucn)}<button class="info-btn" id="iucninfo" aria-label="Qué es el estado de conservación"><svg><use href="#f-info"/></svg></button></div>
       ${p.iucn ? "" : `<a class="fill-link" href="#settings/iucn">Completar</a>`}
     </div>
-    ${figs[0] ? `<figure class="hero${justAdded === p.id ? " landed" : ""}" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
+    ${figs[0] ? `<figure class="hero${justAdded === p.id ? " landed" : ""}" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}${authorSeal(p, true)}</div>
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
     ${(() => {
       // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
@@ -2227,6 +2234,18 @@ async function renderDetail(id) {
       ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
+  const au = $app.querySelector("#authseal");
+  if (au) au.onclick = (e) => {
+    e.stopPropagation();
+    let tip = au.parentNode.querySelector(".auth-tip");
+    if (tip) return tip.remove();
+    tip = document.createElement("div"); tip.className = "cult-tip auth-tip";
+    const when = p.found_at || p.created_at, others = [...new Set((p.sightings || []).map((x) => x.author_name).filter((n) => n && n !== p.author_name))];
+    tip.innerHTML = `<b>La encontró ${esc(p.author_name)}</b>${when ? new Date(String(when).slice(0, 10) + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) : ""}${others.length ? `<br>También la ${others.length === 1 ? "encontró" : "encontraron"} ${esc(others.join(", "))}.` : ""}`;
+    au.after(tip); requestAnimationFrame(() => tip.classList.add("on"));
+    const off = () => { tip.remove(); document.removeEventListener("click", off); };
+    setTimeout(() => document.addEventListener("click", off), 0); setTimeout(off, 3500);
+  };
   const cs = $app.querySelector("#cultseal");
   if (cs) cs.onclick = (e) => {
     e.stopPropagation();
