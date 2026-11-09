@@ -100,6 +100,11 @@ function reloadIfIdle() {
 }
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && checkUpdate());
 window.addEventListener("hashchange", reloadIfIdle);
+// Al tocar un aviso con la app abierta: el trabajador en segundo plano avisa a qué pantalla ir (por ejemplo, la lámina nueva).
+try {
+  navigator.serviceWorker?.addEventListener("message", (e) => { const h = e.data?.go; if (h && h.startsWith("#")) { if (location.hash === h) route(); else location.hash = h; } });
+  navigator.serviceWorker?.startMessages?.();
+} catch {}
 
 // Lo personal (nombre, zona, misiones, novedades y láminas vistas) se guarda en la cuenta de cada persona y,
 // para abrir rápido, también una copia en el navegador. Si en este dispositivo entra otra persona, se descarta
@@ -287,7 +292,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.5", APP_DATE = "2026-11-08";
+const APP_VERSION = "1.7.6", APP_DATE = "2026-11-08";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {

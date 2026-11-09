@@ -13,8 +13,9 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const url = e.notification.data?.url || "./#settings";
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ws) => {
+    // Si la app ya está abierta, se trae al frente y se le pide que vaya a la lámina (o a donde diga el aviso).
     const w = ws.find((x) => x.url.startsWith(self.registration.scope));
-    if (w) { w.navigate(url); return w.focus(); }
+    if (w) { w.postMessage({ go: new URL(url, self.registration.scope).hash }); return w.focus().catch(() => {}); }
     return self.clients.openWindow(url);
   }));
 });
