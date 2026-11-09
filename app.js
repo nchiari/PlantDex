@@ -3371,22 +3371,41 @@ function withMentions(text) {
   return h;
 }
 function bindMentions(ta) {
-  const pop = document.createElement("div"); pop.className = "mention-pop"; pop.hidden = true; ta.before(pop);
+  // La caja de texto va dentro de un marco: arriba, pegada, la lista de gente; detrás, un «espejo» que pinta las menciones.
+  const field = document.createElement("div"); field.className = "bt-field";
+  ta.before(field);
+  const pop = document.createElement("div"); pop.className = "mention-pop"; pop.hidden = true;
+  const mirror = document.createElement("div"); mirror.className = "bt-mirror"; mirror.setAttribute("aria-hidden", "true");
+  const wrap = document.createElement("div"); wrap.className = "bt-wrap";
+  field.append(pop, wrap); wrap.append(mirror, ta);
+  const cs = getComputedStyle(ta);
+  for (const k of ["fontFamily", "fontSize", "fontStyle", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing"]) mirror.style[k] = cs[k];
+  const sync = () => {
+    let h = esc(ta.value);
+    [...new Set(memberNames)].sort((a, b) => b.length - a.length).forEach((n) => {
+      h = h.replace(new RegExp("@" + esc(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "giu"), (m) => `<mark>${m}</mark>`);
+    });
+    mirror.innerHTML = h + "\n"; mirror.scrollTop = ta.scrollTop;
+  };
   const word = () => { const pre = ta.value.slice(0, ta.selectionStart); const m = pre.match(/(?:^|\s)@([\p{L}\p{N}.\- ]{0,20})$/u); return m ? m[1] : null; };
   const paint = () => {
-    const w = word(); if (w === null) return (pop.hidden = true);
-    const list = [...new Set(memberNames)].filter((n) => normName(n).startsWith(normName(w))).slice(0, 5);
-    if (!list.length) return (pop.hidden = true);
-    pop.innerHTML = list.map((n) => `<button type="button" data-n="${esc(n)}"><span class="bt-av">${esc(initialOf(n))}</span>${esc(n)}</button>`).join("");
-    pop.hidden = false;
+    sync();
+    const w = word(); const list = w === null ? [] : [...new Set(memberNames)].filter((n) => normName(n).startsWith(normName(w))).slice(0, 5);
+    pop.hidden = !list.length; field.classList.toggle("open", !!list.length);
+    if (!list.length) return;
+    pop.innerHTML = `<p class="mp-k">Mencionar a…</p>` + list.map((n) => `<button type="button" data-n="${esc(n)}"><span class="bt-av">${esc(initialOf(n))}</span>${esc(n)}</button>`).join("");
     pop.querySelectorAll("button").forEach((b) => (b.onmousedown = b.ontouchstart = (e) => {
       e.preventDefault();
       const pos = ta.selectionStart, pre = ta.value.slice(0, pos), at = pre.lastIndexOf("@");
       ta.value = pre.slice(0, at) + "@" + b.dataset.n + " " + ta.value.slice(pos);
-      const np = at + b.dataset.n.length + 2; ta.setSelectionRange(np, np); ta.focus(); pop.hidden = true;
+      const np = at + b.dataset.n.length + 2; ta.setSelectionRange(np, np); ta.focus();
+      pop.hidden = true; field.classList.remove("open"); sync();
     }));
   };
-  ta.addEventListener("input", paint); ta.addEventListener("click", paint); ta.addEventListener("blur", () => setTimeout(() => (pop.hidden = true), 150));
+  ta.addEventListener("input", paint); ta.addEventListener("click", paint); ta.addEventListener("keyup", paint);
+  ta.addEventListener("scroll", () => (mirror.scrollTop = ta.scrollTop));
+  ta.addEventListener("blur", () => setTimeout(() => { pop.hidden = true; field.classList.remove("open"); }, 150));
+  sync();
 }
 
 // ---------- lanzamiento de las expediciones: una semana de intriga y una carta que se abre sola ----------

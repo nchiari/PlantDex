@@ -1522,3 +1522,14 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .mention-pop[hidden] { display: none; }
 .mention-pop button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 16px var(--text); text-align: left; cursor: pointer; }
 .mention-pop button:active, .mention-pop button:hover { background: rgb(var(--line) / .08); }
+
+/* menciones: la lista va pegada arriba de la caja, como parte de ella; las menciones se ven resaltadas mientras escribís */
+.bt-field { display: flex; flex-direction: column; }
+.bt-wrap { position: relative; background: var(--parchment-2); }
+.bt-wrap textarea { position: relative; z-index: 1; display: block; width: 100%; background: transparent !important; }
+.bt-mirror { position: absolute; inset: 0; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; color: transparent; border-style: solid; border-color: transparent; pointer-events: none; }
+.bt-mirror mark { color: transparent; background: rgb(214 186 108 / .35); border-radius: 3px; box-shadow: 0 0 0 1px rgb(214 186 108 / .35); }
+.bt-field .mention-pop { margin: 0; border-radius: 10px 10px 0 0; border: 1px solid rgb(var(--line) / .2); border-bottom: 0; box-shadow: none; background: var(--parchment-2); padding: 8px 6px 4px; }
+.bt-field.open .bt-wrap textarea { border-top: 1px dashed rgb(var(--line) / .2); }
+.bt-field.open { box-shadow: 0 8px 20px rgb(0 0 0 / .12); border-radius: 10px 10px 0 0; }
+.mp-k { margin: 0 8px 4px; font: 600 9.5px var(--caps); letter-spacing: 1.8px; text-transform: uppercase; color: var(--gold); }
