@@ -236,6 +236,7 @@ function route() {
   const [view, arg] = location.hash.slice(1).split("/");
   // Si salís de la carga de una planta sin asentarla, sus fotos se descartan.
   if (lastView === "new" && view !== "new" && draft && !draft.editing && feat("fotos")) clearDraft();
+  document.querySelector(".notes-fab")?.remove(); // el botón de notas es de la lámina: se va al salir
   const changed = lastView !== view;
   lastView = view;
   document.body.classList.toggle("anim", feat("animaciones") && !matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -2173,7 +2174,6 @@ async function renderDetail(id) {
     </div>
     ${figs[0] ? `<figure class="hero${justAdded === p.id ? " landed" : ""}" style="margin:0"><div class="hero-ph"><img id="hero" class="${figs[0].illu ? "illu" : ""}" src="${figs[0].src}" alt="">${cultSeal(p, true)}</div>
       <figcaption><span id="figcap">Fig. I · ${figs[0].cap}</span></figcaption></figure>` : ""}
-    ${feat("notas") ? notesBtn(p) : ""}
     ${(() => {
       // Con el interruptor "fotos", la dueña o el dueño de la lámina ve sus 4 casilleros: las libres llevan un +.
       const mine = feat("fotos") && p.user_id === user.id;
@@ -2237,7 +2237,7 @@ async function renderDetail(id) {
   });
   let curFig = 0;
   const plainTxt = (h) => String(h || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
-  $app.querySelector("#notes")?.addEventListener("click", () => openNotes(p));
+  if (feat("notas")) mountNotesFab(p);
   $app.querySelector("#hero")?.addEventListener("click", () => openViewer(figs.map((f) => ({
     src: f.src, small: f.src, title: p.common_name, sub: f.illu ? "Lámina antigua" : plainTxt(f.cap),
     credit: f.illu && ill ? `${ill.credit} · ${ill.license} · Wikimedia Commons` : "",
@@ -3252,6 +3252,29 @@ async function loadNoteCounts() {
   noteCounts = {}; noteLast = {}; if (error) return;
   (data || []).forEach((r) => { noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1; if (!r.deleted) noteLast[r.plant_id] = r; });
 }
+// Botón flotante de notas (como en las apps de lectura): queda a mano abajo a la derecha mientras recorrés la lámina,
+// se esconde al bajar para no tapar y vuelve al subir o al detenerte.
+const notesFab = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0);
+  return `<button class="notes-fab${fresh ? " fresh" : ""}${n ? "" : " zero"}" id="notes" aria-label="Notas al margen"><svg><use href="#f-pen"/></svg><span class="nf-l">${n ? "Notas" : "Dejar una nota"}</span>${n ? `<b class="nf-n">${n}</b>` : ""}</button>`; };
+// Va fuera de la pantalla (en el cuerpo de la página) para quedar fijo aunque la pantalla se anime; se quita al cambiar de pantalla.
+function mountNotesFab(p) {
+  document.querySelector(".notes-fab")?.remove();
+  document.body.insertAdjacentHTML("beforeend", notesFab(p));
+  const fab = document.querySelector(".notes-fab");
+  fab.onclick = () => openNotes(p);
+  bindNotesFab(fab);
+}
+function bindNotesFab(fab) {
+  if (!fab) return;
+  let lastY = scrollY, idle;
+  const onScroll = () => {
+    if (!fab.isConnected) return removeEventListener("scroll", onScroll);
+    const y = scrollY; fab.classList.toggle("hide", y > lastY + 4 && y > 120); lastY = y;
+    clearTimeout(idle); idle = setTimeout(() => fab.classList.remove("hide"), 700);
+  };
+  addEventListener("scroll", onScroll, { passive: true });
+  requestAnimationFrame(() => fab.classList.add("in"));
+}
 // Marbete: el papelito escrito a mano que los botánicos dejaban prendido al pie de la lámina.
 const notesBtn = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0), last = noteLast[p.id];
   const txt = last ? (last.body.length > 64 ? last.body.slice(0, 64).trim() + "…" : last.body) : "";
@@ -3265,7 +3288,7 @@ function openNotes(p) {
   m.innerHTML = `<div class="modal-box notes" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Notas al margen</h3><p class="muted notes-sub">${esc(p.common_name)} · lo que el herbario sabe, vio o se pregunta de esta planta.</p>
     <div id="notes-thread"><p class="ms-hint">Cargando…</p></div></div>`;
-  const close = () => { m.remove(); const b = $app.querySelector("#notes"); if (b) b.outerHTML = notesBtn(p), $app.querySelector("#notes").onclick = () => openNotes(p); };
+  const close = () => { m.remove(); if (document.querySelector(".notes-fab")) mountNotesFab(p); };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   document.body.appendChild(m);
