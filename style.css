@@ -1533,3 +1533,5 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .bt-field.open .bt-wrap textarea { border-top: 1px dashed rgb(var(--line) / .2); }
 .bt-field.open { box-shadow: 0 8px 20px rgb(0 0 0 / .12); border-radius: 10px 10px 0 0; }
 .mp-k { margin: 0 8px 4px; font: 600 9.5px var(--caps); letter-spacing: 1.8px; text-transform: uppercase; color: var(--gold); }
+/* tus mensajes: con el dorado del herbario, no con el azul de las expediciones */
+.bt-msg.mine { border-left: 1px solid rgb(var(--line) / .2); box-shadow: inset 3px 0 0 var(--gold); }
