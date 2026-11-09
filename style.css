@@ -1556,3 +1556,7 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .seal-tip.on { opacity: 1; transform: none; }
 .seal-tip::before { content: ""; position: absolute; top: -6px; left: calc(var(--ax) - 5px); width: 10px; height: 10px; background: var(--deep); border: 1px solid var(--gold); border-right: 0; border-bottom: 0; transform: rotate(45deg); }
 .seal-tip b { display: block; font: 600 11px var(--caps); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; color: var(--gold); }
+/* hallazgos con más aire */
+.finds td { padding: 14px 6px; }
+.finds td.av { padding-right: 14px; }
+.finds table { margin: 6px 0 4px; }
