@@ -3123,7 +3123,7 @@ function renderExp() {
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
     ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
-    <h3>Bitácora</h3><div id="bitacora"><p class="ms-hint">Cargando…</p></div>
+    <h3>Tertulia</h3><div id="bitacora"><p class="ms-hint">Cargando…</p></div>
     <h3>Qué cuenta</h3><ul class="ex-li"><li>${esc(x.hint || "")}</li><li>Solo cuenta lo que se asienta durante la expedición, hallado o cultivado.</li><li>Sumar tu hallazgo a una lámina de otra persona también cuenta, si es la primera vez que la encontrás vos.</li><li>Cada planta llena un solo casillero.</li></ul>
     <h3>Premio</h3><div class="ex-card static">${expSeal(x)}<span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
   $app.querySelector("#bk").onclick = () => go("stats");
@@ -3264,7 +3264,7 @@ function expClock(x) {
 // Bitácora de la expedición: mensajes numerados en orden; una respuesta cita al mensaje original y se puede saltar a él.
 const hydrateBitacora = (x, focusNum) => hydrateThread($app.querySelector("#bitacora"), { key: "expedition_id", id: x.id, open: x.status === "active",
   empty: "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás.", closedEmpty: "Nadie escribió en esta expedición.",
-  ph: "Escribí en la bitácora…", closed: "La bitácora quedó cerrada con la expedición.", missing: "La bitácora todavía no está disponible en este herbario." }, focusNum);
+  ph: "Escribí en la tertulia…", closed: "La tertulia quedó cerrada con la expedición.", missing: "La tertulia todavía no está disponible en este herbario." }, focusNum);
 // ---------- notas al margen de cada lámina: se abren en una hoja aparte para no alargar la página ----------
 let noteCounts = {}, noteLast = {}; // lámina → cuántas notas tiene y la última (para el marbete y el puntito de «nuevas»)
 async function loadNoteCounts() {
@@ -3275,7 +3275,7 @@ async function loadNoteCounts() {
 // Botón flotante de notas (como en las apps de lectura): queda a mano abajo a la derecha mientras recorrés la lámina,
 // se esconde al bajar para no tapar y vuelve al subir o al detenerte.
 const notesFab = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0);
-  return `<button class="notes-fab${fresh ? " fresh" : ""}${n ? "" : " zero"}" id="notes" aria-label="Notas al margen"><svg><use href="#f-pen"/></svg><span class="nf-l">${n ? "Notas" : "Dejar una nota"}</span>${n ? `<b class="nf-n">${n}</b>` : ""}</button>`; };
+  return `<button class="notes-fab${fresh ? " fresh" : ""}${n ? "" : " zero"}" id="notes" aria-label="Tertulia"><svg><use href="#f-pen"/></svg><span class="nf-l">Tertulia</span>${n ? `<b class="nf-n">${n}</b>` : ""}</button>`; };
 // Va fuera de la pantalla (en el cuerpo de la página) para quedar fijo aunque la pantalla se anime; se quita al cambiar de pantalla.
 function mountNotesFab(p) {
   document.querySelector(".notes-fab")?.remove();
@@ -3306,15 +3306,15 @@ function openNotes(p) {
   const m = document.createElement("div");
   m.className = "modal";
   m.innerHTML = `<div class="modal-box notes" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
-    <h3>Notas al margen</h3><p class="muted notes-sub">${esc(p.common_name)} · lo que el herbario sabe, vio o se pregunta de esta planta.</p>
+    <h3>Tertulia</h3><p class="muted notes-sub">Lo que el herbario charla sobre ${esc(p.common_name)}.</p>
     <div id="notes-thread"><p class="ms-hint">Cargando…</p></div></div>`;
   const close = () => { m.remove(); if (document.querySelector(".notes-fab")) mountNotesFab(p); };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   document.body.appendChild(m);
   hydrateThread(m.querySelector("#notes-thread"), { key: "plant_id", id: p.id, open: true, canDelete: p.user_id === user.id,
-    empty: "", ph: "Escribí una nota…",
-    missing: "Las notas al margen todavía no están disponibles en este herbario.",
+    empty: "", ph: "Sumate a la tertulia…",
+    missing: "La tertulia todavía no está disponible en este herbario.",
     onLoad: (list) => { noteCounts[p.id] = list.length; cfg.notesSeen = { ...(cfg.notesSeen || {}), [p.id]: list.length }; saveCfg(cfg); } });
 }
 
@@ -3447,7 +3447,7 @@ function openExpIntro(first) {
       <div class="li-steps">
         <p><svg><use href="#f-family"/></svg><span><b>Entre todos.</b> Cada dos semanas, una búsqueda en común. Nadie compite: llegamos juntos a la meta.</span></p>
         <p><svg><use href="#i-seal-gold"/></svg><span><b>Todos participan.</b> Asentás una lámina que cumpla el tema y ya estás adentro: quienes aportan ganan el sello. Si esta vez no llegás, en la próxima podés ganarlo.</span></p>
-        <p><svg><use href="#i-book"/></svg><span><b>La bitácora.</b> Una sección de comentarios para contar qué vieron, pedir ayuda o salir a buscar juntos.</span></p>
+        <p><svg><use href="#i-book"/></svg><span><b>La tertulia.</b> Una sección de comentarios para contar qué vieron, pedir ayuda o salir a buscar juntos.</span></p>
       </div>
       <div class="li-first"><p class="li-k">La primera expedición</p>${expSeal(x, "big")}<p class="n">${esc(x.title)}</p><p class="s">${esc(x.hint || "")}</p><p class="s small">Meta entre todos: ${x.goal} plantas</p></div>
       <button class="btn primary li-go">¡Vamos!</button>
