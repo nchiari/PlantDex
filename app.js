@@ -287,7 +287,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.4", APP_DATE = "2026-11-08";
+const APP_VERSION = "1.7.5", APP_DATE = "2026-11-08";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -2139,7 +2139,8 @@ function findsTable(p) {
 
 async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
-  if (!p) return go("list");
+  // Una lámina que ya no está (por ejemplo, abierta desde un aviso viejo después de que la borraron).
+  if (!p) { setTimeout(() => toast("Esa lámina ya no está en el herbario: la borró quien la había cargado"), 300); return go("list"); }
   markNovaSeen(p);
   await signUrls([...(p.photos || []), ...(p.sightings || []).flatMap((x) => x.photos || [])]);
   const ill = cfg.illustrations && p.scientific_name ? await findIllustration(p.scientific_name) : null;
@@ -2451,6 +2452,7 @@ function renderNew() {
         <li>Copiá la respuesta entera y pegala acá abajo.</li>
       </ol>
       <button class="btn primary" id="sendai" style="width:100%" ${has ? "" : "disabled"}>Enviar a la IA (fotos + prompt)</button>
+      <p class="share-tip" id="sharetip" hidden>¿En el chat aparecieron las fotos pero no el texto? Pasa con algunas apps, como Claude. El prompt ya está copiado: <b>mantené apretado el cuadro de mensaje y tocá «Pegar»</b>.</p>
       <button class="btn" id="copy" style="width:100%;margin-top:10px">Solo copiar prompt</button>
       <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint, placeCtx()))}</div></details>
       <label>Respuesta del chat</label><textarea id="paste" placeholder='{ "common_name": … }'></textarea>
@@ -2462,7 +2464,9 @@ function renderNew() {
       try { await navigator.clipboard.writeText(prompt); copied = true; } catch {}
       const files = draft.files.map((f, i) => new File([f.blob], `planta-${i + 1}.jpg`, { type: "image/jpeg" }));
       if (navigator.canShare?.({ files })) {
-        try { await navigator.share({ files, text: prompt }); toast(copied ? "Pegá el prompt en el chat y enviá" : "Fotos enviadas: copiá el prompt con «Solo copiar prompt»"); }
+        // Algunas apps (Claude, por ejemplo) reciben las fotos pero no el texto: por eso el prompt queda copiado y se avisa cómo pegarlo.
+        try { await navigator.share({ files, text: prompt }); toast(copied ? "Pegá el prompt en el chat y enviá" : "Fotos enviadas: copiá el prompt con «Solo copiar prompt»");
+          const tip = box.querySelector("#sharetip"); if (tip) tip.hidden = false; }
         catch (e) { if (e.name !== "AbortError") toast("No pude compartir las fotos"); }
       } else toast(copied ? "Este navegador no comparte fotos: prompt copiado, adjuntá las fotos a mano" : "Este navegador no permite compartir fotos");
     };

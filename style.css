@@ -1470,3 +1470,4 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .in-ic { display: inline-block; padding: 0 4px; border: 1px solid rgb(var(--line) / .3); border-radius: 4px; font-size: 13px; }
 .in-warn { text-align: left; margin: 14px 0; padding: 12px 14px; border-radius: 8px; background: rgb(180 83 46 / .1); border-left: 3px solid #b4532e; font-size: 16px; line-height: 1.45; }
 .in-or { margin: 10px 0 0; font-size: 14px; }
+.share-tip { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: rgb(var(--line) / .06); border-left: 3px solid var(--gold); font-size: 15px; line-height: 1.45; }
