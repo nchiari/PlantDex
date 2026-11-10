@@ -91,7 +91,7 @@ async function checkUpdate() {
   try {
     const html = await (await fetch(SITE_URL() + "?_=" + Date.now(), { cache: "no-store" })).text();
     const n = +(html.match(/<meta name="news" content="(\d+)"/)?.[1] || 0);
-    if (n > MY_NEWS || NEWS_ALL.filter(newsLive).length > NEWS.length) { updateReady = true; reloadIfIdle(); }
+    if (n > MY_NEWS || NEWS_ALL.filter((x) => newsLive(x) && (!x.feat || x.at || feat(x.feat))).length > NEWS.length) { updateReady = true; reloadIfIdle(); }
   } catch {}
 }
 function reloadIfIdle() {
@@ -306,7 +306,9 @@ function nameTaken(n) {
 const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.user_metadata?.name || cfg.name)).length > 1;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "todos", colores: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+// El color del medallón sale para todos el jueves 12/11 a las 9 de la hora de cada móvil.
+const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -314,7 +316,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.8.1", APP_DATE = "2026-11-10";
+const APP_VERSION = COLORS_LIVE ? "1.9.0" : "1.8.1", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-10";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1116,7 +1118,7 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
-  { v: 9, date: "2026-11-10", feat: "colores", items: [
+  { v: 9, date: "2026-11-12", at: "09:00", feat: "colores", items: [
     "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
   ], tour: [
     ["settings", "#avatar", "Tu medallón", "Tocalo para elegir tu color entre diez. Se guarda solo."],
