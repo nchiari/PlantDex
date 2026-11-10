@@ -288,6 +288,13 @@ const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load faile
 // Al volver la conexión, se carga el herbario solo.
 addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
 addEventListener("offline", () => { offline = true; });
+// Color del medallón de cada persona (lo elige en Ajustes): tonos apagados, del mismo estilo del herbario.
+const AV_COLORS = [["bosque", "#3e5f34"], ["musgo", "#5f6f2e"], ["ocre", "#8a6a24"], ["terracota", "#a5532f"], ["burdeos", "#7a2e3a"],
+  ["ciruela", "#5e3a5a"], ["tinta", "#2f5276"], ["petróleo", "#24686b"], ["pizarra", "#4a5560"], ["sepia", "#6b4a2e"]];
+let memberColors = {};
+const avColor = (name) => { if (!feat("colores") || !name) return ""; const own = normName(name) === normName(myName()) ? (user?.user_metadata?.avatar_color || cfg.avatarColor) : null;
+  const k = own || memberColors[name]; return (AV_COLORS.find(([x]) => x === k) || [])[1] || ""; };
+const av = (name) => { const c = avColor(name); return c ? ` style="--av:${c}"` : ""; };
 let amOwner = false, amMember = true, pendingRequests = 0, memberNames = [], memberSince = {};
 // Nombres únicos en el herbario: dos personas con el mismo nombre se confunden en filtros, notas y menciones.
 const normName = (n) => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -299,7 +306,7 @@ function nameTaken(n) {
 const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.user_metadata?.name || cfg.name)).length > 1;
 // ---------- interruptores: las funciones grandes salen primero solo para la cuenta del dueño ----------
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "todos", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: "prueba", menciones: "prueba", autor: "todos", colores: "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -327,6 +334,7 @@ async function loadPlants() {
   pingNews();
   // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
   if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = !mn.error && Array.isArray(mn.data) ? mn.data.filter(Boolean) : []; }
+  if (feat("colores")) { const mc = await sb.rpc("member_colors"); memberColors = !mc.error && Array.isArray(mc.data) ? Object.fromEntries(mc.data.filter((x) => x.color).map((x) => [x.name, x.color])) : {}; }
   if (feat("desde")) { const ml = await sb.rpc("member_list"); memberSince = !ml.error && Array.isArray(ml.data) ? Object.fromEntries(ml.data.map((x) => [x.name, x.joined])) : {}; }
   const { data, error } = await sb.from("plants").select("*").order("number", { ascending: false });
   if (error) { if (isNetErr(error)) { offline = true; return; } toast("Error cargando: " + error.message); return; }
@@ -672,7 +680,7 @@ function openPeople() {
   m.className = "modal";
   m.innerHTML = `<div class="modal-box people" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Quiénes están</h3>
-    <ul>${list.map(([n, c]) => `<li><span class="avatar sm" aria-hidden="true">${esc([...n][0].toUpperCase())}</span><b>${esc(n)}${n === cfg.name ? ` <small>vos</small>` : ""}</b><span>${c ? `${c} ${c === 1 ? "lámina" : "láminas"}` : "todavía ninguna"}${memberSince[n] ? `<small class="since">desde ${new Date(memberSince[n] + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small>` : ""}</span></li>`).join("")}</ul></div>`;
+    <ul>${list.map(([n, c]) => `<li><span class="avatar sm" aria-hidden="true"${av(n)}>${esc([...n][0].toUpperCase())}</span><b>${esc(n)}${n === cfg.name ? ` <small>vos</small>` : ""}</b><span>${c ? `${c} ${c === 1 ? "lámina" : "láminas"}` : "todavía ninguna"}${memberSince[n] ? `<small class="since">desde ${new Date(memberSince[n] + "T12:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small>` : ""}</span></li>`).join("")}</ul></div>`;
   const close = () => m.remove();
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
@@ -689,7 +697,7 @@ function settingsV2(owner, book) {
     ${amOwner && schemaBehind ? schemaBox() : ""}
 
     <div class="me-card">
-      <span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span>
+      <span class="avatar" id="avatar" aria-hidden="true"${av(myName())}>${esc(initialOf(cfg.name))}</span>
       <div class="me-txt"><b id="mename">${esc(cfg.name || "Tu nombre")}</b><span>${esc(user.email)}</span>${owner ? `<small>Dueño del herbario</small>` : ""}</div>
       <button class="me-pen" id="editname" aria-label="Cambiar tu nombre">✎</button>
     </div>
@@ -747,7 +755,7 @@ function renderSettings() {
     <h2>Ajustes</h2>
     <h3>Vos</h3>
     <label>Tu nombre (aparece en las láminas que cargás)</label>
-    <div class="me-row"><span class="avatar" id="avatar" aria-hidden="true">${esc(initialOf(cfg.name))}</span><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
+    <div class="me-row"><span class="avatar" id="avatar" aria-hidden="true"${av(myName())}>${esc(initialOf(cfg.name))}</span><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
     ${user && feat("misiones") ? `<label>Tu zona</label>
     <div class="zone-pick"><input id="zoneq" autocomplete="off" placeholder="Escribí tu barrio, pueblo o ciudad" value="${esc(zoneOf()?.name || "")}"><div class="zone-list" id="zonelist" hidden></div></div>
     <button class="linkish zone-gps" id="setzone">Usar mi ubicación actual</button>
@@ -881,6 +889,7 @@ function renderSettings() {
     $app.querySelector("#engrave").onchange = autosave; $app.querySelector("#illustrations").onchange = autosave;
     $app.querySelector("#whyai")?.addEventListener("click", openWhyAI);
     $app.querySelector("#whois")?.addEventListener("click", openPeople);
+    if (feat("colores")) { const a = $app.querySelector("#avatar"); a.classList.add("pickable"); a.setAttribute("role", "button"); a.onclick = openColorPick; }
     $app.querySelector("#editname")?.addEventListener("click", () => { const i = $app.querySelector("#myname"); i.closest(".me-edit").hidden = false; i.focus(); });
   }
   if ($app.querySelector("#save")) $app.querySelector("#save").onclick = () => {
@@ -1703,7 +1712,7 @@ function renderList() {
   if (!feat("cultivo")) filter.setting = "";
   const active = filter.types.length + filter.who.length + (filter.nova ? 1 : 0) + (filter.setting ? 1 : 0);
   const chipT = (t) => `<span class="chip ${filter.types.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`;
-  const chipW = ([w, n]) => `<span class="chip who ${filter.who.includes(w) ? "on" : ""}" data-w="${esc(w)}"><span class="avatar xs">${esc([...w][0].toUpperCase())}</span>${esc(w)} <small>${n}</small></span>`;
+  const chipW = ([w, n]) => `<span class="chip who ${filter.who.includes(w) ? "on" : ""}" data-w="${esc(w)}"><span class="avatar xs"${av(w)}>${esc([...w][0].toUpperCase())}</span>${esc(w)} <small>${n}</small></span>`;
   $app.innerHTML = `
     <div class="entry-head"><h2>Herbarium</h2><span class="eh-side"><span class="sc muted">${plants.length} ${plants.length === 1 ? "lámina" : "láminas"}</span>${plants.length ? `<button class="linkish" id="legend">Leyenda</button>` : ""}</span></div>
     ${plants.length ? `<div class="viewsw" role="tablist">
@@ -2024,9 +2033,30 @@ const cultSeal = (p, tap = false) => {
 // En la lámina se toca y dice quién la subió y cuándo (hay iniciales repetidas: Laura y Leandro).
 const authorSeal = (p, tap = false) => {
   if (!feat("autor") || !p.author_name) return "";
-  const t = `${tap ? 'button type="button" id="authseal"' : `span data-tip="author" data-id="${p.id}"`} class="auth-seal${tap ? " big" : ""}" aria-label="La asentó ${esc(p.author_name)}"`;
+  const t = `${tap ? 'button type="button" id="authseal"' : `span data-tip="author" data-id="${p.id}"`} class="auth-seal${tap ? " big" : ""}"${av(p.author_name)} aria-label="La asentó ${esc(p.author_name)}"`;
   return `<${t}>${esc(initialOf(p.author_name))}</${tap ? "button" : "span"}>`;
 };
+function openColorPick() {
+  const cur = user?.user_metadata?.avatar_color || cfg.avatarColor || "";
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box color-pick" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
+    <h3>El color de tu medallón</h3><p class="muted">Así te distinguen en las láminas, la tertulia y los hallazgos.</p>
+    <div class="cp-prev"><span class="avatar big-av" id="cp-av">${esc(initialOf(cfg.name))}</span></div>
+    <div class="cp-grid">${AV_COLORS.map(([k, c]) => `<button class="cp-sw${k === cur ? " on" : ""}" data-k="${k}" style="--av:${c}" aria-label="${k}"><span>${esc(initialOf(cfg.name))}</span></button>`).join("")}</div>
+    <p class="muted cp-note">Se guarda solo.</p></div>`;
+  const prev = m.querySelector("#cp-av"); const paint = (k) => { const c = (AV_COLORS.find(([x]) => x === k) || [])[1]; if (c) prev.style.setProperty("--av", c); };
+  paint(cur);
+  const close = () => { m.remove(); renderSettings(); };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector(".modal-x").onclick = close;
+  m.querySelectorAll(".cp-sw").forEach((b) => (b.onclick = () => {
+    m.querySelectorAll(".cp-sw").forEach((x) => x.classList.toggle("on", x === b));
+    paint(b.dataset.k); cfg.avatarColor = b.dataset.k; saveCfg(cfg); syncMeta({ avatar_color: b.dataset.k });
+    memberColors[myName()] = b.dataset.k; toast("Guardado");
+  }));
+  document.body.appendChild(m);
+}
 // Cartelito flotante para los sellos chicos (tarjetas e índice): quién la asentó, o si es hallada o cultivada.
 function sealTip(el) {
   const old = document.querySelector(".seal-tip"); if (old) { old.remove(); if (old.dataset.for === el.dataset.tip + el.dataset.id) return; }
@@ -2226,7 +2256,7 @@ function findsTable(p) {
   const rows = [{ who: p.author_name, when: p.created_at }, ...(p.sightings || []).map((x) => ({ who: x.author_name, when: x.created_at }))]
     .sort((a, b) => new Date(a.when || 0) - new Date(b.when || 0));
   return `<div class="finds"><table><tbody>
-    ${rows.map((r) => `<tr><td class="av"><span class="avatar sm" aria-hidden="true">${esc([...(r.who || "?").trim() || "?"][0].toUpperCase())}</span></td><td>${esc(r.who || "Sin nombre")}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
+    ${rows.map((r) => `<tr><td class="av"><span class="avatar sm" aria-hidden="true"${av(r.who)}>${esc([...(r.who || "?").trim() || "?"][0].toUpperCase())}</span></td><td>${esc(r.who || "Sin nombre")}</td><td>${fmt(r.when)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 async function renderDetail(id) {
@@ -3161,7 +3191,7 @@ function expCard(x) {
   return `<button class="ex-card" data-exp>${expSeal(x)}<span class="ex-grow">
     <span class="ex-chip">Entre todos · ${expLeft(x)}</span><b class="ex-t">${esc(x.title)}</b>
     <span class="ex-bar"><i style="width:${Math.min(100, (n / x.goal) * 100)}%"></i></span>
-    <span class="ex-row"><span><b>${n}</b> de ${x.goal}</span><span class="ex-meds">${people.slice(0, 6).map((nm) => `<span>${esc(initialOf(nm))}</span>`).join("")}</span></span></span></button>`;
+    <span class="ex-row"><span><b>${n}</b> de ${x.goal}</span><span class="ex-meds">${people.slice(0, 6).map((nm) => `<span${av(nm)}>${esc(initialOf(nm))}</span>`).join("")}</span></span></span></button>`;
 }
 function expListHook() {
   const x = expCur(); if (!x) return;
@@ -3195,7 +3225,7 @@ function renderExp() {
     <span class="ex-bar big"><i style="width:${Math.min(100, ((anim ? seenN : en.length) / x.goal) * 100)}%" data-to="${Math.min(100, (en.length / x.goal) * 100)}"></i></span>
     <div class="ex-row"><span><b>${en.length}</b> de ${x.goal}</span><span>${x.status === "active" ? (x.goal - en.length > 0 ? `faltan ${x.goal - en.length}` : "¡completa!") : ""}</span></div>
     <div class="ex-slots">${slots}</div>
-    ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m">${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
+    ${who.length ? `<h3>Participan</h3><div class="ex-people">${who.map((n) => `<div class="ex-p"><span class="m"${av(n)}>${esc(initialOf(n))}</span>${esc(n)}</div>`).join("")}</div>` : ""}
     <h3>Tertulia</h3><div id="bitacora"><p class="ms-hint">Cargando…</p></div>
     <h3>Qué cuenta</h3><ul class="ex-li"><li>${esc(x.hint || "")}</li><li>Solo cuenta lo que se asienta durante la expedición, hallado o cultivado.</li><li>Sumar tu hallazgo a una lámina de otra persona también cuenta, si es la primera vez que la encontrás vos.</li><li>Cada planta llena un solo casillero.</li></ul>
     <h3>Premio</h3><div class="ex-card static">${expSeal(x)}<span class="ex-grow"><b class="ex-t" style="margin:0">Sello «${esc(x.title)}»</b><span class="ex-m">Para todos los del herbario, en sus hitos.</span></span></div>`;
@@ -3406,7 +3436,7 @@ async function hydrateThread(box, T, focusNum) {
     return `<button class="bt-quote" data-go="${n}"><b>↳ #${n}</b> · ${esc(q.author_name || "Alguien")}: ${esc(t)}</button>`; };
   let replyTo = null;
   box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" data-num="${c.num}">
-      <div class="bt-head"><span class="bt-av">${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
+      <div class="bt-head"><span class="bt-av"${av(c.author_name)}>${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
       ${c.reply_to ? quote(c.reply_to) : ""}
       ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${feat("menciones") ? withMentions(c.body) : esc(c.body)}</p>`}
       ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}

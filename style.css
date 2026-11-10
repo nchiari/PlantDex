@@ -1575,3 +1575,19 @@ body.has-fab #app { padding-bottom: 90px; }
 @media (max-width: 360px) { .grid { gap: 18px 12px; } .card { padding: 10px 7px 12px; } .card .name { font-size: 18px; } .card .sci { font-size: 14px; } }
 @media (max-width: 360px) { .bottom button { font-size: 9px; letter-spacing: .6px; } .eh-side .sc { white-space: nowrap; } }
 @media (max-width: 360px) { nav.bottom button { font-size: 8.5px !important; letter-spacing: .3px !important; } }
+
+/* color del medallón de cada persona (prueba) */
+.avatar[style*="--av"], .auth-seal[style*="--av"], .bt-av[style*="--av"], .ex-meds span[style*="--av"], .ex-p .m[style*="--av"] { background: var(--av) !important; }
+.avatar[style*="--av"] { box-shadow: inset 0 0 0 3px var(--av), inset 0 0 0 4px var(--gold) !important; }
+.auth-seal[style*="--av"] { box-shadow: inset 0 0 0 2.5px var(--av), inset 0 0 0 3.5px rgb(255 255 255 / .25), 0 2px 5px rgb(0 0 0 / .3) !important; }
+.avatar.pickable { cursor: pointer; position: relative; }
+.avatar.pickable::after { content: "✎"; position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--parchment-2); color: var(--ink); border: 1px solid rgb(var(--line) / .3); font: 11px var(--text); }
+.color-pick { text-align: center; }
+.cp-prev { display: grid; place-items: center; margin: 10px 0 16px; }
+.big-av { width: 84px !important; height: 84px !important; font-size: 40px !important; }
+.cp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; justify-items: center; }
+.cp-sw { width: 48px; height: 48px; border-radius: 50%; padding: 0; cursor: pointer; background: var(--av); border: 1.5px solid var(--gold);
+  box-shadow: inset 0 0 0 2.5px var(--av), inset 0 0 0 3.5px rgb(255 255 255 / .25); color: var(--gold-soft); font: 700 20px/1 var(--initial); display: grid; place-items: center; }
+.cp-sw.on { outline: 2px solid var(--ink); outline-offset: 3px; }
+.cp-note { margin-top: 14px; font-size: 14px; }

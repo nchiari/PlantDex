@@ -499,3 +499,14 @@ revoke all on function public.expedition_tick() from public, anon, authenticated
 select cron.unschedule('herbalorium-expediciones') where exists (select 1 from cron.job where jobname = 'herbalorium-expediciones');
 select cron.schedule('herbalorium-expediciones', '7 * * * *', $c$ select public.expedition_tick() $c$);
 create or replace function public.schema_version() returns int language sql immutable as $$ select 22 $$;
+
+-- v23: el color del medallón de cada persona (lo elige en Ajustes y queda en su cuenta). Solo lo ven los miembros.
+create or replace function public.member_colors() returns table(name text, color text)
+language sql stable security definer set search_path = '' as $$
+  select coalesce(nullif(u.raw_user_meta_data->>'name', ''), m.name), nullif(u.raw_user_meta_data->>'avatar_color', '')
+  from public.members m join auth.users u on u.id = m.user_id
+  where m.status = 'accepted' and public.is_member();
+$$;
+revoke all on function public.member_colors() from public, anon;
+grant execute on function public.member_colors() to authenticated;
+create or replace function public.schema_version() returns int language sql immutable as $$ select 23 $$;
