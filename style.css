@@ -1570,3 +1570,7 @@ body.has-fab #app { padding-bottom: 90px; }
 .news-push .btn { width: 100%; }
 .news-push p.ok { margin: 0; color: var(--leaf); font-weight: 600; }
 .push-ask { text-align: center; } .push-ask .in-icon { margin-bottom: 4px; }
+/* siempre al menos dos láminas por fila, aunque el móvil tenga la pantalla ampliada (zoom de pantalla o letra grande) */
+.grid { grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 8px)), 1fr)); }
+@media (max-width: 360px) { .grid { gap: 18px 12px; } .card { padding: 10px 7px 12px; } .card .name { font-size: 18px; } .card .sci { font-size: 14px; } }
+@media (max-width: 360px) { .bottom button { font-size: 9px; letter-spacing: .6px; } .eh-side .sc { white-space: nowrap; } }
