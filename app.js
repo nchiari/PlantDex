@@ -91,7 +91,7 @@ async function checkUpdate() {
   try {
     const html = await (await fetch(SITE_URL() + "?_=" + Date.now(), { cache: "no-store" })).text();
     const n = +(html.match(/<meta name="news" content="(\d+)"/)?.[1] || 0);
-    if (n > MY_NEWS) { updateReady = true; reloadIfIdle(); }
+    if (n > MY_NEWS || NEWS_ALL.filter(newsLive).length > NEWS.length) { updateReady = true; reloadIfIdle(); }
   } catch {}
 }
 function reloadIfIdle() {
@@ -307,7 +307,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.13", APP_DATE = "2026-11-09";
+const APP_VERSION = "1.8.0", APP_DATE = "2026-11-11";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1094,7 +1094,16 @@ function openWhyAI() {
 // ---------- novedades: lo que cambió desde la última vez que entraste ----------
 // La más nueva va primero; subí "v" en cada entrada nueva. Solo cosas que la gente note, nada técnico.
 // Se agregan únicamente cuando Nico lo pide. Se ven una sola vez por persona: lo leído queda en el móvil y en su cuenta.
-const NEWS = [
+// Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
+const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
+const NEWS_ALL = [
+  { v: 8, date: "2026-11-11", at: "09:00", items: [
+    "<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. Tocalo y te dice quién fue y cuándo. El otro sello, el de la brújula o la maceta, también se toca: te dice si la planta se encontró afuera o vive en una casa.",
+  ], tour: [
+    ["list", "#app .card .auth-seal||#app .index .auth-seal", "Quién la asentó", "Arriba a la izquierda de cada lámina, la inicial de quien la cargó en el herbario."],
+    ["list", "#app .card .cult-seal||#app .index .cult-seal", "Hallada o cultivada", "Tocalo y te dice si la encontraron afuera o vive en una casa."],
+    ["plant", "#authseal", "Tocalo y te cuenta", "En la lámina, el medallón grande te dice quién la asentó y cuándo."],
+  ] },
   { v: 7, date: "2026-11-06", items: [
     "<b>Hallada o cultivada.</b> Ahora cada lámina dice de dónde viene. El sello de la esquina de la foto lo muestra: <b>brújula</b> si la encontraron afuera (campo, calle, parque) y <b>maceta</b> si vive en una casa (maceta, huerta, jardín). En la lámina, tocalo y te lo explica. Lo elegís al asentarla, y en <b>Filtrar</b> podés ver solo las halladas o solo las cultivadas.",
   ] },
@@ -1131,6 +1140,7 @@ const NEWS = [
     "<b>Historia y origen juntos</b>, para que cada lámina tenga menos secciones que abrir.",
   ] },
 ];
+const NEWS = NEWS_ALL.filter(newsLive);
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
 // Una novedad puede traer «tour»: pasos [pantalla, elemento, título, texto] que muestran lo nuevo en la app misma.
@@ -1551,7 +1561,7 @@ const notify = (body) => { if (feat("avisos")) sb.functions.invoke("notify", { b
 async function pingNews() {
   if (!user || !amOwner || !feat("avisos") || !feat("avisonews")) return;
   const test = FEATURES.avisonews === "prueba", key = test ? "newsPingTest" : "newsPing";
-  if ((cfg[key] || 0) >= NEWS[0].v) return;
+  if ((cfg[key] || 0) >= NEWS[0].v || NEWS_ALL[0].at) return;
   try {
     const r = await sb.functions.invoke("notify", { body: { kind: "news", v: NEWS[0].v, items: NEWS[0].items, test, site: SITE_URL() } });
     if (!r.error) { cfg[key] = NEWS[0].v; saveCfg(cfg); }

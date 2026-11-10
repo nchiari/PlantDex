@@ -92,7 +92,10 @@ Deno.serve(async (req) => {
   // ---------- tarea de cada hora: misión nueva (9 de la mañana) y resumen diario de láminas ----------
   if (kind === "cron") {
     if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
-    let missions = 0, digests = 0;
+    let missions = 0, digests = 0, newsPinged = 0;
+    let sched: { v: number; date: string; title: string; short: string; html: string } | null = null;
+    try { sched = sec.news_sched ? JSON.parse(sec.news_sched) : null; } catch { sched = null; }
+    const schedSent = new Set<string>(sched ? String(sec["news_sent_" + sched.v] || "").split(",").filter(Boolean) : []);
     for (const uid of accepted) {
       const pr = prefRows?.find((p) => p.user_id === uid), tz = pr?.tz || "Europe/Madrid";
       const now = new Date(), parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(now).map((x) => [x.type, x.value]));
@@ -107,6 +110,11 @@ Deno.serve(async (req) => {
         await db.from("notif_prefs").upsert({ user_id: uid, last_mission_ping: today });
         missions++;
       }
+      // Novedad programada (app_secrets «news_sched»): a las 9 de cada uno, desde su fecha, a quien todavía no la vio ni recibió el aviso.
+      if (sched && today >= sched.date && !schedSent.has(uid) && (users.find((u) => u.id === uid)?.user_metadata?.news_seen || 0) < sched.v) {
+        await send([uid], "news", sched.title, sched.short, site, sched.html);
+        schedSent.add(uid); newsPinged++;
+      }
       // Resumen de láminas por mail: solo si alguien más sumó alguna desde el último resumen.
       if (prefs.plants.mail) {
         const since = pr?.last_digest_at || new Date(Date.now() - 86400e3).toISOString();
@@ -119,7 +127,8 @@ Deno.serve(async (req) => {
         await db.from("notif_prefs").upsert({ user_id: uid, last_digest_at: now.toISOString() });
       }
     }
-    return json({ ok: true, missions, digests });
+    if (sched && newsPinged) await db.from("app_secrets").upsert({ key: "news_sent_" + sched.v, value: [...schedSent].join(",") });
+    return json({ ok: true, missions, digests, newsPinged });
   }
 
   // ---------- mail único a todo el herbario (lo dispara la base, con la misma clave que la tarea de cada hora) ----------
