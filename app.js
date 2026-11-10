@@ -331,6 +331,7 @@ async function loadPlants() {
   amMember = mem.error ? true : !!mem.data;
   if (!amMember) { plants = []; return; }
   if (amOwner) { const { count } = await sb.from("members").select("user_id", { count: "exact", head: true }).eq("status", "pending"); pendingRequests = count || 0; }
+  refreshNews();
   pingNews();
   // Personas aceptadas en el herbario, para que aparezcan en los filtros aunque todavía no hayan cargado nada.
   if (feat("miembros")) { const mn = await sb.rpc("member_names"); memberNames = !mn.error && Array.isArray(mn.data) ? mn.data.filter(Boolean) : []; }
@@ -1106,6 +1107,12 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
+  { v: 9, date: "2026-11-10", feat: "colores", items: [
+    "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
+  ], tour: [
+    ["settings", "#avatar", "Tu medallón", "Tocalo para elegir tu color entre diez. Se guarda solo."],
+    ["list", "#app .card .auth-seal||#app .index .auth-seal", "Así te ven", "Tu color aparece en tus láminas, en la tertulia y en los hallazgos."],
+  ] },
   { v: 8, date: "2026-11-10", items: [
     "<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. Tocalo y te dice quién fue y cuándo. El otro sello, el de la brújula o la maceta, también se toca: te dice si la planta se encontró afuera o vive en una casa.",
   ], tour: [
@@ -1149,7 +1156,9 @@ const NEWS_ALL = [
     "<b>Historia y origen juntos</b>, para que cada lámina tenga menos secciones que abrir.",
   ] },
 ];
-const NEWS = NEWS_ALL.filter(newsLive);
+// Una novedad con «feat» sale solo si esa función está encendida para quien abre la app (en prueba, solo para el dueño).
+let NEWS = NEWS_ALL.filter((n) => newsLive(n) && !n.feat);
+const refreshNews = () => (NEWS = NEWS_ALL.filter((n) => newsLive(n) && (!n.feat || feat(n.feat))));
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
 // Después de una novedad: si este móvil todavía no recibe avisos, se ofrece activarlos ahí mismo (una vez por novedad).
@@ -1593,7 +1602,7 @@ const notify = (body) => { if (feat("avisos")) sb.functions.invoke("notify", { b
 async function pingNews() {
   if (!user || !amOwner || !feat("avisos") || !feat("avisonews")) return;
   const test = FEATURES.avisonews === "prueba", key = test ? "newsPingTest" : "newsPing";
-  if ((cfg[key] || 0) >= NEWS[0].v || NEWS_ALL[0].at) return;
+  if ((cfg[key] || 0) >= NEWS[0].v || NEWS[0].at || NEWS[0].feat) return; // las programadas y las de prueba no avisan desde acá
   try {
     const r = await sb.functions.invoke("notify", { body: { kind: "news", v: NEWS[0].v, items: NEWS[0].items, test, site: SITE_URL() } });
     if (!r.error) { cfg[key] = NEWS[0].v; saveCfg(cfg); }
