@@ -289,7 +289,7 @@ const isNetErr = (e) => !navigator.onLine || /failed to fetch|network|load faile
 addEventListener("online", () => { if (offline && sb && user) loadPlants().then(route); });
 addEventListener("offline", () => { offline = true; });
 // Color del medallón de cada persona (lo elige en Ajustes): tonos apagados, del mismo estilo del herbario.
-const AV_COLORS = [["bosque", "#3e5f34"], ["musgo", "#5f6f2e"], ["ocre", "#8a6a24"], ["terracota", "#a5532f"], ["burdeos", "#7a2e3a"],
+const AV_COLORS = [["bosque", "#3e5f34"], ["salvia", "#7d8f69"], ["ocre", "#8a6a24"], ["terracota", "#a5532f"], ["burdeos", "#7a2e3a"],
   ["ciruela", "#5e3a5a"], ["tinta", "#2f5276"], ["petróleo", "#24686b"], ["pizarra", "#4a5560"], ["sepia", "#6b4a2e"]];
 let memberColors = {};
 const avColor = (name) => { if (!feat("colores") || !name) return ""; const own = normName(name) === normName(myName()) ? (user?.user_metadata?.avatar_color || cfg.avatarColor) : null;
