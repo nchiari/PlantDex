@@ -699,8 +699,8 @@ function settingsV2(owner, book) {
 
     <div class="me-card">
       <span class="avatar" id="avatar" aria-hidden="true"${av(myName())}>${esc(initialOf(cfg.name))}</span>
-      <div class="me-txt"><b id="mename">${esc(cfg.name || "Tu nombre")}</b><span>${esc(user.email)}</span>${owner ? `<small>Dueño del herbario</small>` : ""}</div>
-      <button class="me-pen" id="editname" aria-label="Cambiar tu nombre">✎</button>
+      <div class="me-txt">${feat("colores") ? `<span class="me-namerow"><b id="mename">${esc(cfg.name || "Tu nombre")}</b><button class="me-pen2" id="editname2" aria-label="Cambiar tu nombre">✎</button></span>` : `<b id="mename">${esc(cfg.name || "Tu nombre")}</b>`}<span>${esc(user.email)}</span>${owner ? `<small>Dueño del herbario</small>` : ""}</div>
+      ${feat("colores") ? "" : `<button class="me-pen" id="editname" aria-label="Cambiar tu nombre">✎</button>`}
     </div>
     <div class="me-edit" hidden><label>Tu nombre (aparece en las láminas que cargás)</label><input id="myname" maxlength="30" value="${esc(cfg.name || "")}" placeholder="Tu nombre"></div>
 
@@ -891,6 +891,15 @@ function renderSettings() {
     $app.querySelector("#whyai")?.addEventListener("click", openWhyAI);
     $app.querySelector("#whois")?.addEventListener("click", openPeople);
     if (feat("colores")) { const a = $app.querySelector("#avatar"); a.classList.add("pickable"); a.setAttribute("role", "button"); a.onclick = openColorPick; }
+    // Con el color del medallón: el nombre se edita ahí mismo, en la tarjeta.
+    $app.querySelector("#editname2")?.addEventListener("click", () => {
+      const b = $app.querySelector("#mename"), row = b.parentNode, hid = $app.querySelector("#myname");
+      const inp = document.createElement("input"); inp.className = "me-inline"; inp.maxLength = 30; inp.value = cfg.name || "";
+      row.replaceWith(inp); inp.focus(); inp.select();
+      let done = false;
+      const finish = () => { if (done) return; done = true; hid.value = inp.value; hid.onchange?.(); renderSettings(); };
+      inp.onblur = finish; inp.onkeydown = (e) => { if (e.key === "Enter") inp.blur(); if (e.key === "Escape") { inp.value = cfg.name || ""; inp.blur(); } };
+    });
     $app.querySelector("#editname")?.addEventListener("click", () => { const i = $app.querySelector("#myname"); i.closest(".me-edit").hidden = false; i.focus(); });
   }
   if ($app.querySelector("#save")) $app.querySelector("#save").onclick = () => {

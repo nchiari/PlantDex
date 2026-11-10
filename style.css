@@ -1591,3 +1591,8 @@ body.has-fab #app { padding-bottom: 90px; }
   box-shadow: inset 0 0 0 2.5px var(--av), inset 0 0 0 3.5px rgb(255 255 255 / .25); color: var(--gold-soft); font: 700 20px/1 var(--initial); display: grid; place-items: center; }
 .cp-sw.on { outline: 2px solid var(--ink); outline-offset: 3px; }
 .cp-note { margin-top: 14px; font-size: 14px; }
+.me-namerow { display: inline-flex; align-items: center; gap: 8px; }
+.me-pen2 { width: 30px; height: 30px; border-radius: 50%; padding: 0; display: grid; place-items: center; background: none; border: 1px solid rgb(var(--line) / .25); color: var(--gold); cursor: pointer; }
+.me-pen2 svg { width: 15px; height: 15px; }
+.me-inline { font: 500 22px var(--text); padding: 2px 0; width: 100%; max-width: 220px; }
+.me-pen2 { width: 26px; height: 26px; font-size: 13px; color: var(--ink); }
