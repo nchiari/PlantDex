@@ -1564,3 +1564,8 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 body.has-fab #app { padding-bottom: 90px; }
 .finds td { padding: 9px 6px; }
 .finds table { margin: 0; }
+/* activar avisos desde la misma novedad */
+.news-push { margin: 16px 0 4px; padding: 12px 14px; border-radius: 8px; background: rgb(var(--line) / .06); border-left: 3px solid var(--gold); }
+.news-push p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.4; }
+.news-push .btn { width: 100%; }
+.news-push p.ok { margin: 0; color: var(--leaf); font-weight: 600; }

@@ -1157,6 +1157,7 @@ function openNews(all = false, only) {
   m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Novedades del herbario</h3>
     ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>${n.cta ? `<button class="btn news-cta" data-go="${n.cta.go}">${n.cta.label}</button>` : ""}`).join("")}
+    <div class="news-push" hidden><p>¿Querés que el herbario te avise en este móvil cuando haya novedades o láminas nuevas?</p><button class="btn" id="news-push">Activar avisos en este móvil</button></div>
     <div class="row">${tourSteps.length ? `<button class="btn ghost" id="news-ok">Ahora no</button><button class="btn primary" id="news-tour">Mostrame</button>` : `<button class="btn primary" id="news-ok">A explorar</button>`}</div></div>`;
   const close = () => {
     m.remove(); if (only) return;
@@ -1166,6 +1167,14 @@ function openNews(all = false, only) {
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   m.querySelector("#news-ok").onclick = close;
+  // Si este móvil todavía no recibe avisos, se pueden activar ahí mismo, sin ir a Ajustes.
+  const np = m.querySelector(".news-push");
+  pushState().then((st) => { if (st === "off" && np.isConnected) np.hidden = false; }).catch(() => {});
+  m.querySelector("#news-push").onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    try { if (await enablePush()) { np.innerHTML = `<p class="ok">✓ Listo: te vamos a avisar en este móvil.</p>`; return; } } catch {}
+    e.currentTarget.disabled = false;
+  };
   m.querySelector("#news-tour")?.addEventListener("click", () => { close(); setTimeout(() => startTour(tourSteps), 300); });
   // Botón de una novedad: cierra el panel y lleva directo a donde se configura (por ejemplo, los avisos).
   m.querySelectorAll(".news-cta").forEach((b) => (b.onclick = () => { close(); if (b.dataset.go === "avisos") { cfg.focusAvisos = true; saveCfg(cfg); } go(b.dataset.go === "avisos" ? "settings" : b.dataset.go); }));
