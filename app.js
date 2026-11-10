@@ -307,7 +307,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.8.0", APP_DATE = "2026-11-11";
+const APP_VERSION = "1.8.0", APP_DATE = "2026-11-10";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1097,7 +1097,7 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
-  { v: 8, date: "2026-11-11", at: "09:00", items: [
+  { v: 8, date: "2026-11-10", items: [
     "<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. Tocalo y te dice quién fue y cuándo. El otro sello, el de la brújula o la maceta, también se toca: te dice si la planta se encontró afuera o vive en una casa.",
   ], tour: [
     ["list", "#app .card .auth-seal||#app .index .auth-seal", "Quién la asentó", "Arriba a la izquierda de cada lámina, la inicial de quien la cargó en el herbario."],
