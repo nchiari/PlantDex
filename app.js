@@ -77,7 +77,7 @@ async function readConfigLink() {
     if (cfg.sbUrl === u && cfg.sbKey === k) return;
     if (cfg.sbUrl && !(await ask({ title: "Otro herbario", text: `Este enlace te lleva ${o ? "al herbario de " + esc(o) : "a otro herbario"}. Si te cambiás, dejás de ver el actual.`, ok: "Cambiar de herbario", cancel: "Quedarme" }))) return;
     cfg = { ...cfg, sbUrl: u, sbKey: k }; saveCfg(cfg);
-    setTimeout(() => toast("Herbario configurado. Entrá con tu email."), 300);
+    setTimeout(() => toast("Herbario configurado. Ingresá con tu email."), 300);
   } catch { setTimeout(() => toast("El enlace de configuración no es válido"), 300); }
 }
 
@@ -142,7 +142,7 @@ async function boot() {
   document.body.classList.toggle("engrave", !!cfg.engrave);
   document.getElementById("btn-home").onclick = () => go("list");
   // El + abre la carga de una planta; si ya estás cargando una, no hace nada (no se pierden las fotos).
-  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go !== "new" ? go(b.dataset.go) : currentView() === "new" ? toast("Ya estás cargando una planta") : openSheet())));
+  $nav.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => (b.dataset.go !== "new" ? go(b.dataset.go) : currentView() === "new" ? toast("Ya estás cargando una planta.") : openSheet())));
   window.addEventListener("hashchange", route);
 
   if (!cfg.sbUrl || !cfg.sbKey) return renderSetup();
@@ -170,7 +170,7 @@ function showStuck() {
   $nav.hidden = true;
   $app.innerHTML = `<div class="empty"><div class="big">${PLANT_ART}</div>
     <h2>El herbario no responde</h2>
-    <p class="lead">Puede ser tu conexión o que el servidor esté caído un rato. Tus láminas están a salvo: probá de nuevo en unos minutos.</p>
+    <p class="lead">Puede deberse a tu conexión o a una caída momentánea del servidor. Tus láminas están a salvo; volvé a intentarlo en unos minutos.</p>
     <button class="btn primary" id="stuck-retry">Reintentar</button></div>`;
   $app.querySelector("#stuck-retry").onclick = () => location.reload();
 }
@@ -197,14 +197,14 @@ function openInstall(first) {
   m.className = "modal";
   m.innerHTML = `<div class="modal-box install" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <img class="in-icon" src="icons/icon-192.png" alt=""><h3>Instalá Herbalorium en tu móvil</h3>
-    <p class="muted">Queda como una app más, con su ícono, se abre más rápido y te pueden llegar los avisos.</p>${steps}
+    <p class="muted">Funciona como cualquier otra app: tiene su ícono, abre más rápido y puede enviarte avisos.</p>${steps}
     ${first ? `<div class="row"><button class="btn ghost" id="in-later">Ahora no</button></div>` : ""}</div>`;
   const close = () => { m.remove(); cfg.installSeen = 1; saveCfg(cfg); };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
   m.querySelector("#in-later")?.addEventListener("click", close);
   m.querySelector("#in-copy")?.addEventListener("click", async () => { try { await navigator.clipboard.writeText(SITE_URL()); toast("Link copiado"); } catch { toast(SITE_URL()); } });
-  m.querySelector("#in-go")?.addEventListener("click", async () => { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); installEvt = null; if (r?.outcome === "accepted") { close(); toast("¡Listo! Ya la tenés en tu móvil"); } });
+  m.querySelector("#in-go")?.addEventListener("click", async () => { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); installEvt = null; if (r?.outcome === "accepted") { close(); toast("Herbalorium quedó instalada en tu móvil."); } });
   document.body.appendChild(m);
 }
 
@@ -316,7 +316,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = COLORS_LIVE ? "1.9.0" : "1.8.1", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-10";
+const APP_VERSION = COLORS_LIVE ? "1.9.0" : "1.8.2", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-10";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -391,18 +391,18 @@ function bindIucnBatch() {
   $app.querySelector("#iucnall")?.addEventListener("click", () => { iucnAll = true; renderSettings(); });
   if (location.hash.includes("iucn")) setTimeout(() => document.getElementById("iucnbox")?.scrollIntoView({ block: "start" }), 50);
   $app.querySelector("#iucncopy")?.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(iucnBatchPrompt()); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt»"); }
+    try { await navigator.clipboard.writeText(iucnBatchPrompt()); toast("Prompt copiado"); } catch { toast("No se pudo copiar. Abrí «Ver prompt»."); }
   });
   $app.querySelector("#iucnapply")?.addEventListener("click", async (ev) => {
     let map;
-    try { map = JSON.parse(String(v("iucnpaste")).match(/\{[\s\S]*\}/)[0]); } catch { return toast("No entendí la respuesta"); }
+    try { map = JSON.parse(String(v("iucnpaste")).match(/\{[\s\S]*\}/)[0]); } catch { return toast("No se pudo interpretar la respuesta."); }
     const norm = Object.fromEntries(Object.entries(map).map(([k, c]) => [illuKey(k), normIucn(c)]));
     const todo = iucnTargets().map((p) => [p, norm[illuKey(p.scientific_name)]]).filter(([, c]) => c);
-    if (!todo.length) return toast("No encontré ninguna de tus especies en la respuesta");
+    if (!todo.length) return toast("La respuesta no incluye ninguna de tus especies.");
     ev.currentTarget.disabled = true;
     for (const [p, c] of todo) {
       const { error } = await sb.from("plants").update({ iucn: c }).eq("id", p.id);
-      if (error) { toast(/iucn/i.test(error.message) ? "Falta actualizar la base: corré en Supabase la línea SQL de «iucn»" : error.message); ev.currentTarget.disabled = false; return; }
+      if (error) { toast(/iucn/i.test(error.message) ? "Falta actualizar la base. Corré en Supabase la línea SQL de «iucn»." : error.message); ev.currentTarget.disabled = false; return; }
       p.iucn = c;
     }
     iucnAll = false;
@@ -635,7 +635,7 @@ function normalizeAI(raw) {
   out.setting = /cultiv/i.test(out.setting || "") ? "cultivada" : out.setting ? "hallada" : undefined;
   out.traits = normTraits(out.traits);
   fixNames(out);
-  if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Ojo, puede confundirse: ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
+  if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Puede confundirse con otra especie. ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
   delete out.doubt;
   out.parts = normParts(out.parts);
   delete out.rarity;
@@ -709,7 +709,7 @@ function settingsV2(owner, book) {
     <h3>Tu herbario</h3>
     ${feat("quienes") && people > 1 ? `<button class="set-link" id="whois"><span>${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)} · ${people} personas</span><span aria-hidden="true">›</span></button>`
       : `<p class="set-sub">${owner ? "Tu herbario" : book.charAt(0).toUpperCase() + book.slice(1)}${people > 1 ? ` · ${people} personas` : ""}</p>`}
-    <p class="muted set-note">${owner ? "Pasale la invitación a quien quieras: cuando entre, te llega su pedido acá arriba y lo aceptás." : "Pasale la invitación a quien quieras: el dueño del herbario recibe su pedido. También sirve para abrirlo en otro dispositivo."}</p>
+    <p class="muted set-note">${owner ? "Compartí la invitación con quien quieras. Cuando entre, su pedido aparecerá aquí arriba para que lo aceptes." : "Compartí la invitación con quien quieras; el dueño del herbario recibirá su pedido. También sirve para abrir el herbario en otro dispositivo."}</p>
     <button class="btn" id="sharecfg" style="width:100%">Compartir invitación</button>
 
     ${feat("misiones") ? `<h3>Exploración</h3>
@@ -800,7 +800,7 @@ function renderSettings() {
   bindExpSim(); bindAnimDemo();
   $app.querySelector("#resetmis")?.addEventListener("click", async (ev) => {
     const btn = ev.currentTarget;
-    if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros no se tocan.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
+    if (!(await ask({ title: "Empezar de cero", text: "Se borran tu zona, tu misión y la carta de presentación, como si recién entraras. Tus láminas y logros se mantienen.", ok: "Empezar de cero", cancel: "Dejarlo" }))) return;
     btn.disabled = true;
     for (const k of ["zone", "mission", "missionsIntro", "missionSkip", "focusZone", "missionSeen", "missionsDone", "missionCelebrated"]) delete cfg[k];
     saveCfg(cfg);
@@ -822,7 +822,7 @@ function renderSettings() {
     btn.disabled = true; btn.textContent = `Buscando… 0 de ${todo.length}`;
     const worker = async () => { while (todo.length) { const k = todo.shift(); if (await findIllustration(k)) found++; done++; btn.textContent = `Buscando… ${done} de ${total}`; } };
     await Promise.all([worker(), worker(), worker()]);
-    btn.textContent = `Listo: ${found} ${found === 1 ? "lámina encontrada" : "láminas encontradas"}`;
+    btn.textContent = `${found} ${found === 1 ? "lámina encontrada" : "láminas encontradas"}`;
     setTimeout(() => { btn.disabled = false; btn.textContent = "Volver a buscar las láminas antiguas"; }, 4000);
   });
   $app.querySelector("#missions")?.addEventListener("change", (e) => { cfg.missionsOff = !e.target.checked; saveCfg(cfg); });
@@ -833,7 +833,7 @@ function renderSettings() {
     note.hidden = false; note.innerHTML = "Zona guardada. Buscando tu primera misión…";
     try {
       const m = await ensureMission(); navDot();
-      note.innerHTML = m ? `Listo: <b>tu misión te espera en Progreso</b>. <button class="linkish" id="zd-go">Ver mi misión</button>` : "Zona guardada, pero no encontré plantas registradas cerca. Probá con un lugar más grande.";
+      note.innerHTML = m ? `Zona guardada. <b>Tu misión te espera en Progreso</b>. <button class="linkish" id="zd-go">Ver mi misión</button>` : "Zona guardada, pero no encontré plantas registradas cerca. Probá con un lugar más grande.";
     } catch { note.innerHTML = `Zona guardada. <button class="linkish" id="zd-go">Ver Progreso</button>`; }
     $app.querySelector("#zd-go")?.addEventListener("click", () => go("stats"));
   };
@@ -858,13 +858,13 @@ function renderSettings() {
   }
   $app.querySelector("#setzone")?.addEventListener("click", (ev) => {
     const b = ev.currentTarget;
-    if (!navigator.geolocation) return toast("Este dispositivo no da la ubicación");
+    if (!navigator.geolocation) return toast("Este dispositivo no comparte su ubicación.");
     b.disabled = true; b.textContent = "Buscando…";
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const z = await setZone(pos.coords.latitude, pos.coords.longitude);
       if ($zq) $zq.value = z.name;
       b.disabled = false; b.textContent = "Usar mi ubicación actual"; zoneReady();
-    }, () => { b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("No pude leer la ubicación: revisá el permiso"); }, { timeout: 10000 });
+    }, () => { b.disabled = false; b.textContent = "Usar mi ubicación actual"; toast("No se pudo leer la ubicación. Revisá el permiso."); }, { timeout: 10000 });
   });
   $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
     cfg.theme = b.dataset.themePick; saveCfg(cfg); applyTheme();
@@ -885,7 +885,7 @@ function renderSettings() {
     cfg = { ...cfg, name: nn || cfg.name, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
     saveCfg(cfg); document.body.classList.toggle("engrave", cfg.engrave);
     if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
-    $app.querySelector("#mename") && ($app.querySelector("#mename").textContent = cfg.name || "Tu nombre"); toast("Guardado"); };
+    $app.querySelector("#mename") && ($app.querySelector("#mename").textContent = cfg.name || "Tu nombre"); toast("Cambios guardados"); };
   if ($app.querySelector(".set2")) {
     $app.querySelector("#myname").onchange = autosave;
     $app.querySelector("#myname").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
@@ -908,13 +908,13 @@ function renderSettings() {
     const prevSb = cfg.sbUrl + cfg.sbKey;
     const sbUrlEl = document.getElementById("sbUrl");
     const nn2 = v("myname").replace(/\s+/g, " ").trim();
-    if (nn2 && normName(nn2) !== normName(cfg.name) && nameTaken(nn2)) { $app.querySelector("#myname").value = cfg.name || ""; return toast(`Ya hay alguien que se llama ${nn2}: probá con una inicial o un apodo`); }
+    if (nn2 && normName(nn2) !== normName(cfg.name) && nameTaken(nn2)) { $app.querySelector("#myname").value = cfg.name || ""; return toast(`Ya hay alguien que se llama ${nn2}. Probá con una inicial o un apodo.`); }
     cfg = { ...cfg, name: nn2 || cfg.name,
       sbUrl: sbUrlEl ? v("sbUrl").replace(/\/(rest\/v1\/?)?$/, "") : cfg.sbUrl, sbKey: sbUrlEl ? v("sbKey") : cfg.sbKey, engrave: $app.querySelector("#engrave").checked, illustrations: $app.querySelector("#illustrations").checked };
     saveCfg(cfg);
     if (user && cfg.name && user.user_metadata?.name !== cfg.name) syncMeta({ name: cfg.name });
     document.body.classList.toggle("engrave", cfg.engrave);
-    toast("Guardado");
+    toast("Cambios guardados");
     if (prevSb !== cfg.sbUrl + cfg.sbKey) location.replace(location.pathname);
     else go("list");
   };
@@ -922,7 +922,7 @@ function renderSettings() {
   $app.querySelector("#install")?.addEventListener("click", () => openInstall());
   $app.querySelector("#retour")?.addEventListener("click", () => { cfg.tourPending = true; saveCfg(cfg); go("list"); });
   $app.querySelector("#switchbook")?.addEventListener("click", async () => {
-    if (!(await ask({ title: "Cambiar de herbario", text: "Vas a salir de este herbario y elegir otro. Tus láminas se quedan acá: si te cambiás, dejás de verlas.", ok: "Cambiar", cancel: "Quedarme" }))) return;
+    if (!(await ask({ title: "Cambiar de herbario", text: "Vas a salir de este herbario para elegir otro. Tus láminas quedan aquí y, si te cambiás, dejarás de verlas.", ok: "Cambiar", cancel: "Quedarme" }))) return;
     try { await sb.auth.signOut(); } catch {}
     cfg = { ...cfg, sbUrl: "", sbKey: "", onboarded: false }; saveCfg(cfg);
     try { localStorage.removeItem(ACH_KEY); } catch {}
@@ -1065,11 +1065,11 @@ const OB_BIND = {
   connect: (scr) => {
     const msg = scr.querySelector("#obmsg");
     scr.querySelector("#obnew")?.addEventListener("click", () => { ob.invite = null; ob.path = "new"; obGo(5); });
-    scr.querySelector("#obpaste")?.addEventListener("click", async () => { try { scr.querySelector("#oblink").value = await navigator.clipboard.readText(); } catch { toast("Mantené apretado el campo y elegí «Pegar»"); } });
-    const copy = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast("No pude copiar automáticamente"); } };
+    scr.querySelector("#obpaste")?.addEventListener("click", async () => { try { scr.querySelector("#oblink").value = await navigator.clipboard.readText(); } catch { toast("Mantené apretado el campo y elegí «Pegar»."); } });
+    const copy = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); toast(ok); } catch { toast("No se pudo copiar automáticamente."); } };
     scr.querySelector("#cpurl")?.addEventListener("click", () => copy(SITE_URL(), "Dirección copiada"));
     scr.querySelector("#cpsql")?.addEventListener("click", async () => {
-      try { const r = await fetch("supabase/schema.sql", { cache: "no-store" }); copy(await r.text(), "Código SQL copiado"); } catch { toast("No pude bajar el código SQL"); }
+      try { const r = await fetch("supabase/schema.sql", { cache: "no-store" }); copy(await r.text(), "Código SQL copiado"); } catch { toast("No se pudo descargar el código SQL."); }
     });
     scr.querySelector("#objoin").onclick = async (ev) => {
       let url, key;
@@ -1121,7 +1121,7 @@ const NEWS_ALL = [
   { v: 10, date: "2026-11-12", at: "09:00", feat: "colores", items: [
     "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
   ], tour: [
-    ["settings", "#avatar", "Tu medallón", "Tocalo para elegir tu color entre diez. Se guarda solo."],
+    ["settings", "#avatar", "Tu medallón", "Tocá tu medallón para elegir entre diez colores; el cambio se guarda al instante."],
     ["list", "#app .card .auth-seal||#app .index .auth-seal", "Así te ven", "Tu color aparece en tus láminas, en la tertulia y en los hallazgos."],
   ] },
   { v: 8, date: "2026-11-10", items: [
@@ -1181,7 +1181,7 @@ async function askPush() {
   const m = document.createElement("div");
   m.className = "modal";
   m.innerHTML = `<div class="modal-box ask push-ask" role="dialog" aria-modal="true"><img class="in-icon" src="icons/icon-192.png" alt="">
-    <h3>¿Te avisamos?</h3><p>Activá los avisos en este móvil y el herbario te cuenta cuando haya novedades o láminas nuevas.</p>
+    <h3>¿Querés recibir avisos?</h3><p>Activá los avisos en este móvil y el herbario te contará cuando haya novedades o láminas nuevas.</p>
     <div class="row"><button class="btn ghost" data-a="0">Ahora no</button><button class="btn primary" data-a="1">Activar avisos</button></div></div>`;
   const close = () => m.remove();
   m.onclick = (e) => { if (e.target === m) close(); };
@@ -1189,7 +1189,7 @@ async function askPush() {
   m.querySelector('[data-a="1"]').onclick = async (e) => {
     e.currentTarget.disabled = true;
     let ok = false; try { ok = await enablePush(); } catch {}
-    close(); if (ok) toast("¡Listo! Te vamos a avisar en este móvil");
+    close(); if (ok) toast("Los avisos quedaron activados en este móvil.");
   };
   document.body.appendChild(m);
 }
@@ -1411,16 +1411,16 @@ function openShareInfo() {
 // (con "||" se prueba el siguiente si el primero no está). El tutorial va cambiando de página y al final vuelve al herbario.
 const TOUR = [
   ["list", "#app .entry-head h2", "Tu herbario", "Acá están todas las láminas, en orden alfabético. Tocá una para abrir su ficha completa."],
-  ["list", ".viewsw", "Láminas o índice", "Cambiá entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas."],
-  ["list", ".search", "Buscar y filtrar", "Buscá por nombre, latín, familia o lugar. Con Filtrar elegís tipos de planta o quién la encontró. El número dorado te avisa cuántas láminas nuevas sumaron los demás."],
+  ["list", ".viewsw", "Láminas o índice", "Alterná entre la vista con imágenes y una lista compacta, más cómoda cuando tengas muchas láminas."],
+  ["list", ".search", "Buscar y filtrar", "Buscá por nombre, nombre científico, familia o lugar. Con Filtrar podés elegir tipos de planta o quién la encontró. El número dorado indica cuántas láminas nuevas sumaron los demás."],
   ["list", "#app .card .pstrip", "Los símbolos", "Dicen el estado de conservación de cada planta y para qué sirve. El sello dorado «Nova» marca las láminas nuevas de los demás hasta que las abrís. En «Leyenda», arriba a la derecha, está qué significa cada uno."],
-  ["plant", "#app .hero||#app h2", "La ficha", "Tocá la foto para verla en grande. El sello de la esquina dice si la hallaron afuera o vive en una casa: tocalo y te lo explica. En tus láminas, el + suma fotos (hasta 4). Más abajo: para qué sirve, su historia y quién la encontró."],
-  ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las pasa a tu IA con el prompt listo; vos pegás la respuesta y la ficha se completa sola. Si la IA duda, te pide otra foto antes. Y si la planta ya está en el herbario, tu hallazgo se suma a esa lámina."],
+  ["plant", "#app .hero||#app h2", "La ficha", "Tocá la foto para verla en grande. Los sellos de las esquinas indican quién asentó la lámina y si la planta se encontró afuera o vive en una casa; tocalos para ver el detalle. En tus láminas, el + permite sumar hasta 4 fotos. Más abajo están sus usos, su historia y quiénes la encontraron."],
+  ["list", ".bottom .capture", "El sello: nueva lámina", "Sacá o elegí fotos de una planta. La app se las envía a tu IA junto con las instrucciones; después pegás la respuesta y la ficha se completa sola. Si la IA tiene dudas, te pedirá otra foto. Si la planta ya está en el herbario, tu hallazgo se suma a esa lámina."],
   ["cal", "#app h2", "Calendario", "Qué florece y qué se puede recolectar cada mes, según las láminas del herbario."],
-  ["stats", "#mission", "Tu misión", "Cada día, una planta que se vio cerca de tu casa para salir a buscar. Cuando la asentás, se cumple, y al día siguiente llega otra.", "misiones"],
+  ["stats", "#mission", "Tu misión", "Cada día, una planta vista cerca de tu casa para salir a buscar. Cuando la asentás, la misión se cumple y al día siguiente llega otra.", "misiones"],
   ["stats", "#app h2", "Logros", "Más de 60 logros que se desbloquean a medida que tu herbario crece."],
   ["settings", "#app .me-card||#app .me-row", "Ajustes", "Tu nombre y tu medallón, el tema, invitar a otras personas y el resto de las opciones."],
-  ["settings", "#app .avisos", "Avisos", "Elegí qué querés que te avise el herbario, en el móvil o por mail: láminas nuevas, tu misión del día y más. Tocá «Activar en este móvil» para que te lleguen.", "tutoavisos"],
+  ["settings", "#app .avisos", "Avisos", "Elegí qué avisos querés recibir, en el móvil o por mail: láminas nuevas, tu misión del día y más. Tocá «Activar en este móvil» para empezar a recibirlos.", "tutoavisos"],
 ];
 const currentView = () => location.hash.slice(1).split("/")[0] || "list";
 // Espera a que la pantalla pinte el elemento (las páginas se dibujan de forma asíncrona).
@@ -1509,15 +1509,15 @@ const schemaBox = () => `<div class="share-box schema-box"><h3>Tu herbario neces
   <button class="btn primary" id="copyschema" style="width:100%">Copiar código</button>
   <p class="muted" style="font-size:14px">Es el código completo del herbario: se puede correr las veces que haga falta sin perder nada.</p></div>`;
 async function copySchema() {
-  try { const t = await (await fetch("supabase/schema.sql", { cache: "no-store" })).text(); await navigator.clipboard.writeText(t); toast("Código copiado: pegalo en el SQL Editor de Supabase"); }
-  catch { toast("No pude copiarlo: abrí herbalorium.pages.dev/supabase/schema.sql y copialo de ahí"); }
+  try { const t = await (await fetch("supabase/schema.sql", { cache: "no-store" })).text(); await navigator.clipboard.writeText(t); toast("Código copiado. Pegalo en el SQL Editor de Supabase."); }
+  catch { toast("No se pudo copiar. Abrí herbalorium.pages.dev/supabase/schema.sql y copialo desde ahí."); }
 }
 function maybeSchemaNotice() {
   if (!user || !amOwner || !schemaBehind || cfg.schemaNotice === SCHEMA_NEEDED) return;
   setTimeout(async () => {
     if (document.querySelector(".tour, .modal")) return;
     cfg.schemaNotice = SCHEMA_NEEDED; saveCfg(cfg);
-    if (await ask({ title: "Tu herbario necesita una actualización", text: "La app sumó funciones que necesitan un cambio en tu base de Supabase. Te dejo los pasos en Ajustes: es copiar un código y pegarlo.", ok: "Ver los pasos", cancel: "Más tarde" })) go("settings");
+    if (await ask({ title: "Tu herbario necesita una actualización", text: "La app incorporó funciones que requieren un cambio en tu base de Supabase. En Ajustes están los pasos: solo hay que copiar un código y pegarlo.", ok: "Ver los pasos", cancel: "Más tarde" })) go("settings");
   }, 1200);
 }
 
@@ -1534,13 +1534,13 @@ async function pushState() {
 }
 async function enablePush() {
   const perm = await Notification.requestPermission();
-  if (perm !== "granted") { toast("Sin permiso no te puedo avisar: activalo en los ajustes del navegador"); return false; }
+  if (perm !== "granted") { toast("Sin permiso no es posible enviarte avisos. Podés activarlo en los ajustes del navegador."); return false; }
   const reg = await navigator.serviceWorker.register("sw.js");
   await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }));
   const j = sub.toJSON();
   const { error } = await sb.from("push_subs").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
-  if (error) { toast("No pude guardar el aviso: " + error.message); return false; }
+  if (error) { toast("No se pudo guardar el aviso: " + error.message); return false; }
   return true;
 }
 async function disablePush() {
@@ -1559,7 +1559,7 @@ const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: 
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
-  ${feat("avisoboton") ? `<div class="av-cta" id="avcta" hidden><b>Todavía no te llega nada a este móvil</b><span>Tocá el botón y aceptá el permiso: es una sola vez.</span><button class="btn primary" id="avon2">Activar en este móvil</button></div>` : ""}
+  ${feat("avisoboton") ? `<div class="av-cta" id="avcta" hidden><b>Este móvil todavía no recibe avisos</b><span>Tocá el botón y aceptá el permiso. Solo hace falta hacerlo una vez.</span><button class="btn primary" id="avon2">Activar en este móvil</button></div>` : ""}
   <table class="av-table"><thead><tr><th></th><th>Móvil</th><th>Mail</th></tr></thead><tbody>
     ${NOTIF_KINDS.filter(([, , own, fl]) => (!own || amOwner) && (!fl || feat(fl))).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
@@ -1572,7 +1572,7 @@ async function bindAvisos() {
   if (!notifPrefs) { const { data } = await sb.from("notif_prefs").select("prefs").eq("user_id", user.id).maybeSingle(); notifPrefs = { ...NOTIF_DEFAULT, ...(data?.prefs || {}) }; }
   const savePrefs = async () => {
     const { error } = await sb.from("notif_prefs").upsert({ user_id: user.id, prefs: notifPrefs, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, updated_at: new Date().toISOString() });
-    if (error) toast("No pude guardar los avisos: " + error.message);
+    if (error) toast("No se pudieron guardar los avisos: " + error.message);
   };
   $app.querySelectorAll(".av-table input").forEach((c) => {
     c.checked = !!notifPrefs[c.dataset.k]?.[c.dataset.ch];
@@ -1587,22 +1587,22 @@ async function bindAvisos() {
     const s = await pushState();
     // Si este móvil todavía no tiene los avisos activados, el botón va arriba y bien a la vista.
     if (cta) { cta.hidden = s !== "off"; on.closest(".row").classList.toggle("av-quiet", s === "on"); on.style.display = s === "off" ? "none" : ""; st.style.display = s === "off" ? "none" : ""; }
-    st.textContent = { on: "Las notificaciones están activadas en este móvil.", off: "Para recibirlas en este móvil, activalas acá abajo.", denied: "El navegador tiene bloqueadas las notificaciones de Herbalorium: habilitalas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
+    st.textContent = { on: "Las notificaciones están activadas en este móvil.", off: "Para recibirlas en este móvil, activalas acá abajo.", denied: "El navegador bloquea las notificaciones de Herbalorium. Podés habilitarlas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
     on.textContent = s === "on" ? (cta ? "Desactivar" : "Desactivar en este móvil") : "Activar en este móvil";
     if (cta && s === "on") st.textContent = "✓ Activadas en este móvil.";
     on.disabled = s === "nope" || s === "denied";
   };
   if (on2) on2.onclick = () => on.onclick();
-  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este móvil"); } else if (await enablePush()) { await savePrefs(); toast("Listo: te voy a avisar en este móvil"); } paint(); };
+  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este móvil"); } else if (await enablePush()) { await savePrefs(); toast("Los avisos quedaron activados en este móvil."); } paint(); };
   if (test) test.onclick = async () => {
     const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
-    if (!what) return toast("Marcá alguna casilla primero");
+    if (!what) return toast("Marcá al menos una casilla.");
     test.disabled = true;
     const r = await sb.functions.invoke("notify", { body: { kind: "test", what, site: SITE_URL() } });
     test.disabled = false;
-    if (r.error) return toast("No pude mandar la prueba: " + r.error.message);
+    if (r.error) return toast("No se pudo enviar la prueba: " + r.error.message);
     const p = r.data?.push, m = r.data?.mail;
-    toast(p || m ? `Prueba enviada${p ? " al móvil" : ""}${m ? (p ? " y por mail" : " por mail") : ""}` : "La prueba no llegó a ningún lado: activá el móvil o marcá Mail");
+    toast(p || m ? `Prueba enviada${p ? " al móvil" : ""}${m ? (p ? " y por mail" : " por mail") : ""}` : "La prueba no se envió. Activá los avisos en el móvil o marcá Mail.");
   };
   paint();
 }
@@ -1637,7 +1637,7 @@ async function paintRequests() {
       if (status === "rejected" && !(await ask({ title: "Rechazar pedido", text: `${esc(r.name || r.email)} no va a poder entrar al herbario.`, ok: "Rechazar", cancel: "Volver" }))) return;
       const { error: e } = await sb.from("members").update({ status, decided_at: new Date().toISOString() }).eq("user_id", r.user_id);
       if (e) return toast("No se pudo: " + e.message);
-      toast(status === "accepted" ? `Listo: ${r.name || r.email} ya puede entrar` : "Pedido rechazado");
+      toast(status === "accepted" ? `${r.name || r.email} ya puede entrar al herbario` : "Pedido rechazado");
       if (status === "accepted") notify({ kind: "member", user_id: r.user_id });
       if (status === "accepted" && document.body.classList.contains("anim")) { row.classList.add("req-done"); await new Promise((ok) => setTimeout(ok, 750)); }
       paintRequests();
@@ -1662,7 +1662,7 @@ function renderOffline() {
   $app.querySelector("#retry").onclick = async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando conexión…";
     await loadPlants(); route();
-    if (offline) toast("Todavía no hay conexión");
+    if (offline) toast("Todavía no hay conexión.");
   };
 }
 
@@ -1682,7 +1682,7 @@ async function renderWaiting() {
     <button class="linkish" id="wout">Cerrar sesión</button></div>`;
   $app.querySelector("#wcheck")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; await loadPlants();
-    if (amMember) { toast("¡Bienvenido al herbario!"); go("list"); } else { ev.currentTarget.disabled = false; toast("Todavía no: el pedido sigue esperando"); }
+    if (amMember) { toast("Te damos la bienvenida al herbario."); go("list"); } else { ev.currentTarget.disabled = false; toast("Tu pedido todavía está pendiente."); }
   });
   $app.querySelector("#wout").onclick = async () => { await sb.auth.signOut(); go("list"); };
 }
@@ -1694,7 +1694,7 @@ function renderLogin() {
     <div class="empty">
       <div class="big">${PLANT_ART}</div>
       <h2>${cfg.name ? "Hola, " + esc(cfg.name) : "Herbarium Vivum"}</h2>
-      <p class="lead">${cfg.onboarded && cfg.joinedFrom != null ? "Último paso: entrá con tu email. Te llega un link y el dueño del herbario recibe tu pedido para entrar." : cfg.onboarded ? "Último paso: entrá con tu email. Te llega un link para abrir la app." : "<i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi."}</p>
+      <p class="lead">${cfg.onboarded && cfg.joinedFrom != null ? "Último paso: ingresá con tu email. Te enviaremos un enlace y el dueño del herbario recibirá tu pedido para entrar." : cfg.onboarded ? "Último paso: ingresá con tu email. Te enviaremos un enlace para abrir la app." : "<i>Liber plantarum quas vidi</i>.<br>El libro de las plantas que vi."}</p>
       <label>Tu email</label>
       <input id="email" type="email" placeholder="tu@email.com" style="margin:0 0 22px;text-align:center">
       <button class="btn red" id="send" style="width:100%">Enviar el link</button>
@@ -1708,8 +1708,8 @@ function renderLogin() {
   $app.querySelector("#send").onclick = async () => {
     const email = v("email"); if (!email) return;
     const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname, data: { name: cfg.name || "", invited_by: cfg.joinedFrom || "" } } });
-    if (error && /signups? not allowed|sign ?ups? (are )?disabled/i.test(error.message)) return toast("Este herbario todavía no recibe cuentas nuevas: pedile al dueño del herbario que lo habilite.");
-    toast(error ? "Error: " + error.message : "Listo, revisá tu correo");
+    if (error && /signups? not allowed|sign ?ups? (are )?disabled/i.test(error.message)) return toast("Este herbario todavía no admite cuentas nuevas. Pedile al dueño que lo habilite.");
+    toast(error ? "Error: " + error.message : "Te enviamos un enlace. Revisá tu correo.");
   };
 }
 
@@ -1938,18 +1938,18 @@ async function hydrateMission() {
     box.querySelector("#ms-zone").onclick = () => goZone();
     return;
   }
-  box.innerHTML = `<p class="ms-hint">Buscando plantas cerca tuyo…</p>`;
+  box.innerHTML = `<p class="ms-hint">Buscando plantas cerca de tu zona…</p>`;
   let m;
   try { m = await ensureMission(); }
   catch (e) {
     if (!$app.contains(box)) return;
-    box.innerHTML = `<p class="ms-hint">No pude consultar las plantas de tu zona (${esc(e.message || "sin conexión")}). <button class="linkish" id="ms-retry">Reintentar</button></p>`;
+    box.innerHTML = `<p class="ms-hint">No se pudieron consultar las plantas de tu zona (${esc(e.message || "sin conexión")}). <button class="linkish" id="ms-retry">Reintentar</button></p>`;
     box.querySelector("#ms-retry").onclick = () => { try { localStorage.removeItem(NEAR_KEY); } catch {} hydrateMission(); };
     return;
   }
   if (!$app.contains(box)) return;
   if (!m) {
-    box.innerHTML = `<p class="ms-hint">No encontré plantas registradas cerca de tu zona que falten en el herbario. Probá con otra zona en <button class="linkish" id="ms-zone">Ajustes</button>.</p>`;
+    box.innerHTML = `<p class="ms-hint">No hay plantas registradas cerca de tu zona que falten en el herbario. Probá con otra zona en <button class="linkish" id="ms-zone">Ajustes</button>.</p>`;
     box.querySelector("#ms-zone").onclick = () => goZone();
     return;
   }
@@ -2043,7 +2043,7 @@ async function writePlant(row, q) {
   for (const k of ["setting", "traits"]) if (r.error && k in row && new RegExp(k).test(r.error.message || "")) { delete row[k]; r = await q(row); }
   return r;
 }
-const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa: maceta, huerta o jardín."], hallada: ["f-compass", "Hallada", "La encontraron afuera: campo, calle o parque."] };
+const SEALS = { cultivada: ["f-pot", "Cultivada", "Vive en una casa, en maceta, huerta o jardín."], hallada: ["f-compass", "Hallada", "Se encontró afuera, en el campo, la calle o un parque."] };
 const cultSeal = (p, tap = false) => {
   if (!feat("sellocult")) return "";
   const k = p.setting === "cultivada" ? "cultivada" : "hallada", [ic, label] = SEALS[k];
@@ -2064,7 +2064,7 @@ function openColorPick() {
     <h3>El color de tu medallón</h3><p class="muted">Así te distinguen en las láminas, la tertulia y los hallazgos.</p>
     <div class="cp-prev"><span class="avatar big-av" id="cp-av">${esc(initialOf(cfg.name))}</span></div>
     <div class="cp-grid">${AV_COLORS.map(([k, c]) => `<button class="cp-sw${k === cur ? " on" : ""}" data-k="${k}" style="--av:${c}" aria-label="${k}"><span>${esc(initialOf(cfg.name))}</span></button>`).join("")}</div>
-    <p class="muted cp-note">Se guarda solo.</p></div>`;
+    <p class="muted cp-note">Los cambios se guardan automáticamente.</p></div>`;
   const prev = m.querySelector("#cp-av"); const paint = (k) => { const c = (AV_COLORS.find(([x]) => x === k) || [])[1]; if (c) prev.style.setProperty("--av", c); };
   paint(cur);
   const close = () => { m.remove(); renderSettings(); };
@@ -2073,7 +2073,7 @@ function openColorPick() {
   m.querySelectorAll(".cp-sw").forEach((b) => (b.onclick = () => {
     m.querySelectorAll(".cp-sw").forEach((x) => x.classList.toggle("on", x === b));
     paint(b.dataset.k); cfg.avatarColor = b.dataset.k; saveCfg(cfg); syncMeta({ avatar_color: b.dataset.k });
-    memberColors[myName()] = b.dataset.k; toast("Guardado");
+    memberColors[myName()] = b.dataset.k; toast("Cambios guardados");
   }));
   document.body.appendChild(m);
 }
@@ -2282,7 +2282,7 @@ function findsTable(p) {
 async function renderDetail(id) {
   const p = plants.find((x) => x.id === id);
   // Una lámina que ya no está (por ejemplo, abierta desde un aviso viejo después de que la borraron).
-  if (!p) { setTimeout(() => toast("Esa lámina ya no está en el herbario: la borró quien la había cargado"), 300); return go("list"); }
+  if (!p) { setTimeout(() => toast("Esta lámina ya no forma parte del herbario porque quien la cargó la eliminó."), 300); return go("list"); }
   markNovaSeen(p);
   await signUrls([...(p.photos || []), ...(p.sightings || []).flatMap((x) => x.photos || [])]);
   const ill = cfg.illustrations && p.scientific_name ? await findIllustration(p.scientific_name) : null;
@@ -2375,7 +2375,7 @@ async function renderDetail(id) {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";
     delete illuCache[illuKey(p.scientific_name)]; saveIllu(); illuTried.delete(illuKey(p.scientific_name)); saveTried(); illuRemoved.delete(illuKey(p.scientific_name)); saveRemoved();
     const found = await findIllustration(p.scientific_name);
-    if (!found) toast("No encontré una lámina antigua para esta especie");
+    if (!found) toast("No hay una lámina antigua disponible para esta especie.");
     renderDetail(p.id);
   });
   let curFig = 0;
@@ -2515,7 +2515,7 @@ function pickPhotos(source, fresh = false) {
     if (fresh && feat("fotos")) clearDraft(); // el + de abajo siempre arranca una planta nueva
     if (!draft) draft = { files: [], data: {}, mode: "chat" };
     const room = 4 - draft.files.length;
-    if (room <= 0) return toast("Ya tenés 4 fotos: borrá alguna con la × para sumar otra");
+    if (room <= 0) return toast("Ya tenés 4 fotos. Borrá alguna con la × para sumar otra.");
     if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suman las primeras`);
     const pick = [...input.files].slice(0, room);
     busy(pick.length === 1 ? "Preparando la foto…" : `Preparando las fotos… 1 de ${pick.length}`);
@@ -2583,7 +2583,7 @@ function renderNew() {
   $app.querySelector("#resume")?.addEventListener("click", () => renderForm(null));
   // Con 4 fotos ya no se pueden sumar más: los botones lo avisan en vez de abrir la cámara.
   const full = draft.files.length >= 4;
-  const pick = (src) => (full ? toast("Ya tenés 4 fotos: borrá alguna con la × para sumar otra") : pickPhotos(src));
+  const pick = (src) => (full ? toast("Ya tenés 4 fotos. Borrá alguna con la × para sumar otra.") : pickPhotos(src));
   $app.querySelector("#cam").onclick = () => pick("camera");
   $app.querySelector("#gal").onclick = () => pick("gallery");
   if (full) {
@@ -2603,7 +2603,7 @@ function renderNew() {
         <li>Copiá la respuesta entera y pegala acá abajo.</li>
       </ol>
       <button class="btn primary" id="sendai" style="width:100%" ${has ? "" : "disabled"}>Enviar a la IA (fotos + prompt)</button>
-      <p class="share-tip" id="sharetip" hidden>¿En el chat aparecieron las fotos pero no el texto? Pasa con algunas apps, como Claude. El prompt ya está copiado: <b>mantené apretado el cuadro de mensaje y tocá «Pegar»</b>.</p>
+      <p class="share-tip" id="sharetip" hidden>Si en el chat aparecen las fotos pero no el texto, es algo que ocurre con algunas apps, como Claude. El prompt ya está copiado: <b>mantené apretado el cuadro de mensaje y tocá «Pegar»</b>.</p>
       <button class="btn" id="copy" style="width:100%;margin-top:10px">Solo copiar prompt</button>
       <details><summary>Ver prompt</summary><div class="prompt-box">${esc(buildPrompt(draft.hint, placeCtx()))}</div></details>
       <label>Respuesta del chat</label><textarea id="paste" placeholder='{ "common_name": … }'></textarea>
@@ -2618,11 +2618,11 @@ function renderNew() {
         // Algunas apps (Claude, por ejemplo) reciben las fotos pero no el texto: por eso el prompt queda copiado y se avisa cómo pegarlo.
         try { await navigator.share({ files, text: prompt }); toast(copied ? "Pegá el prompt en el chat y enviá" : "Fotos enviadas: copiá el prompt con «Solo copiar prompt»");
           const tip = box.querySelector("#sharetip"); if (tip) tip.hidden = false; }
-        catch (e) { if (e.name !== "AbortError") toast("No pude compartir las fotos"); }
+        catch (e) { if (e.name !== "AbortError") toast("No se pudieron compartir las fotos."); }
       } else toast(copied ? "Este navegador no comparte fotos: prompt copiado, adjuntá las fotos a mano" : "Este navegador no permite compartir fotos");
     };
     box.querySelector("#copy").onclick = async () => {
-      try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No pude copiar: abrí «Ver prompt» y copialo a mano"); }
+      try { await navigator.clipboard.writeText(buildPrompt(draft.hint, placeCtx())); toast("Prompt copiado"); } catch { toast("No se pudo copiar. Abrí «Ver prompt» y copialo a mano."); }
     };
     box.querySelector("#whyai").onclick = openWhyAI;
     box.querySelector("#pasteit").onclick = async () => {
@@ -2630,7 +2630,7 @@ function renderNew() {
         const t = await navigator.clipboard.readText();
         if (!t.trim()) return toast("El portapapeles está vacío");
         box.querySelector("#paste").value = t; toast("Respuesta pegada");
-      } catch { box.querySelector("#paste").focus(); toast("No pude leer el portapapeles: mantené apretado el recuadro y elegí «Pegar»"); }
+      } catch { box.querySelector("#paste").focus(); toast("No se pudo leer el portapapeles. Mantené apretado el recuadro y elegí «Pegar»."); }
     };
     box.querySelector("#useit").onclick = async () => {
       try {
@@ -2640,8 +2640,8 @@ function renderNew() {
         renderForm(null);
       }
       catch (e) {
-        if (e.noJson && v("paste").trim()) ask({ title: "La IA todavía tiene dudas", text: "Parece que te hizo preguntas o te pidió más fotos en vez de darte la ficha. Contestale en el mismo chat (podés mandarle fotos nuevas) y, cuando te dé el bloque para Herbalorium, pegalo acá.", ok: "Entendido", cancel: "Cerrar" });
-        else toast("No entendí la respuesta: " + e.message);
+        if (e.noJson && v("paste").trim()) ask({ title: "La IA todavía tiene dudas", text: "Parece que, en lugar de la ficha, te hizo preguntas o te pidió más fotos. Respondele en el mismo chat (podés enviarle fotos nuevas) y, cuando te dé el bloque para Herbalorium, pegalo acá.", ok: "Entendido", cancel: "Cerrar" });
+        else toast("No se pudo interpretar la respuesta: " + e.message);
       }
     };
   } else {
@@ -2689,7 +2689,7 @@ function placeCtx() {
 // Borra una foto propia: de la lámina o de un hallazgo tuyo. Primero se saca de la ficha y después el archivo.
 async function deletePhoto(p, path, sighting = null) {
   const last = !sighting && (p.photos || []).length === 1;
-  if (last && feat("fotos")) { toast("Cada lámina necesita al menos una foto: sumá otra antes de borrar esta"); return false; }
+  if (last && feat("fotos")) { toast("Cada lámina necesita al menos una foto. Sumá otra antes de borrar esta."); return false; }
   if (!(await ask({ title: "Borrar foto", text: last ? "Es la única foto de esta lámina. Si la borrás, la lámina queda con la ilustración antigua o sin imagen." : "La foto se borra para siempre del herbario.", ok: "Borrarla", cancel: "Dejarla" }))) return false;
   const owner = sighting || p, table = sighting ? "sightings" : "plants";
   const photos = (owner.photos || []).filter((x) => x !== path);
@@ -2748,7 +2748,7 @@ async function openPhotoMerge(p, sighting = null) {
   };
   m.querySelectorAll(".merge-ph").forEach((b) => (b.onclick = () => {
     const it = items[+b.dataset.i];
-    if (!it.on && items.filter((x) => x.on).length >= MAX) return toast(`Ya elegiste ${MAX}: destildá alguna primero`);
+    if (!it.on && items.filter((x) => x.on).length >= MAX) return toast(`Ya elegiste ${MAX}. Destildá alguna para cambiarla.`);
     it.on = !it.on; paint();
   }));
   const close = () => m.remove();
@@ -2773,7 +2773,7 @@ async function openPhotoMerge(p, sighting = null) {
       const gone = old.filter((x) => !photos.includes(x));
       if (gone.length) try { await sb.storage.from(BUCKET).remove(gone); } catch {}
       target.photos = photos; busy(null); close(); clearDraft();
-      toast(gone.length || photos.length > old.length ? "Fotos actualizadas" : "Listo");
+      toast(gone.length || photos.length > old.length ? "Fotos actualizadas" : "Cambios guardados");
       location.hash = "plant/" + p.id;
     } catch (e) { busy(null); ev.currentTarget.disabled = false; toast("No se pudo guardar: " + e.message); }
   };
@@ -2802,7 +2802,7 @@ function addPhotosTo(p, source) {
   input.onchange = async () => {
     if (!input.files.length) return;
     const room = feat("fotos") ? MAX_PHOTOS - (p.photos || []).length : 6;
-    if (room <= 0) return toast(`Ya tiene ${MAX_PHOTOS} fotos: borrá alguna para sumar otra`);
+    if (room <= 0) return toast(`Ya tiene ${MAX_PHOTOS} fotos. Borrá alguna para sumar otra.`);
     if (input.files.length > room) toast(`${room === 1 ? "Solo entra 1 foto más" : `Solo entran ${room} fotos más`}: se suben las primeras`);
     const pick = [...input.files].slice(0, room);
     try {
@@ -2916,7 +2916,7 @@ function renderForm(existing) {
       row.setting = $app.querySelector("#setting .on")?.dataset.set || "hallada";
       if (row.setting === "cultivada") { row.lat = null; row.lng = null; row.location_name = null; } // sin dirección de casa
     }
-    if (!row.common_name) return toast("Ponele al menos un nombre");
+    if (!row.common_name) return toast("La lámina necesita al menos un nombre.");
     // ¿Ya está esta especie? Si la registraste vos, no se repite; si fue otra persona, tu hallazgo se suma a su lámina.
     const dup = !existing && row.scientific_name && plants.find((x) => illuKey(x.scientific_name) === illuKey(row.scientific_name));
     if (dup && (dup.user_id === user.id || (dup.sightings || []).some((s) => s.user_id === user.id))) {
@@ -2927,7 +2927,7 @@ function renderForm(existing) {
       return;
     }
     if (dup && !(await ask({ title: "Ya está en el herbario", text: `<b>${esc(dup.common_name)}</b> ya la asentó ${esc(dup.author_name || "otra persona")}. Tu hallazgo y tus fotos se suman a esa lámina, con tu nombre, en vez de crear otra igual.`, ok: "Sumar mi hallazgo", cancel: "Volver" }))) return;
-    if (!existing && !draft.files.length && feat("fotos")) return toast("Sumá al menos una foto de la planta para asentarla");
+    if (!existing && !draft.files.length && feat("fotos")) return toast("Sumá al menos una foto de la planta para asentarla.");
     if (!existing && !draft.files.length && !(await ask({ title: "Sin fotos", text: "Esta lámina no tiene fotos. Podés guardarla igual y agregarlas después, cuando la edites.", ok: "Guardar igual", cancel: "Volver" }))) return;
     btn.disabled = true; btn.textContent = "Entintando…";
     try {
@@ -2968,7 +2968,7 @@ function renderForm(existing) {
         location.hash = "plant/" + data.id;
       }
     } catch (e) {
-      toast(/iucn/i.test(e.message) ? "Falta actualizar la base: corré en Supabase la línea SQL de «iucn»" : "Error: " + e.message);
+      toast(/iucn/i.test(e.message) ? "Falta actualizar la base. Corré en Supabase la línea SQL de «iucn»." : "Error: " + e.message);
       btn.disabled = false; btn.textContent = "Reintentar";
     }
   };
@@ -3354,12 +3354,12 @@ function bindProgTabs() {
     + (doneAll.length ? `<p class="ex-count">El herbario cumplió <b>${doneAll.length}</b> ${doneAll.length === 1 ? "expedición" : "expediciones"}${doneAll.length > doneExps.length ? ` · vos participaste en ${doneExps.length}` : ""}</p>` : "")
     + `<h3>Hitos</h3>` + (doneExps.length ? doneExps.map((x) => { const ppl = [...new Set(expOf(x).map((e) => e.author_name).filter(Boolean))]; const d = Math.max(1, Math.ceil((new Date(x.completed_at) - new Date(x.starts_at)) / 864e5));
       return hito(dShort(x.completed_at), esc(x.icon || "f-herb"), esc(x.title) + (x.demo ? " (prueba)" : ""), `Cumplida en ${d} ${d === 1 ? "día" : "días"}<span class="ex-meds hito-meds">${ppl.map((n) => `<span title="${esc(n)}">${esc(initialOf(n))}</span>`).join("")}</span>`); }).join("")
-      : `<p class="ms-hint">Acá se van anotando las expediciones que cumplan entre todos.</p>`);
+      : `<p class="ms-hint">Aquí quedarán registradas las expediciones que cumplan entre todos.</p>`);
   const md = [...missionsDone()].sort((a, b) => b.done - a.done);
   $app.querySelector("#ptab-mis").innerHTML = `<p class="ex-center"><span class="ex-chip solo">Tu misión · solo para vos</span></p><div id="mission"></div><h3>Hitos</h3>`
     + (md.length ? md.map((m, i) => { const k = md.length - i, days = Math.max(1, Math.round((m.done - m.given) / 864e5));
       return hito(dShort(m.done), "i-compass", k === 1 ? `Tu primera misión: ${esc(m.common || m.name)}` : `Misión n.º ${k}: ${esc(m.common || m.name)}`, `La encontraste en ${days} ${days === 1 ? "día" : "días"}`, "mis"); }).join("")
-      : `<p class="ms-hint">Acá se van anotando las misiones que cumplas.</p>`);
+      : `<p class="ms-hint">Aquí quedarán registradas las misiones que cumplas.</p>`);
   const show = (k) => {
     cfg.progTab = k; saveCfg(cfg);
     $app.querySelectorAll(".ptabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === k));
@@ -3468,7 +3468,7 @@ async function hydrateThread(box, T, focusNum) {
   const setReply = (n) => { replyTo = n; if (!rep) return; rep.hidden = !n; rep.innerHTML = n ? `Respondiendo a <b>#${n}</b> · ${esc(byNum[n]?.author_name || "")} <button class="linkish" aria-label="No responder">✕</button>` : ""; rep.querySelector("button")?.addEventListener("click", () => setReply(null)); };
   box.querySelectorAll("[data-reply]").forEach((b) => (b.onclick = () => { setReply(+b.dataset.reply); ta.focus(); ta.scrollIntoView({ block: "center", behavior: "smooth" }); }));
   box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
-    if (!(await ask({ title: "Borrar mensaje", text: "Va a quedar como «mensaje borrado», para que las respuestas no pierdan el hilo.", ok: "Borrar", cancel: "Volver" }))) return;
+    if (!(await ask({ title: "Borrar mensaje", text: "Quedará como «mensaje borrado» para que las respuestas conserven el hilo.", ok: "Borrar", cancel: "Volver" }))) return;
     const { error: e } = await sb.rpc("delete_comment", { cid: b.dataset.del }); if (e) return toast("No se pudo: " + e.message);
     hydrateThread(box, T);
   }));
@@ -3541,7 +3541,7 @@ function teaserHook() {
   box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg class="tz-letter" viewBox="0 0 64 44"><rect x="1" y="1" width="62" height="42" rx="4" fill="#e6d6a6" stroke="#b39a52" stroke-width="1.2"/><path d="M1 3 L32 25 L63 3" fill="none" stroke="#b39a52" stroke-width="1.4"/><path d="M1 42 L25 22 M63 42 L39 22" stroke="#c7b178" stroke-width="1" fill="none"/></svg><svg class="tz-seal"><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
     <span class="ex-chip gold">Muy pronto</span><b class="ex-t">Algo se está preparando en el herbario…</b>
     <span class="tz-count">${d > 0 ? `Faltan <b>${d}</b> ${d === 1 ? "día" : "días"} y <b>${h}</b> h` : `Faltan <b>${h}</b> h`} · sábado a las 9</span></span></button>`);
-  $app.querySelector("[data-teaser]").onclick = () => toast("Pronto lo vas a saber…");
+  $app.querySelector("[data-teaser]").onclick = () => toast("Muy pronto vas a saber de qué se trata…");
 }
 function openExpIntro(first) {
   if (document.querySelector(".ex-intro")) return;
@@ -3652,13 +3652,13 @@ const DEMO_NEWS = [{ v: 99, date: APP_DATE, items: ["<b>¿Quién la asentó?</b>
            ["plant", "#authseal", "Tocalo y te cuenta", "En la lámina, el medallón se toca: te dice quién la asentó y cuándo."]] }];
 function animDemo(k, b) {
   const p = plants[0], demo = { id: "demo", title: "Árboles del barrio", icon: "f-tree", goal: 5, hint: "Tienen un tronco grueso y son más altos que vos.", starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 6 * 864e5).toISOString(), completed_at: new Date().toISOString() };
-  if (k === "newstour") { cfg.demoNews = 1; saveCfg(cfg); toast("Volviendo a abrir el herbario…"); setTimeout(() => { history.replaceState(null, "", "#list"); location.reload(); }, 700); return; }
+  if (k === "newstour") { cfg.demoNews = 1; saveCfg(cfg); toast("Reabriendo el herbario…"); setTimeout(() => { history.replaceState(null, "", "#list"); location.reload(); }, 700); return; }
   if (k === "stamp") return stampSeal("Asentada", p?.common_name || "Romero");
-  if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina"); justAdded = p.id; return go("list"); }
+  if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina."); justAdded = p.id; return go("list"); }
   if (k === "nova") { cfg.novaShone = []; saveCfg(cfg); toast("Se ve en las láminas con sello Nova del herbario"); return go("list"); }
-  if (k === "slots") { const x = expCur(); if (!x) return toast("Primero arrancá una expedición de prueba y sumale algo"); cfg.expSlots = { ...(cfg.expSlots || {}), [x.id]: 0 }; saveCfg(cfg); return go("exp"); }
+  if (k === "slots") { const x = expCur(); if (!x) return toast("Primero arrancá una expedición de prueba y sumale algún aporte."); cfg.expSlots = { ...(cfg.expSlots || {}), [x.id]: 0 }; saveCfg(cfg); return go("exp"); }
   if (k === "bars") { cfg.progTab = "ins"; saveCfg(cfg); return go("stats"); }
-  if (k === "badge") { const seen = cfg.achSeenProg || []; if (!seen.length) return toast("Todavía no ganaste ninguna insignia"); cfg.achSeenProg = seen.slice(1); cfg.progTab = "ins"; saveCfg(cfg); toast("Bajá hasta la que brilla"); return go("stats"); }
+  if (k === "badge") { const seen = cfg.achSeenProg || []; if (!seen.length) return toast("Todavía no ganaste ninguna insignia."); cfg.achSeenProg = seen.slice(1); cfg.progTab = "ins"; saveCfg(cfg); toast("La insignia nueva está resaltada más abajo."); return go("stats"); }
   if (k === "ach") { achQueue.push(ACH[0]); if (!achShowing) showNextAch(); return; }
   if (k === "req") {
     const row = document.createElement("div"); row.className = "req"; row.innerHTML = `<span class="avatar sm">J</span><div class="req-txt"><b>Juan (prueba)</b><span>juan@ejemplo.com</span></div>`;
@@ -3677,7 +3677,7 @@ const expSimHTML = () => false ? `<p class="set-label" style="margin-top:18px">S
 function bindExpSim() {
   $app.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = async () => {
     b.disabled = true;
-    try { await expSim(b.dataset.sim); } catch (e) { toast("No pude: " + (e.message || e)); }
+    try { await expSim(b.dataset.sim); } catch (e) { toast("No se pudo completar: " + (e.message || e)); }
     b.disabled = false;
   }));
 }
@@ -3702,8 +3702,8 @@ async function expSim(k) {
   if (k === "clear") { const { error } = await sb.from("expeditions").delete().eq("demo", true); if (error) throw error;
     // también lo que queda guardado en este móvil: la cuenta regresiva, la carta ya vista y los carteles vistos
     for (const key of ["expTeaser", "expIntroSeen", "expSeen", "expSlots"]) delete cfg[key]; saveCfg(cfg);
-    await loadExps(); return toast("Listo: se borró todo lo de prueba"); }
-  if (!x) return toast("Primero arrancá una de prueba");
+    await loadExps(); return toast("Se borraron todos los datos de prueba."); }
+  if (!x) return toast("Primero arrancá una expedición de prueba.");
   if (k === "mine" || k === "other") {
     const pool = plants.filter((p) => !used.has(p.id) && (k === "mine" ? p.user_id === user.id : p.user_id !== user.id));
     const p = (pool.length ? pool : plants.filter((q) => !used.has(q.id)))[0];

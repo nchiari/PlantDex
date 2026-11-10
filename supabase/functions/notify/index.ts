@@ -12,7 +12,7 @@ const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&a
 
 // El mail con la estética del herbario: pergamino, filete dorado, emblema y un botón verde.
 // (Los mails no cargan fuentes propias: Georgia es la más parecida que tienen todos.)
-const letter = (title: string, inner: string, foot = "Te llega porque lo elegiste en Ajustes → Avisos. Lo cambiás cuando quieras desde ahí.", site = "https://herbalorium.pages.dev/") => {
+const letter = (title: string, inner: string, foot = "Recibís este mensaje porque lo elegiste en Ajustes → Avisos. Podés cambiarlo cuando quieras.", site = "https://herbalorium.pages.dev/") => {
   const btn = (inner.match(/<a href="([^"]+)">([^<]+)<\/a>/) || []) as string[];
   const body = inner.replace(/<p><a href="[^"]+">[^<]+<\/a><\/p>/, "");
   return `<!doctype html><html><body style="margin:0;padding:0">
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       const m = users.find((u) => u.id === uid)?.user_metadata?.mission;
       const doneDay = m?.done ? new Date(m.done).toLocaleDateString("en-CA", { timeZone: tz }) : null;
       if (m?.done && doneDay! < today && pr?.last_mission_ping !== today && (prefs.missions.push || prefs.missions.mail)) {
-        await send([uid], "missions", "Tu nueva misión te espera", "Hay una planta nueva para salir a buscar cerca de tu casa.", site + "#stats");
+        await send([uid], "missions", "Tu nueva misión te espera", "Hay una planta nueva para buscar cerca de tu casa.", site + "#stats");
         await db.from("notif_prefs").upsert({ user_id: uid, last_mission_ping: today });
         missions++;
       }
@@ -152,22 +152,22 @@ Deno.serve(async (req) => {
 
   if (kind === "test") {
     const k = (body.what as Kind) || "requests";
-    return json({ ok: true, ...(await send([me.id], k, "Avisos activados", "Así te van a llegar los avisos del herbario.", site + "#settings")) });
+    return json({ ok: true, ...(await send([me.id], k, "Avisos activados", "Así vas a recibir los avisos del herbario.", site + "#settings")) });
   }
   if (kind === "request") { // pedido para entrar: al dueño
     const m = mem?.find((x) => x.user_id === me.id);
     if (!m || m.status !== "pending" || m.notified_at || !owner) return json({ ok: true, skipped: true });
     await db.from("members").update({ notified_at: new Date().toISOString() }).eq("user_id", me.id);
     const who2 = m.name || m.email || "Alguien";
-    return json({ ok: true, ...(await send([owner.id], "requests", `${who2} quiere entrar al herbario`, `${m.email || ""}${m.invited_by ? ` · invitado por ${m.invited_by}` : ""}. Aceptalo desde Ajustes.`, site + "#settings")) });
+    return json({ ok: true, ...(await send([owner.id], "requests", `${who2} quiere entrar al herbario`, `${m.email || ""}${m.invited_by ? ` · invitado por ${m.invited_by}` : ""}. Podés aceptarlo desde Ajustes.`, site + "#settings")) });
   }
   if (kind === "member") { // el dueño aceptó a alguien: a los demás miembros
     if (me.id !== owner?.id || !body.user_id || !accepted.has(body.user_id)) return json({ error: "no corresponde" }, 403);
     const n = nameOf(body.user_id);
     // A la persona aceptada: siempre un mail (todavía no eligió avisos) y, si ya activó el móvil, también ahí.
     const welcome = `${nameOf(me.id)} aceptó tu pedido. Ya podés ver todas las láminas y sumar las tuyas.`;
-    const welcomed = await mail(body.user_id, "Ya estás adentro del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`, "Te llega porque pediste entrar a este herbario. En Ajustes → Avisos elegís qué más querés recibir.");
-    await push(body.user_id, "Ya estás adentro del herbario", welcome, site + "#list", "members");
+    const welcomed = await mail(body.user_id, "Ya formás parte del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`, "Recibís este mensaje porque pediste entrar a este herbario. En Ajustes → Avisos podés elegir qué más querés recibir.");
+    await push(body.user_id, "Ya formás parte del herbario", welcome, site + "#list", "members");
     const to = [...accepted].filter((u) => u !== body.user_id && u !== me.id);
     return json({ ok: true, welcomed, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
   }
