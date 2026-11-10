@@ -237,6 +237,7 @@ function route() {
   // Si salís de la carga de una planta sin asentarla, sus fotos se descartan.
   if (lastView === "new" && view !== "new" && draft && !draft.editing && feat("fotos")) clearDraft();
   document.querySelector(".notes-fab")?.remove(); // el botón de notas es de la lámina: se va al salir
+  document.body.classList.remove("has-fab");
   const changed = lastView !== view;
   lastView = view;
   document.body.classList.toggle("anim", feat("animaciones") && !matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -306,7 +307,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.7.10", APP_DATE = "2026-11-09";
+const APP_VERSION = "1.7.11", APP_DATE = "2026-11-09";
 const SCHEMA_NEEDED = 18;
 let schemaBehind = false;
 async function loadPlants() {
@@ -2252,10 +2253,6 @@ async function renderDetail(id) {
     <div class="row" style="margin-top:18px">
       ${!p.user_id || p.user_id === user.id ? `<button class="btn" onclick="location.hash='edit/${p.id}'">Editar</button>
       <button class="btn ghost" id="del">Arrancar la lámina</button>` : `<p class="muted" style="text-align:center;width:100%">Solo ${esc(p.author_name || "quien la cargó")} puede editar esta lámina.</p>`}
-    </div>
-    <div class="row pager">
-      ${prev ? `<button class="btn ghost" onclick="location.hash='plant/${prev.id}'">← ${esc(prev.common_name)}</button>` : "<span></span>"}
-      ${next ? `<button class="btn ghost" onclick="location.hash='plant/${next.id}'">${esc(next.common_name)} →</button>` : "<span></span>"}
     </div>`;
   $app.querySelector("#iucninfo").onclick = () => openIucnInfo(p.iucn);
   const au = $app.querySelector("#authseal");
@@ -3323,6 +3320,7 @@ const notesFab = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.not
 function mountNotesFab(p) {
   document.querySelector(".notes-fab")?.remove();
   document.body.insertAdjacentHTML("beforeend", notesFab(p));
+  document.body.classList.add("has-fab");
   const fab = document.querySelector(".notes-fab");
   fab.onclick = () => openNotes(p);
   bindNotesFab(fab);

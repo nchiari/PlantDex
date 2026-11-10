@@ -1560,3 +1560,5 @@ body.anim .badge.fresh { animation: glint-b 1.6s ease-out .4s both; border-radiu
 .finds td { padding: 14px 6px; }
 .finds td.av { padding-right: 14px; }
 .finds table { margin: 6px 0 4px; }
+/* con el botón de la tertulia, la lámina deja lugar abajo para que no tape nada */
+body.has-fab #app { padding-bottom: 90px; }
