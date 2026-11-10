@@ -1118,7 +1118,7 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
-  { v: 9, date: "2026-11-12", at: "09:00", feat: "colores", items: [
+  { v: 10, date: "2026-11-12", at: "09:00", feat: "colores", items: [
     "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
   ], tour: [
     ["settings", "#avatar", "Tu medallón", "Tocalo para elegir tu color entre diez. Se guarda solo."],
@@ -3635,13 +3635,13 @@ async function unfoldLetter(ov, coverHTML) {
 const devGroup = (title, note, btns) => `<div class="dev-g"><p class="dev-t">${title}</p><p class="dev-n">${note}</p><div class="dev-btns">${btns}</div></div>`;
 const devBtn = (attr, label, icon) => `<button class="dev-btn" ${attr}><svg><use href="#${icon}"/></svg><span>${label}</span></button>`;
 function devPanelHTML() {
+  // Solo lo que todavía no está publicado (o conviene poder volver a probar). Lo ya lanzado sale de acá.
   return (feat("expediciones") ? devGroup("Expediciones", "Una expedición de prueba que solo ves vos. Arrancala y después probá sumar, completar o hacer vencer.",
-      [["teaser", "Cuenta regresiva", "i-seal-gold"], ["intro", "Presentación (sobre)", "f-family"], ["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")) : "")
-    + (feat("animaciones") ? devGroup("Animaciones", "Mirá cada una sin tener que esperar a que pase de verdad. No guarda nada.",
-      [["newstour", "Novedad con recorrido", "i-book"], ["stamp", "Sello de asentada", "i-emblem"], ["landed", "Lámina que se apoya", "i-book"], ["nova", "Brillo del Nova", "f-flower"], ["slots", "Casilleros nuevos", "f-tree"], ["bars", "Barras que se llenan", "f-fruit"], ["badge", "Insignia nueva", "f-herb"], ["ach", "Cartel de logro", "f-herb"], ["req", "Pedido aceptado", "f-family"], ["mission", "Misión cumplida", "i-compass"], ["expnew", "Nueva expedición", "f-tree"], ["expdone", "Expedición cumplida", "f-tree"], ["expgone", "Plazo vencido", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
-    + devGroup("Misiones", "Vuelve a cero lo de las misiones en tu cuenta (presentación, zona, misiones cumplidas y sus logros), para verlo como alguien nuevo.", devBtn('id="resetmis"', "Empezar de cero", "i-compass"))
-    + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`
-    + devGroup("Láminas antiguas", "Olvida las ilustraciones encontradas en este móvil y las vuelve a buscar. Las que quitaste a mano no vuelven.", devBtn('id="reillus"', "Volver a buscar", "i-book"));
+      [["teaser", "Cuenta regresiva", "i-seal-gold"], ["intro", "Presentación (sobre)", "f-family"], ["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")
+      + [["slots", "Casilleros nuevos", "f-tree"], ["expnew", "Cartel: nueva", "f-tree"], ["expdone", "Cartel: cumplida", "f-tree"], ["expgone", "Cartel: venció", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
+    + devGroup("Herramientas", "Para ver la app como alguien nuevo o rehacer cosas de este móvil.",
+      devBtn('id="resetmis"', "Misiones de cero", "i-compass") + devBtn('id="reillus"', "Volver a buscar láminas antiguas", "i-book"))
+    + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`;
 }
 function bindAnimDemo() {
   $app.querySelectorAll("[data-anim]").forEach((b) => (b.onclick = () => animDemo(b.dataset.anim, b)));
