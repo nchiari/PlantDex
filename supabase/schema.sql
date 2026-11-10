@@ -496,8 +496,13 @@ begin
 end $$;
 revoke all on function public.expedition_tick() from public, anon, authenticated;
 -- Tarea de cada hora (a los 7 minutos). Mientras 'expeditions_on' no sea '1', solo cierra las vencidas.
-select cron.unschedule('herbalorium-expediciones') where exists (select 1 from cron.job where jobname = 'herbalorium-expediciones');
-select cron.schedule('herbalorium-expediciones', '7 * * * *', $c$ select public.expedition_tick() $c$);
+-- Solo si la base tiene pg_cron (Database → Extensions); si no, se saltea sin cortar el resto del archivo.
+do $do$ begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'herbalorium-expediciones';
+    perform cron.schedule('herbalorium-expediciones', '7 * * * *', 'select public.expedition_tick()');
+  end if;
+end $do$;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 22 $$;
 
 -- v23: el color del medallón de cada persona (lo elige en Ajustes y queda en su cuenta). Solo lo ven los miembros.

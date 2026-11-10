@@ -317,7 +317,7 @@ const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!us
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
 const APP_VERSION = COLORS_LIVE ? "1.9.0" : "1.8.2", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-10";
-const SCHEMA_NEEDED = 18;
+const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
