@@ -1143,6 +1143,27 @@ const NEWS_ALL = [
 const NEWS = NEWS_ALL.filter(newsLive);
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
+// Después de una novedad: si este móvil todavía no recibe avisos, se ofrece activarlos ahí mismo (una vez por novedad).
+async function askPush() {
+  if (!user || cfg.pushAsked === NEWS[0]?.v || document.querySelector(".modal, .tour")) return;
+  let st; try { st = await pushState(); } catch { return; }
+  if (st !== "off") return;
+  cfg.pushAsked = NEWS[0]?.v; saveCfg(cfg);
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="modal-box ask push-ask" role="dialog" aria-modal="true"><img class="in-icon" src="icons/icon-192.png" alt="">
+    <h3>¿Te avisamos?</h3><p>Activá los avisos en este móvil y el herbario te cuenta cuando haya novedades o láminas nuevas.</p>
+    <div class="row"><button class="btn ghost" data-a="0">Ahora no</button><button class="btn primary" data-a="1">Activar avisos</button></div></div>`;
+  const close = () => m.remove();
+  m.onclick = (e) => { if (e.target === m) close(); };
+  m.querySelector('[data-a="0"]').onclick = close;
+  m.querySelector('[data-a="1"]').onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    let ok = false; try { ok = await enablePush(); } catch {}
+    close(); if (ok) toast("¡Listo! Te vamos a avisar en este móvil");
+  };
+  document.body.appendChild(m);
+}
 // Una novedad puede traer «tour»: pasos [pantalla, elemento, título, texto] que muestran lo nuevo en la app misma.
 function openNews(all = false, only) {
   const seen = all ? 0 : newsSeen();
@@ -1157,7 +1178,6 @@ function openNews(all = false, only) {
   m.innerHTML = `<div class="modal-box news" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
     <h3>Novedades del herbario</h3>
     ${list.map((n) => `${new Set(list.map((x) => x.date)).size > 1 ? `<p class="news-date">${fmt(n.date)}</p>` : ""}<ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>${n.cta ? `<button class="btn news-cta" data-go="${n.cta.go}">${n.cta.label}</button>` : ""}`).join("")}
-    <div class="news-push" hidden><p>¿Querés que el herbario te avise en este móvil cuando haya novedades o láminas nuevas?</p><button class="btn" id="news-push">Activar avisos en este móvil</button></div>
     <div class="row">${tourSteps.length ? `<button class="btn ghost" id="news-ok">Ahora no</button><button class="btn primary" id="news-tour">Mostrame</button>` : `<button class="btn primary" id="news-ok">A explorar</button>`}</div></div>`;
   const close = () => {
     m.remove(); if (only) return;
@@ -1166,16 +1186,9 @@ function openNews(all = false, only) {
   };
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector(".modal-x").onclick = close;
-  m.querySelector("#news-ok").onclick = close;
-  // Si este móvil todavía no recibe avisos, se pueden activar ahí mismo, sin ir a Ajustes.
-  const np = m.querySelector(".news-push");
-  pushState().then((st) => { if (st === "off" && np.isConnected) np.hidden = false; }).catch(() => {});
-  m.querySelector("#news-push").onclick = async (e) => {
-    e.currentTarget.disabled = true;
-    try { if (await enablePush()) { np.innerHTML = `<p class="ok">✓ Listo: te vamos a avisar en este móvil.</p>`; return; } } catch {}
-    e.currentTarget.disabled = false;
-  };
-  m.querySelector("#news-tour")?.addEventListener("click", () => { close(); setTimeout(() => startTour(tourSteps), 300); });
+  m.querySelector("#news-ok").onclick = () => { close(); if (!only) setTimeout(askPush, 400); };
+  m.querySelector(".modal-x").onclick = () => { close(); if (!only) setTimeout(askPush, 400); };
+  m.querySelector("#news-tour")?.addEventListener("click", () => { close(); setTimeout(() => startTour(tourSteps, only ? null : askPush), 300); });
   // Botón de una novedad: cierra el panel y lleva directo a donde se configura (por ejemplo, los avisos).
   m.querySelectorAll(".news-cta").forEach((b) => (b.onclick = () => { close(); if (b.dataset.go === "avisos") { cfg.focusAvisos = true; saveCfg(cfg); } go(b.dataset.go === "avisos" ? "settings" : b.dataset.go); }));
   document.body.appendChild(m);
@@ -1386,7 +1399,7 @@ const waitFor = async (sel, ms = 2500) => {
   for (let t = 0; t < ms; t += 100) { const el = document.querySelector(sel); if (el && el.offsetParent !== null) return el; await new Promise((r) => setTimeout(r, 100)); }
   return null;
 };
-function startTour(custom) {
+function startTour(custom, onEnd) {
   if (document.querySelector(".tour")) return;
   const steps = custom ? custom.map((t) => [...t]) : TOUR.filter((t) => !t[4] || feat(t[4])).map((t0) => {
     const t = [...t0];
@@ -1438,6 +1451,7 @@ function startTour(custom) {
     ov.classList.add("out"); setTimeout(() => ov.remove(), 250);
     cfg.view = prevView; if (!custom) { cfg.tourPending = false; cfg.tourDone = true; } saveCfg(cfg); removeEventListener("resize", place);
     if (!custom) maybeMissionsIntro(700);
+    if (onEnd) setTimeout(onEnd, 600);
     if (currentView() !== "list") go("list"); else renderList();
   };
   ov.querySelector("[data-skip]").onclick = end;

@@ -1569,3 +1569,4 @@ body.has-fab #app { padding-bottom: 90px; }
 .news-push p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.4; }
 .news-push .btn { width: 100%; }
 .news-push p.ok { margin: 0; color: var(--leaf); font-weight: 600; }
+.push-ask { text-align: center; } .push-ask .in-icon { margin-bottom: 4px; }
