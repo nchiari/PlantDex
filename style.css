@@ -1145,7 +1145,7 @@ body.airy:not(.onboarding) .page { padding-top: 26px; }
 
 /* ---------- animaciones (prueba): solo cuando pasa algo, y nunca con «reducir movimiento» ---------- */
 body.anim #app.view-in { animation: view-in .18s ease-out both; }
-@keyframes view-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes view-in { from { opacity: 0; } } /* solo aparece: sin desplazar la página */
 /* 1 · casilleros nuevos de la expedición: caen como sellos, uno tras otro; la barra avanza desde donde estaba */
 body.anim .ex-slot.fresh { animation: slot-stamp .55s cubic-bezier(.3, 1.5, .5, 1) calc(.35s + var(--d, 0s)) both; }
 @keyframes slot-stamp { 0% { opacity: 0; transform: translateY(-26px) scale(1.25) rotate(-6deg); } 60% { opacity: 1; } 80% { transform: scale(.96) rotate(1deg); } 100% { transform: none; } }
