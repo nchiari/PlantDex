@@ -1605,7 +1605,6 @@ body.has-fab #app { padding-bottom: 90px; }
 .tt-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tt-seal .q { inset: 28%; width: 44%; height: 44%; color: #fbf8ee; }
 .tt-lede { font: italic clamp(14.5px, 2vh, 17px)/1.45 var(--text); color: #3d4f40; }
-.tt-close { font: italic clamp(14px, 1.9vh, 16px)/1.4 var(--text); color: #8a7433; }
 .tz-intro .li-steps p { margin: clamp(4px, .9vh, 9px) 0; }
 .tz-intro .li-steps p { font-size: clamp(13.5px, 1.85vh, 16px); }
 .tz-intro .li-sub { margin-top: -4px; }
@@ -1625,3 +1624,14 @@ body.has-fab #app { padding-bottom: 90px; }
 .tz-intro .tt-lede { font-size: clamp(14px, 1.8vh, 16px); line-height: 1.38; }
 .tz-intro .letter-in { gap: clamp(5px, 1.1vh, 12px); }
 :root .tz-intro .tt-demo .mention, :root[data-theme="dark"] .tz-intro .tt-demo .mention { color: #7a5c14; background: rgb(214 186 108 / .28); }
+/* carta de las tertulias: menos texto, letra más grande y más aire */
+.tz-intro .letter-in { gap: clamp(10px, 1.9vh, 20px); }
+.tz-intro .tt-seal { width: clamp(46px, 6vh, 62px); height: clamp(46px, 6vh, 62px); }
+.tz-intro .tt-lede { font-size: clamp(16px, 2.2vh, 19px); line-height: 1.4; }
+.tt-demo { gap: clamp(8px, 1.3vh, 12px); }
+.tt-demo .bt-msg { padding: clamp(9px, 1.3vh, 12px) 14px; }
+.tt-demo .bt-head { font-size: 15.5px; }
+.tt-demo .bt-head .bt-av { width: 26px; height: 26px; }
+.tt-demo .bt-quote { font-size: 14.5px; }
+.tt-demo .bt-body { font-size: clamp(15.5px, 2.1vh, 17.5px); }
+.tz-intro .li-steps p { margin: clamp(6px, 1.2vh, 12px) 0; font-size: clamp(15.5px, 2.15vh, 18px); }

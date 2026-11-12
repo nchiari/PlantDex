@@ -3636,18 +3636,16 @@ function openTertuliaIntro() {
       <span class="tt-seal"><svg><use href="#i-seal-gold"/></svg><svg class="q"><use href="#f-pen"/></svg></span>
       <p class="li-k">Herbalorium presenta</p>
       <h2>Tertulias</h2><p class="li-sub">al margen de cada lámina</p>
-      <p class="tt-lede">Un herbario se arma entre muchos ojos. Desde hoy, cada lámina tiene su propia ronda para contar, preguntar y descubrir juntos.</p>
+      <p class="tt-lede">Un herbario se arma entre muchos ojos. Desde hoy, cada lámina tiene su propia charla.</p>
       <div class="tt-demo" aria-hidden="true">
         ${msg(1, a, "hace 2 h", "¿Alguien sabe si esta da frutos en otoño?")}
         ${msg(2, b, "hace 1 h", "¡Sí! En la plaza ya están rojos.", false, `${esc(a)}: ¿Alguien sabe si esta da frutos…`)}
         ${msg(3, me, "recién", `<span class="mention">@${esc(b)}</span> ¿en cuál? El sábado voy a buscarla.`, true)}
       </div>
       <div class="li-steps">
-        <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Tocá la pluma de la lámina y sumá dónde la viste, una duda o un dato curioso.</span></p>
-        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá «Responder» debajo de un comentario y la charla no pierde el hilo.</span></p>
+        <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Tocá la pluma y contá dónde la viste o qué sabés de ella.</span></p>
         <p><svg><use href="#i-seal-gold"/></svg><span><b>Llamá a alguien con @.</b> Le llega un aviso para que se sume.</span></p>
       </div>
-      <p class="tt-close">Toda planta tiene una historia. Ahora también tiene quien la cuente.</p>
       <button class="btn primary li-go">Abrir el herbario</button>
     </div></div>`;
   document.body.appendChild(ov);
