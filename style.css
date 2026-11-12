@@ -1624,3 +1624,4 @@ body.has-fab #app { padding-bottom: 90px; }
 .tz-intro .tt-seal { width: clamp(40px, 5vh, 54px); height: clamp(40px, 5vh, 54px); }
 .tz-intro .tt-lede { font-size: clamp(14px, 1.8vh, 16px); line-height: 1.38; }
 .tz-intro .letter-in { gap: clamp(5px, 1.1vh, 12px); }
+:root .tz-intro .tt-demo .mention, :root[data-theme="dark"] .tz-intro .tt-demo .mention { color: #7a5c14; background: rgb(214 186 108 / .28); }
