@@ -1462,6 +1462,8 @@ function startTour(custom, onEnd) {
   if (document.querySelector(".tour")) return;
   const steps = custom ? custom.map((t) => [...t]) : TOUR.filter((t) => !t[4] || feat(t[4])).map((t0) => {
     const t = [...t0];
+    // Con las tertulias encendidas, la ficha también presenta la pluma (no se nombra antes de que salgan).
+    if (t[2] === "La ficha" && feat("notas")) t[3] += " Abajo a la derecha, la pluma abre su tertulia: la charla del herbario sobre esa planta.";
     if (!feat("misiones")) return t;
     if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
     if (t[2] === "Ajustes") return [t[0], t[1], t[2], feat("tutoavisos") ? "Tu nombre y tu medallón, tu zona para las misiones, el tema e invitar a otras personas." : "Tu nombre y tu medallón, tu zona para las misiones, qué avisos querés recibir, el tema e invitar a otras personas."];
