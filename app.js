@@ -258,6 +258,8 @@ function route() {
   checkAchievements();
   if (cfg.tourPending) setTimeout(() => cfg.tourPending && startTour(), 700);
   else if (cfg.demoNews) { delete cfg.demoNews; saveCfg(cfg); setTimeout(() => openNews(true, DEMO_NEWS), 900); }
+  // Lanzamiento de las tertulias: primero la carta y después la novedad con su recorrido (solo para quien ya usaba la app).
+  else if (feat("notas") && !cfg.tertuliaIntroSeen && newsSeen() < 11 && (user.created_at || "").slice(0, 10) < "2026-11-14" && !route.ttAsked) { route.ttAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-intro") && openTertuliaIntro(), 900); }
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   else if (feat("expediciones") && expOverlay()) {}
   else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
@@ -308,7 +310,9 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 // "prueba" = solo la ve el dueño del herbario; "todos" = la ve todo el mundo. Para lanzar, se pasa a "todos".
 // El color del medallón sale para todos el jueves 12/11 a las 9 de la hora de cada móvil.
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: "no", menciones: "no", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+// Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
+const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -316,7 +320,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = COLORS_LIVE ? "1.9.1" : "1.8.3", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-11";
+const APP_VERSION = TERT_LIVE ? "1.11.0" : "1.9.1", APP_DATE = TERT_LIVE ? "2026-11-14" : "2026-11-12";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1118,6 +1122,12 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece recién desde ese momento en la hora de cada móvil.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
+  { v: 11, date: "2026-11-14", at: "09:00", feat: "notas", items: [
+    "<b>Tertulias.</b> Cada lámina tiene ahora su propia charla. Tocá la pluma, abajo a la derecha de la lámina, para contar dónde la viste, hacer una pregunta o sumar un dato curioso.",
+    "<b>Respondé y llamá a alguien.</b> Tocá un comentario para contestarlo citando. Si escribís @ y elegís a una persona, le llega un aviso para que se sume a la charla.",
+  ], tour: [
+    ["plant", ".notes-fab", "La pluma", "Está en cada lámina, abajo a la derecha. Tocala para abrir su tertulia y sumarte a la charla."],
+  ] },
   { v: 10, date: "2026-11-12", at: "09:00", feat: "colores", items: [
     "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
   ], tour: [
@@ -3618,7 +3628,10 @@ function openTertuliaIntro() {
       <button class="btn primary li-go">Abrir el herbario</button>
     </div></div>`;
   document.body.appendChild(ov);
-  ov.querySelector(".li-go").onclick = () => { cfg.tertuliaIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("list"); }, 400); };
+  ov.querySelector(".li-go").onclick = () => { cfg.tertuliaIntroSeen = 1; saveCfg(cfg); ov.classList.add("out");
+    // Antes del sábado (vista previa del dueño) la novedad todavía no está publicada: se muestra igual, sin marcarla como vista.
+    const tn = NEWS_ALL.find((n) => n.v === 11);
+    setTimeout(() => { ov.remove(); go("list"); if (tn && !newsLive(tn)) setTimeout(() => openNews(true, [tn]), 600); }, 400); };
 }
 
 // GSAP (biblioteca de animación) se carga solo cuando hace falta, desde cdnjs.
