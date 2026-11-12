@@ -263,7 +263,7 @@ function route() {
   else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
   else if (user && nameDup() && !route.dupAsked) { route.dupAsked = true; setTimeout(async () => {
     if (document.querySelector(".modal, .tour")) return;
-    if (await ask({ title: "Hay otra persona con tu nombre", text: `En el herbario hay dos «${esc(myName())}». Para que no se confundan las láminas, las notas y los avisos, cambiá el tuyo: por ejemplo, sumale una inicial.`, ok: "Cambiar mi nombre", cancel: "Más tarde" })) { go("settings"); setTimeout(() => $app.querySelector("#editname")?.click(), 400); }
+    if (await ask({ title: "Hay otra persona con tu nombre", text: `En el herbario hay dos «${esc(myName())}». Para que no se confundan las láminas y los avisos, cambiá el tuyo: por ejemplo, sumale una inicial.`, ok: "Cambiar mi nombre", cancel: "Más tarde" })) { go("settings"); setTimeout(() => $app.querySelector("#editname")?.click(), 400); }
   }, 1200); }
   else maybeMissionsIntro(900);
   // Con las misiones, la pestaña de logros pasa a llamarse Progreso.
@@ -316,7 +316,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = COLORS_LIVE ? "1.9.0" : "1.8.3", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-11";
+const APP_VERSION = COLORS_LIVE ? "1.9.1" : "1.8.3", APP_DATE = COLORS_LIVE ? "2026-11-12" : "2026-11-11";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1122,7 +1122,7 @@ const NEWS_ALL = [
     "<b>Tu color.</b> Ahora podés elegir el color de tu medallón, así nadie se confunde cuando hay dos iniciales iguales. En Ajustes, tocá tu medallón y elegí entre diez colores.",
   ], tour: [
     ["settings", "#avatar", "Tu medallón", "Tocá tu medallón para elegir entre diez colores; el cambio se guarda al instante."],
-    ["list", "#app .card .auth-seal||#app .index .auth-seal", "Así te ven", "Tu color aparece en tus láminas, en la tertulia y en los hallazgos."],
+    ["list", "#app .card .auth-seal||#app .index .auth-seal", "Así te ven", "Tu color aparece en tus láminas y en tus hallazgos."],
   ] },
   { v: 8, date: "2026-11-10", items: [
     "<b>¿Quién la asentó?</b> Cada lámina muestra ahora, arriba a la izquierda de la foto, el medallón con la inicial de quien la cargó. Tocalo y te dice quién fue y cuándo. El otro sello, el de la brújula o la maceta, también se toca: te dice si la planta se encontró afuera o vive en una casa.",
@@ -2061,7 +2061,7 @@ function openColorPick() {
   const m = document.createElement("div");
   m.className = "modal";
   m.innerHTML = `<div class="modal-box color-pick" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Cerrar">×</button>
-    <h3>El color de tu medallón</h3><p class="muted">Así te distinguen en las láminas, la tertulia y los hallazgos.</p>
+    <h3>El color de tu medallón</h3><p class="muted">Así te distinguen en tus láminas y en tus hallazgos.</p>
     <div class="cp-prev"><span class="avatar big-av" id="cp-av">${esc(initialOf(cfg.name))}</span></div>
     <div class="cp-grid">${AV_COLORS.map(([k, c]) => `<button class="cp-sw${k === cur ? " on" : ""}" data-k="${k}" style="--av:${c}" aria-label="${k}"><span>${esc(initialOf(cfg.name))}</span></button>`).join("")}</div>
     <p class="muted cp-note">Los cambios se guardan automáticamente.</p></div>`;
@@ -3102,7 +3102,7 @@ const ACH = [
   ["p3", "Fotografía", "i-camera", "Archivo gráfico", "200 fotos en total", 3, "photos", 200],
   ["w1", "Cuaderno", "i-quill", "Cuaderno de campo", "Notas propias en 5 láminas", 1, "notes", 5],
   ["w2", "Cuaderno", "i-quill", "Diario de naturalista", "Notas propias en 20 láminas", 2, "notes", 20],
-  ["x1", "Exploración", "i-compass", "Primera expedición", "Cumplí 1 misión", 1, "missions", 1],
+  ["x1", "Exploración", "i-compass", "Primera salida", "Cumplí 1 misión", 1, "missions", 1],
   ["x2", "Exploración", "i-compass", "Explorador", "Cumplí 3 misiones", 1, "missions", 3],
   ["x3", "Exploración", "i-compass", "Rastreador", "Cumplí 5 misiones", 2, "missions", 5],
   ["x4", "Exploración", "i-compass", "Naturalista de campo", "Cumplí 10 misiones", 3, "missions", 10],
@@ -3154,7 +3154,7 @@ function renderStats() {
   const seenB = cfg.achSeenProg ? new Set(cfg.achSeenProg) : null; // la primera vez se marcan todas sin festejo
   cfg.achSeenProg = [...unlocked]; saveCfg(cfg);
   const badge = (a) => { const ok = unlocked.has(a[0]); const cur = Math.min(S[a[6]], a[7]);
-    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}${ok && seenB && !seenB.has(a[0]) && feat("animaciones") ? " fresh" : ""}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[0] === "x1" && feat("expediciones") ? "Primera salida" : a[3]}</b>
+    return `<div class="badge tier-${a[5]} ${ok ? "" : "locked"}${ok && seenB && !seenB.has(a[0]) && feat("animaciones") ? " fresh" : ""}"><div class="e"><svg><use href="#${a[2]}"/></svg></div><b>${a[3]}</b>
       <div class="muted" style="font-size:14px">${a[4]}</div>
       ${!ok && a[7] > 1 ? `<div class="ach-prog"><i style="width:${(cur / a[7]) * 100}%"></i></div><div class="ach-num">${Math.floor(cur)} / ${a[7]}</div>` : ""}</div>`; };
   $app.innerHTML = `
