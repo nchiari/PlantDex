@@ -1595,3 +1595,14 @@ body.has-fab #app { padding-bottom: 90px; }
 .me-pen2 svg { width: 15px; height: 15px; }
 .me-inline { font: 500 22px var(--text); padding: 2px 0; width: 100%; max-width: 220px; }
 .me-pen2 { width: 26px; height: 26px; font-size: 13px; color: var(--ink); }
+/* presentación de la tertulia: la carta, sin sobre */
+.tz-intro .li-full { opacity: 1; transform: none; pointer-events: auto; }
+.tt-demo { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 10px); margin: 0 0 clamp(4px, 1vh, 10px); text-align: left; }
+.tt-m { display: flex; align-items: flex-end; gap: 8px; }
+.tt-m.me { justify-content: flex-end; }
+.tt-m p { margin: 0; max-width: 78%; padding: 8px 12px; background: #f1ead3; border: 1px solid rgb(179 154 82 / .45); border-radius: 12px 12px 12px 3px; font: clamp(13.5px, 1.9vh, 15.5px)/1.35 var(--text); color: #2b3a2e; }
+.tt-m.me p { background: #e7eedc; border-color: rgb(76 107 60 / .35); border-radius: 12px 12px 3px 12px; }
+.tt-m p b { display: block; font: 600 10px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: #8a7433; margin-bottom: 2px; }
+.tt-av { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--av, #3e5f34); color: #fbf8ee; font: 600 13px var(--caps); }
+.tt-at { color: #3e5f34; font-weight: 600; background: rgb(62 95 52 / .12); border-radius: 4px; padding: 0 3px; }
+.tz-intro .tt-m { animation: stamp-text .5s ease-out both; } .tz-intro .tt-m.me { animation-delay: .5s; }

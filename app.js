@@ -3592,6 +3592,31 @@ function openExpIntro(first) {
   ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
 }
 
+// Presentación de la tertulia: la misma carta de las expediciones, pero sin sobre: cubre la pantalla y se lee de una.
+function openTertuliaIntro() {
+  if (document.querySelector(".ex-intro")) return;
+  const ov = document.createElement("div");
+  ov.className = "ex-intro open tz-intro";
+  const me = myName() || "Vos", other = memberNames.find((n) => n !== me) || "Martín";
+  ov.innerHTML = `<div class="li-full"><div class="letter-in">
+      <p class="li-k">Herbalorium presenta</p>
+      <h2>Tertulia</h2><p class="li-sub">al margen de cada lámina</p>
+      <span class="li-rule"></span>
+      <div class="tt-demo" aria-hidden="true">
+        <div class="tt-m"><span class="tt-av"${av(other)}>${esc(initialOf(other))}</span><p><b>${esc(other)}</b>¿Alguien sabe si esta da frutos en otoño?</p></div>
+        <div class="tt-m me"><p><b>${esc(me)}</b><span class="tt-at">@${esc(other)}</span> sí, en la plaza ya están rojos.</p><span class="tt-av"${av(me)}>${esc(initialOf(me))}</span></div>
+      </div>
+      <div class="li-steps">
+        <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Abajo a la derecha de cada lámina está la pluma: tocala para contar dónde la viste, preguntar o sumar un dato.</span></p>
+        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá un comentario para contestarlo; la cita te lleva al original.</span></p>
+        <p><svg><use href="#i-seal-gold"/></svg><span><b>Llamá a alguien con @.</b> Escribí @ y elegí a la persona: le llega un aviso para que se sume.</span></p>
+      </div>
+      <button class="btn primary li-go">Abrir el herbario</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector(".li-go").onclick = () => { cfg.tertuliaIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("list"); }, 400); };
+}
+
 // GSAP (biblioteca de animación) se carga solo cuando hace falta, desde cdnjs.
 let gsapP = null;
 const loadGsap = () => gsapP ||= new Promise((ok, ko) => { if (window.gsap) return ok(window.gsap);
@@ -3639,6 +3664,7 @@ function devPanelHTML() {
   return (feat("expediciones") ? devGroup("Expediciones", "Una expedición de prueba que solo ves vos. Arrancala y después probá sumar, completar o hacer vencer.",
       [["teaser", "Cuenta regresiva", "i-seal-gold"], ["intro", "Presentación (sobre)", "f-family"], ["start", "Arrancar", "f-flower"], ["mine", "Sumar mío", "f-herb"], ["other", "Sumar de otro", "f-family"], ["fill", "Completar", "i-compass"], ["expire", "Hacer vencer", "f-pin"], ["clear", "Borrar todo", "f-thorn"]].map(([k, l, ic]) => devBtn(`data-sim="${k}"`, l, ic)).join("")
       + [["slots", "Casilleros nuevos", "f-tree"], ["expnew", "Cartel: nueva", "f-tree"], ["expdone", "Cartel: cumplida", "f-tree"], ["expgone", "Cartel: venció", "f-tree"]].map(([k, l, ic]) => devBtn(`data-anim="${k}"`, l, ic)).join("")) : "")
+    + devGroup("Tertulia", "La presentación que se vería el sábado. Solo la ves vos.", devBtn('data-anim="tertulia"', "Presentación", "f-pen"))
     + devGroup("Herramientas", "Para ver la app como alguien nuevo o rehacer cosas de este móvil.",
       devBtn('id="resetmis"', "Misiones de cero", "i-compass") + devBtn('id="reillus"', "Volver a buscar láminas antiguas", "i-book"))
     + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`;
@@ -3653,6 +3679,7 @@ const DEMO_NEWS = [{ v: 99, date: APP_DATE, items: ["<b>¿Quién la asentó?</b>
 function animDemo(k, b) {
   const p = plants[0], demo = { id: "demo", title: "Árboles del barrio", icon: "f-tree", goal: 5, hint: "Tienen un tronco grueso y son más altos que vos.", starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: new Date(Date.now() + 6 * 864e5).toISOString(), completed_at: new Date().toISOString() };
   if (k === "newstour") { cfg.demoNews = 1; saveCfg(cfg); toast("Reabriendo el herbario…"); setTimeout(() => { history.replaceState(null, "", "#list"); location.reload(); }, 700); return; }
+  if (k === "tertulia") return openTertuliaIntro();
   if (k === "stamp") return stampSeal("Asentada", p?.common_name || "Romero");
   if (k === "landed") { if (!p) return toast("Necesitás al menos una lámina."); justAdded = p.id; return go("list"); }
   if (k === "nova") { cfg.novaShone = []; saveCfg(cfg); toast("Se ve en las láminas con sello Nova del herbario"); return go("list"); }
