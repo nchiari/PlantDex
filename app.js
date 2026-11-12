@@ -3597,20 +3597,24 @@ function openTertuliaIntro() {
   if (document.querySelector(".ex-intro")) return;
   const ov = document.createElement("div");
   ov.className = "ex-intro open tz-intro";
-  const me = myName() || "Vos", other = memberNames.find((n) => n !== me) || "Martín";
+  const me = myName() || "Vos", others = memberNames.filter((n) => n !== me), a = others[0] || "Martín", b = others[1] || "Lilo";
+  const msg = (who, html, mine, quote) => `<div class="tt-m${mine ? " me" : ""}">${mine ? "" : `<span class="tt-av"${av(who)}>${esc(initialOf(who))}</span>`}<p><b>${esc(who)}</b>${quote ? `<span class="tt-q">${quote}</span>` : ""}${html}</p>${mine ? `<span class="tt-av"${av(who)}>${esc(initialOf(who))}</span>` : ""}</div>`;
   ov.innerHTML = `<div class="li-full"><div class="letter-in">
+      <span class="tt-seal"><svg><use href="#i-seal-gold"/></svg><svg class="q"><use href="#f-pen"/></svg></span>
       <p class="li-k">Herbalorium presenta</p>
       <h2>Tertulias</h2><p class="li-sub">al margen de cada lámina</p>
-      <span class="li-rule"></span>
+      <p class="tt-lede">Un herbario se arma entre muchos ojos. Desde hoy, cada lámina tiene su propia ronda para contar, preguntar y descubrir juntos.</p>
       <div class="tt-demo" aria-hidden="true">
-        <div class="tt-m"><span class="tt-av"${av(other)}>${esc(initialOf(other))}</span><p><b>${esc(other)}</b>¿Alguien sabe si esta da frutos en otoño?</p></div>
-        <div class="tt-m me"><p><b>${esc(me)}</b><span class="tt-at">@${esc(other)}</span> sí, en la plaza ya están rojos.</p><span class="tt-av"${av(me)}>${esc(initialOf(me))}</span></div>
+        ${msg(a, "¿Alguien sabe si esta da frutos en otoño?")}
+        ${msg(b, "¡Sí! En la plaza ya están rojos.", false, "¿Alguien sabe si esta da frutos…")}
+        ${msg(me, `<span class="tt-at">@${esc(b)}</span> ¿en cuál? El sábado voy a buscarla.`, true)}
       </div>
       <div class="li-steps">
-        <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Abajo a la derecha de cada lámina está la pluma: tocala para contar dónde la viste, preguntar o sumar un dato.</span></p>
-        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá un comentario para contestarlo; la cita te lleva al original.</span></p>
-        <p><svg><use href="#i-seal-gold"/></svg><span><b>Llamá a alguien con @.</b> Escribí @ y elegí a la persona: le llega un aviso para que se sume.</span></p>
+        <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Tocá la pluma de la lámina y sumá dónde la viste, una duda o un dato curioso.</span></p>
+        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá un comentario para contestarlo sin perder el hilo.</span></p>
+        <p><svg><use href="#i-seal-gold"/></svg><span><b>Llamá a alguien con @.</b> Le llega un aviso para que se sume.</span></p>
       </div>
+      <p class="tt-close">Toda planta tiene una historia. Ahora también tiene quien la cuente.</p>
       <button class="btn primary li-go">Abrir el herbario</button>
     </div></div>`;
   document.body.appendChild(ov);
