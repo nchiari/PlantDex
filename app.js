@@ -3600,7 +3600,7 @@ function openTertuliaIntro() {
   const me = myName() || "Vos", other = memberNames.find((n) => n !== me) || "Martín";
   ov.innerHTML = `<div class="li-full"><div class="letter-in">
       <p class="li-k">Herbalorium presenta</p>
-      <h2>Tertulia</h2><p class="li-sub">al margen de cada lámina</p>
+      <h2>Tertulias</h2><p class="li-sub">al margen de cada lámina</p>
       <span class="li-rule"></span>
       <div class="tt-demo" aria-hidden="true">
         <div class="tt-m"><span class="tt-av"${av(other)}>${esc(initialOf(other))}</span><p><b>${esc(other)}</b>¿Alguien sabe si esta da frutos en otoño?</p></div>
