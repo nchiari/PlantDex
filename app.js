@@ -332,7 +332,7 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", burbujas: "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -3485,16 +3485,13 @@ async function hydrateThread(box, T, focusNum) {
   const quote = (n) => { const q = byNum[n]; if (!q) return ""; const t = q.deleted ? "(mensaje borrado)" : q.body.length > 70 ? q.body.slice(0, 70) + "…" : q.body;
     return `<button class="bt-quote" data-go="${n}"><b>↳ #${n}</b> · ${esc(q.author_name || "Alguien")}: ${esc(t)}</button>`; };
   let replyTo = null;
-  // Con «burbujas»: cada comentario es un globo, como en la carta de presentación (los tuyos a la derecha, en verde).
-  const bb = feat("burbujas");
   const msgHTML = (c) => {
     const avH = `<span class="bt-av"${av(c.author_name)}>${esc(initialOf(c.author_name))}</span>`;
     const head = `<b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span>`;
     const inner = `${c.reply_to ? quote(c.reply_to) : ""}${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${feat("menciones") ? withMentions(c.body) : esc(c.body)}</p>`}`;
     const acts = !c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : "";
     const mine = c.user_id === user.id ? " mine" : "";
-    return bb ? `<div class="bt-msg bb${mine}" data-num="${c.num}">${avH}<div class="bb-col"><div class="bb-bubble"><div class="bt-head">${head}</div>${inner}</div>${acts}</div></div>`
-      : `<div class="bt-msg${mine}" data-num="${c.num}"><div class="bt-head">${avH}${head}</div>${inner}${acts}</div>`;
+    return `<div class="bt-msg${mine}" data-num="${c.num}"><div class="bt-head">${avH}${head}</div>${inner}${acts}</div>`;
   };
   box.innerHTML = `${list.length ? `<div class="bt-list">${list.map(msgHTML).join("")}</div>` : (open ? T.empty : T.closedEmpty) ? `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>` : ""}
     ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="${T.ph}"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">${T.closed}</p>`}`;
@@ -3634,16 +3631,16 @@ function openTertuliaIntro() {
   const ov = document.createElement("div");
   ov.className = "ex-intro open tz-intro";
   const me = myName() || "Vos", others = memberNames.filter((n) => n !== me), a = others[0] || "Martín", b = others[1] || "Lilo";
-  const msg = (who, html, mine, quote) => `<div class="tt-m${mine ? " me" : ""}">${mine ? "" : `<span class="tt-av"${av(who)}>${esc(initialOf(who))}</span>`}<p><b>${esc(who)}</b>${quote ? `<span class="tt-q">${quote}</span>` : ""}${html}</p>${mine ? `<span class="tt-av"${av(who)}>${esc(initialOf(who))}</span>` : ""}</div>`;
+  const msg = (n, who, when, html, mine, q) => `<div class="bt-msg${mine ? " mine" : ""}"><div class="bt-head"><span class="bt-av"${av(who)}>${esc(initialOf(who))}</span><b>${esc(who)}</b><span class="bt-when">${when}</span><span class="bt-num">#${n}</span></div>${q ? `<span class="bt-quote"><b>↳ #${n - 1}</b> · ${q}</span>` : ""}<p class="bt-body">${html}</p></div>`;
   ov.innerHTML = `<div class="li-full"><div class="letter-in">
       <span class="tt-seal"><svg><use href="#i-seal-gold"/></svg><svg class="q"><use href="#f-pen"/></svg></span>
       <p class="li-k">Herbalorium presenta</p>
       <h2>Tertulias</h2><p class="li-sub">al margen de cada lámina</p>
       <p class="tt-lede">Un herbario se arma entre muchos ojos. Desde hoy, cada lámina tiene su propia ronda para contar, preguntar y descubrir juntos.</p>
       <div class="tt-demo" aria-hidden="true">
-        ${msg(a, "¿Alguien sabe si esta da frutos en otoño?")}
-        ${msg(b, "¡Sí! En la plaza ya están rojos.", false, "¿Alguien sabe si esta da frutos…")}
-        ${msg(me, `<span class="tt-at">@${esc(b)}</span> ¿en cuál? El sábado voy a buscarla.`, true)}
+        ${msg(1, a, "hace 2 h", "¿Alguien sabe si esta da frutos en otoño?")}
+        ${msg(2, b, "hace 1 h", "¡Sí! En la plaza ya están rojos.", false, `${esc(a)}: ¿Alguien sabe si esta da frutos…`)}
+        ${msg(3, me, "recién", `<span class="mention">@${esc(b)}</span> ¿en cuál? El sábado voy a buscarla.`, true)}
       </div>
       <div class="li-steps">
         <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Tocá la pluma de la lámina y sumá dónde la viste, una duda o un dato curioso.</span></p>
