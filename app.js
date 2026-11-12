@@ -3423,7 +3423,7 @@ let noteCounts = {}, noteLast = {}; // lámina → cuántas notas tiene y la úl
 async function loadNoteCounts() {
   const { data, error } = await sb.from("expedition_comments").select("plant_id,num,body,author_name,deleted").not("plant_id", "is", null).order("num");
   noteCounts = {}; noteLast = {}; if (error) return;
-  (data || []).forEach((r) => { noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1; if (!r.deleted) noteLast[r.plant_id] = r; });
+  (data || []).filter((r) => !r.deleted).forEach((r) => { noteCounts[r.plant_id] = (noteCounts[r.plant_id] || 0) + 1; noteLast[r.plant_id] = r; });
 }
 // Botón flotante de notas (como en las apps de lectura): queda a mano abajo a la derecha mientras recorrés la lámina,
 // se esconde al bajar para no tapar y vuelve al subir o al detenerte.
@@ -3478,7 +3478,8 @@ async function hydrateThread(box, T, focusNum) {
   const { data, error } = await sb.from("expedition_comments").select("*").eq(T.key, T.id).order("num");
   if (!box.isConnected) return;
   if (error) { box.innerHTML = `<p class="ms-hint">${T.missing}</p>`; return; }
-  const list = data || [], byNum = Object.fromEntries(list.map((c) => [c.num, c]));
+  // Los mensajes borrados no se muestran; si alguien los había citado, la cita dice «(mensaje borrado)».
+  const all = data || [], byNum = Object.fromEntries(all.map((c) => [c.num, c])), list = all.filter((c) => !c.deleted);
   const open = T.open;
   T.onLoad?.(list);
   const ago = (t) => { const m = Math.round((Date.now() - new Date(t)) / 6e4); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : dShort(t); };
