@@ -134,6 +134,26 @@ new MutationObserver(() => {
   if (!on) scrollTo(0, root.dataset.at === location.hash ? +(root.dataset.y || 0) : 0);
 }).observe(document.body, { childList: true });
 
+// El botón «atrás» del móvil cierra primero la ventana que esté abierta (novedades, tertulia, visor, tutorial, carta)
+// en vez de cambiar de pantalla: al abrirse una, se agrega un paso al historial que «atrás» consume.
+const BACKABLE = ".modal, .viewer, .tour, .ex-intro";
+let backArmed = false;
+new MutationObserver(() => {
+  const on = !!document.querySelector(BACKABLE);
+  if (on && !backArmed) { backArmed = true; history.pushState({ ov: 1 }, ""); }
+  else if (!on) backArmed = false; // se cerró sola: el paso sobrante se salta al volver
+}).observe(document.body, { childList: true });
+addEventListener("popstate", (e) => {
+  const open = [...document.querySelectorAll(BACKABLE)].pop();
+  if (open && backArmed) {
+    backArmed = false;
+    const btn = open.querySelector(".modal-x, .viewer-x, [data-skip], #news-ok, [data-a='0'], .li-go");
+    if (btn) btn.click(); else if (open.classList.contains("modal")) open.click(); else open.remove();
+    // Si quedó otra ventana abierta debajo, «atrás» vuelve a servir para cerrarla.
+    if (document.querySelector(BACKABLE)) { backArmed = true; history.pushState({ ov: 1 }, ""); }
+  } else if (!open && e.state?.ov) history.back();
+});
+
 async function boot() {
   applyTheme();
   // Si ya aceptaste avisos, se actualiza el trabajador en segundo plano (por ejemplo, el ícono de la notificación).
@@ -312,7 +332,7 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", burbujas: "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -1124,7 +1144,7 @@ const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).get
 const NEWS_ALL = [
   { v: 11, date: "2026-11-14", at: "09:00", feat: "notas", items: [
     "<b>Tertulias.</b> Cada lámina tiene ahora su propia charla. Tocá la pluma, abajo a la derecha de la lámina, para contar dónde la viste, hacer una pregunta o sumar un dato curioso.",
-    "<b>Respondé y llamá a alguien.</b> Tocá un comentario para contestarlo citando. Si escribís @ y elegís a una persona, le llega un aviso para que se sume a la charla.",
+    "<b>Respondé y llamá a alguien.</b> Tocá «Responder» debajo de un comentario para contestarlo citando. Si escribís @ y elegís a una persona, le llega un aviso para que se sume a la charla.",
   ], tour: [
     ["plant", ".notes-fab", "La pluma", "Está en cada lámina, abajo a la derecha. Tocala para abrir su tertulia y sumarte a la charla."],
   ] },
@@ -1435,7 +1455,7 @@ const TOUR = [
 const currentView = () => location.hash.slice(1).split("/")[0] || "list";
 // Espera a que la pantalla pinte el elemento (las páginas se dibujan de forma asíncrona).
 const waitFor = async (sel, ms = 2500) => {
-  for (let t = 0; t < ms; t += 100) { const el = document.querySelector(sel); if (el && el.offsetParent !== null) return el; await new Promise((r) => setTimeout(r, 100)); }
+  for (let t = 0; t < ms; t += 100) { const el = document.querySelector(sel); if (el && el.getClientRects().length) return el; await new Promise((r) => setTimeout(r, 100)); }
   return null;
 };
 function startTour(custom, onEnd) {
@@ -3465,12 +3485,18 @@ async function hydrateThread(box, T, focusNum) {
   const quote = (n) => { const q = byNum[n]; if (!q) return ""; const t = q.deleted ? "(mensaje borrado)" : q.body.length > 70 ? q.body.slice(0, 70) + "…" : q.body;
     return `<button class="bt-quote" data-go="${n}"><b>↳ #${n}</b> · ${esc(q.author_name || "Alguien")}: ${esc(t)}</button>`; };
   let replyTo = null;
-  box.innerHTML = `${list.length ? `<div class="bt-list">${list.map((c) => `<div class="bt-msg${c.user_id === user.id ? " mine" : ""}" data-num="${c.num}">
-      <div class="bt-head"><span class="bt-av"${av(c.author_name)}>${esc(initialOf(c.author_name))}</span><b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span></div>
-      ${c.reply_to ? quote(c.reply_to) : ""}
-      ${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${feat("menciones") ? withMentions(c.body) : esc(c.body)}</p>`}
-      ${!c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : ""}
-    </div>`).join("")}</div>` : (open ? T.empty : T.closedEmpty) ? `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>` : ""}
+  // Con «burbujas»: cada comentario es un globo, como en la carta de presentación (los tuyos a la derecha, en verde).
+  const bb = feat("burbujas");
+  const msgHTML = (c) => {
+    const avH = `<span class="bt-av"${av(c.author_name)}>${esc(initialOf(c.author_name))}</span>`;
+    const head = `<b>${esc(c.author_name || "Alguien")}</b><span class="bt-when">${ago(c.created_at)}</span><span class="bt-num">#${c.num}</span>`;
+    const inner = `${c.reply_to ? quote(c.reply_to) : ""}${c.deleted ? `<p class="bt-body gone">(mensaje borrado)</p>` : `<p class="bt-body">${feat("menciones") ? withMentions(c.body) : esc(c.body)}</p>`}`;
+    const acts = !c.deleted ? `<div class="bt-acts">${open ? `<button class="linkish" data-reply="${c.num}">Responder</button>` : ""}${c.user_id === user.id || amOwner || T.canDelete ? `<button class="linkish" data-del="${c.id}">Borrar</button>` : ""}</div>` : "";
+    const mine = c.user_id === user.id ? " mine" : "";
+    return bb ? `<div class="bt-msg bb${mine}" data-num="${c.num}">${avH}<div class="bb-col"><div class="bb-bubble"><div class="bt-head">${head}</div>${inner}</div>${acts}</div></div>`
+      : `<div class="bt-msg${mine}" data-num="${c.num}"><div class="bt-head">${avH}${head}</div>${inner}${acts}</div>`;
+  };
+  box.innerHTML = `${list.length ? `<div class="bt-list">${list.map(msgHTML).join("")}</div>` : (open ? T.empty : T.closedEmpty) ? `<p class="ms-hint">${open ? T.empty : T.closedEmpty}</p>` : ""}
     ${open ? `<div class="bt-compose"><div class="bt-replying" hidden></div><textarea id="bt-text" maxlength="1000" placeholder="${T.ph}"></textarea><button class="btn primary" id="bt-send">Enviar</button></div>` : `<p class="bt-closed">${T.closed}</p>`}`;
   const jump = (n) => { const el = box.querySelector(`[data-num="${n}"]`); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };
   box.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => jump(b.dataset.go)));
@@ -3621,7 +3647,7 @@ function openTertuliaIntro() {
       </div>
       <div class="li-steps">
         <p><svg><use href="#f-pen"/></svg><span><b>Cada lámina, su charla.</b> Tocá la pluma de la lámina y sumá dónde la viste, una duda o un dato curioso.</span></p>
-        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá un comentario para contestarlo sin perder el hilo.</span></p>
+        <p><svg><use href="#f-family"/></svg><span><b>Respondé citando.</b> Tocá «Responder» debajo de un comentario y la charla no pierde el hilo.</span></p>
         <p><svg><use href="#i-seal-gold"/></svg><span><b>Llamá a alguien con @.</b> Le llega un aviso para que se sume.</span></p>
       </div>
       <p class="tt-close">Toda planta tiene una historia. Ahora también tiene quien la cuente.</p>

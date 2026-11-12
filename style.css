@@ -1620,3 +1620,26 @@ body.has-fab #app { padding-bottom: 90px; }
 .tz-intro .tt-m p { padding: 6px 11px; font-size: clamp(13px, 1.75vh, 15px); }
 .tz-intro .li-steps p { font-size: clamp(13.5px, 1.85vh, 16px); }
 .tz-intro .li-sub { margin-top: -4px; }
+/* tertulia en globos (prueba «burbujas"): como en la carta de presentación */
+.bt-msg.bb { display: flex; align-items: flex-end; gap: 8px; padding: 0; background: none; border: 0; border-radius: 0; }
+.bt-msg.bb.mine { flex-direction: row-reverse; border: 0; }
+.bt-msg.bb > .bt-av { width: 30px; height: 30px; margin-bottom: 26px; background: var(--av, var(--deep)); color: #fbf8ee; border: 0; font-size: 12px; }
+.bb-col { display: flex; flex-direction: column; max-width: 84%; min-width: 0; }
+.bt-msg.bb.mine .bb-col { align-items: flex-end; }
+.bb-bubble { padding: 9px 13px 10px; background: #f1ead3; border: 1px solid rgb(179 154 82 / .45); border-radius: 14px 14px 14px 4px; color: #2b3a2e; }
+.bt-msg.bb.mine .bb-bubble { background: #e7eedc; border-color: rgb(76 107 60 / .35); border-radius: 14px 14px 4px 14px; }
+.bb-bubble .bt-head { gap: 8px; font-size: 13px; }
+.bb-bubble .bt-head b { font: 600 10.5px var(--caps); letter-spacing: 1.4px; text-transform: uppercase; color: #8a7433; }
+.bb-bubble .bt-when { font-size: 12.5px; color: #7d7a66; }
+.bb-bubble .bt-num { color: #b39a52; }
+.bb-bubble .bt-quote { margin: 6px 0 2px; padding: 3px 0 3px 8px; background: none; border-left: 2px solid rgb(179 154 82 / .7); border-radius: 0; font-style: italic; font-size: 14px; color: #7a6a3a; }
+.bb-bubble .bt-body { margin: 4px 0 0; font-size: 16px; color: #2b3a2e; }
+.bt-msg.bb .bt-acts { margin: 3px 6px 0; gap: 14px; }
+.bt-msg.bb .bt-acts .linkish { font-size: 13px; }
+.bt-list:has(.bb) { gap: 14px; }
+:root[data-theme="dark"] .bb-bubble { background: #2a3426; border-color: rgb(179 154 82 / .35); color: #e9e2cc; }
+:root[data-theme="dark"] .bt-msg.bb.mine .bb-bubble { background: #2c3f2c; border-color: rgb(140 170 120 / .35); }
+:root[data-theme="dark"] .bb-bubble .bt-body { color: #ece5cf; }
+:root[data-theme="dark"] .bb-bubble .bt-head b { color: #c9ac63; }
+:root[data-theme="dark"] .bb-bubble .bt-quote { color: #c2b48a; }
+.bt-list .bt-msg.bb, .bt-list .bt-msg.bb.mine { border: 0 !important; padding: 0 !important; background: none !important; box-shadow: none !important; }
