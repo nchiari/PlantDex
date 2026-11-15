@@ -138,6 +138,10 @@ Márgenes laterales de la página: 24 px. Entre secciones de una pantalla: 40 px
 
 Alto mínimo 48 px, texto en una sola línea. Todo lo que se toca mide al menos 40 × 40 px.
 
+### Emblema
+
+Medallón de doble anillo con una planta grabada: tallo que se afina, seis hojas alternas con nervadura clara, un pimpollo dorado arriba y dos ramas de laurel que abrazan la base, unidas por un lazo dorado. Se dibuja con `currentColor` (verde en claro, dorado en oscuro) y la nervadura toma el color del fondo (`--emb-vein`). Fuente: `tools/emblema.py` → `tools/emblema.svg`. Íconos de la app (pantalla de inicio): `tools/iconos/`.
+
 ### Íconos y sellos
 
 Íconos de línea con aire de grabado (sprite de `index.html`, `#f-*` e `#i-*`). Se agregan al sprite con el mismo trazo; no se mezclan íconos de otras familias.
@@ -171,5 +175,6 @@ Cada color nuevo se define también para el modo oscuro. Lo que imita papel impr
 3. Al lanzar la variante para todos: `python3 tools/variante.py --lanzar`, cambiar `diseno` a `"todos"` y después borrar la lógica de la variante (`IS_VARIANT`, el cargador de `index.html` y `herb.ds`). Pasos que no se hacen solos:
    - Desplegar `notify` con los textos en neutro (avisos y correos).
    - Pasar a neutro las pistas de las plantillas de expediciones en `supabase/schema.sql` (por ejemplo, «vereda», «baldíos») con una versión nueva de la base.
+   - Emblema e íconos: pegar `tools/emblema.svg` en el sprite de `index.html` (reemplaza `#i-emblem`), copiar `tools/iconos/*.png` a `icons/` y `tools/iconos/icon.svg` a la raíz, y subir el `?v=` del manifiesto para que los teléfonos tomen el ícono nuevo.
    - Actualizar la guía para armar un herbario propio.
 4. Antes de publicar cualquier texto: revisar el glosario, el tuteo y que no nombre nada sin lanzar.

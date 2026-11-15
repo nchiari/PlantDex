@@ -33,6 +33,10 @@ def main():
         app = app.replace(old, new)
     out, missing = neutral(app)
     out = out.replace("const IS_VARIANT = false;", "const IS_VARIANT = true;", 1)
+    # Emblema nuevo (tools/emblema.svg): reemplaza el dibujo del sprite de index.html al arrancar.
+    sym = open(os.path.join(ROOT, "tools", "emblema.svg"), encoding="utf-8").read()
+    inner = sym[sym.index(">") + 1: sym.rindex("</symbol>")].strip().replace("`", "")
+    out = out.replace("const IS_VARIANT = true;", "const IS_VARIANT = true;\n{ const e = document.getElementById(\"i-emblem\"); if (e) e.innerHTML = `" + inner + "`; }", 1)
     open(os.path.join(ROOT, "app-ds.js"), "w", encoding="utf-8").write(out)
     open(os.path.join(ROOT, "style-ds.css"), "w", encoding="utf-8").write(css_variant(css))
     if missing: print("Frases que ya no están en app.js (revisar neutro.py):", *missing, sep="\n  - ")

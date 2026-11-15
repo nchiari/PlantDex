@@ -47,3 +47,6 @@ nav.bottom button { font-size: 10px !important; }
 /* ---- 7. Zonas de toque: lo que se toca mide al menos 40 px ---- */
 .linkish { padding: 10px 0; }
 .modal-x, .ach-x { min-width: 40px; min-height: 40px; }
+
+/* ---- 8. Emblema: la nervadura de las hojas toma el color del fondo ---- */
+:root { --emb-vein: var(--parchment); }

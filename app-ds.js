@@ -338,6 +338,47 @@ const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
 // Variante en revisión (textos en español neutro y diseño pulido): la genera tools/variante.py y solo la carga quien tiene «diseno» encendido.
 const IS_VARIANT = true;
+{ const e = document.getElementById("i-emblem"); if (e) e.innerHTML = `<circle cx="32" cy="32" r="30.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<circle cx="32" cy="32" r="27.7" fill="none" stroke="currentColor" stroke-width=".6"/>
+<path d="M31.0 52.2C30.6 45 32.5 39 31.55 31C31.05 25.5 31.75 20.5 31.8 15.5L32.2 15.5C32.25 20.5 32.95 25.5 32.45 31C33.4 39 31.4 45 33.0 52.2Z" fill="currentColor"/>
+<path d="M31.70 45.50C29.34 38.57 23.05 37.69 20.25 38.35C20.89 41.14 24.44 46.42 31.70 45.50Z" fill="currentColor"/>
+<path d="M29.64 44.21Q25.64 41.19 21.85 39.35" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M32.30 40.60C39.28 41.77 42.86 36.79 43.56 34.10C40.88 33.36 34.78 33.97 32.30 40.60Z" fill="currentColor"/>
+<path d="M34.33 39.43Q38.71 37.40 41.98 35.01" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M31.60 34.60C29.94 28.80 24.80 27.96 22.48 28.45C22.90 30.79 25.60 35.23 31.60 34.60Z" fill="currentColor"/>
+<path d="M29.96 33.49Q26.79 30.91 23.76 29.31" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M32.40 29.60C37.91 30.26 40.34 26.17 40.69 24.01C38.55 23.52 33.85 24.25 32.40 29.60Z" fill="currentColor"/>
+<path d="M33.89 28.59Q37.15 26.81 39.53 24.79" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M31.75 24.20C31.28 20.08 27.89 19.09 26.25 19.25C26.27 20.89 27.60 24.16 31.75 24.20Z" fill="currentColor"/>
+<path d="M30.76 23.31Q28.90 21.28 27.02 19.94" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M32.25 20.60C35.83 20.44 36.89 17.57 36.85 16.15C35.44 16.07 32.53 17.02 32.25 20.60Z" fill="currentColor"/>
+<path d="M33.08 19.80Q34.94 18.32 36.21 16.78" fill="none" stroke-width=".55" stroke-linecap="round" style="stroke:var(--emb-vein,#f7f2e3)"/>
+<path d="M32 16.6C29.7 16.3 28.7 14 29.3 11.2C30.2 12 30.9 12.4 31.3 12.5C31.4 10.6 31.6 9.4 32 8.6C32.4 9.4 32.6 10.6 32.7 12.5C33.1 12.4 33.8 12 34.7 11.2C35.3 14 34.3 16.3 32 16.6Z" fill="#c4a65a" stroke="currentColor" stroke-width=".7" stroke-linejoin="round"/>
+<path d="M37.47 53.93 L38.95 53.51 L40.39 52.98 L41.80 52.36 L43.16 51.65 L44.47 50.85 L45.73 49.95 L46.92 48.98 L48.04 47.92 L49.08 46.80 L50.05 45.60 L50.93 44.34 L51.73 43.03 L52.43 41.66 L53.04 40.25 L53.55 38.80 L53.97 37.31 L54.28 35.81 L54.48 34.28 L54.59 32.75 L54.59 31.21" fill="none" stroke="currentColor" stroke-width=".85" stroke-linecap="round"/>
+<path d="M40.96 52.75C43.31 51.82 43.33 49.68 42.97 48.74C42.01 49.01 40.30 50.31 40.96 52.75Z" fill="currentColor"/>
+<path d="M40.96 52.75C42.43 54.81 44.51 54.31 45.33 53.73C44.84 52.86 43.17 51.51 40.96 52.75Z" fill="currentColor"/>
+<path d="M45.73 49.95C47.77 48.56 47.25 46.55 46.67 45.76C45.80 46.22 44.48 47.82 45.73 49.95Z" fill="currentColor"/>
+<path d="M45.73 49.95C47.57 51.60 49.40 50.61 50.03 49.85C49.36 49.13 47.49 48.22 45.73 49.95Z" fill="currentColor"/>
+<path d="M49.67 46.09C51.32 44.32 50.33 42.57 49.57 41.97C48.84 42.60 47.94 44.40 49.67 46.09Z" fill="currentColor"/>
+<path d="M49.67 46.09C51.79 47.26 53.25 45.87 53.64 44.99C52.85 44.44 50.89 44.00 49.67 46.09Z" fill="currentColor"/>
+<path d="M52.56 41.38C53.75 39.34 52.39 37.95 51.51 37.58C50.96 38.35 50.49 40.23 52.56 41.38Z" fill="currentColor"/>
+<path d="M52.56 41.38C54.83 42.04 55.84 40.38 55.99 39.44C55.11 39.09 53.17 39.10 52.56 41.38Z" fill="currentColor"/>
+<path d="M54.22 36.11C54.92 33.91 53.30 32.96 52.37 32.84C52.00 33.69 51.98 35.57 54.22 36.11Z" fill="currentColor"/>
+<path d="M54.22 36.11C56.53 36.25 57.05 34.45 56.95 33.52C56.03 33.37 54.21 33.80 54.22 36.11Z" fill="currentColor"/>
+<path d="M54.59 31.21C56.20 29.43 55.27 27.64 54.55 27.01C53.84 27.65 52.95 29.46 54.59 31.21Z" fill="currentColor"/>
+<path d="M26.53 53.93 L25.05 53.51 L23.61 52.98 L22.20 52.36 L20.84 51.65 L19.53 50.85 L18.27 49.95 L17.08 48.98 L15.96 47.92 L14.92 46.80 L13.95 45.60 L13.07 44.34 L12.27 43.03 L11.57 41.66 L10.96 40.25 L10.45 38.80 L10.03 37.31 L9.72 35.81 L9.52 34.28 L9.41 32.75 L9.41 31.21" fill="none" stroke="currentColor" stroke-width=".85" stroke-linecap="round"/>
+<path d="M23.04 52.75C20.83 51.51 19.16 52.86 18.67 53.73C19.49 54.31 21.57 54.81 23.04 52.75Z" fill="currentColor"/>
+<path d="M23.04 52.75C23.70 50.31 21.99 49.01 21.03 48.74C20.67 49.68 20.69 51.82 23.04 52.75Z" fill="currentColor"/>
+<path d="M18.27 49.95C16.51 48.22 14.64 49.13 13.97 49.85C14.60 50.61 16.43 51.60 18.27 49.95Z" fill="currentColor"/>
+<path d="M18.27 49.95C19.52 47.82 18.20 46.22 17.33 45.76C16.75 46.55 16.23 48.56 18.27 49.95Z" fill="currentColor"/>
+<path d="M14.33 46.09C13.11 44.00 11.15 44.44 10.36 44.99C10.75 45.87 12.21 47.26 14.33 46.09Z" fill="currentColor"/>
+<path d="M14.33 46.09C16.06 44.40 15.16 42.60 14.43 41.97C13.67 42.57 12.68 44.32 14.33 46.09Z" fill="currentColor"/>
+<path d="M11.44 41.38C10.83 39.10 8.89 39.09 8.01 39.44C8.16 40.38 9.17 42.04 11.44 41.38Z" fill="currentColor"/>
+<path d="M11.44 41.38C13.51 40.23 13.04 38.35 12.49 37.58C11.61 37.95 10.25 39.34 11.44 41.38Z" fill="currentColor"/>
+<path d="M9.78 36.11C9.79 33.80 7.97 33.37 7.05 33.52C6.95 34.45 7.47 36.25 9.78 36.11Z" fill="currentColor"/>
+<path d="M9.78 36.11C12.02 35.57 12.00 33.69 11.63 32.84C10.70 32.96 9.08 33.91 9.78 36.11Z" fill="currentColor"/>
+<path d="M9.41 31.21C11.05 29.46 10.16 27.65 9.45 27.01C8.73 27.64 7.80 29.43 9.41 31.21Z" fill="currentColor"/>
+<path d="M28.6 54.4C30.4 53.3 33.6 53.3 35.4 54.4C33.6 55.5 30.4 55.5 28.6 54.4Z" fill="#c4a65a" stroke="currentColor" stroke-width=".6"/>`; }
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
