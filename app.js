@@ -340,7 +340,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.11.1", APP_DATE = "2026-11-15";
+const APP_VERSION = "1.11.2", APP_DATE = "2026-11-15";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1621,7 +1621,7 @@ async function bindAvisos() {
     if (cta) { cta.hidden = s !== "off"; on.closest(".row").classList.toggle("av-quiet", s === "on"); on.style.display = s === "off" ? "none" : ""; st.style.display = s === "off" ? "none" : ""; }
     st.textContent = { on: "Las notificaciones están activadas en este móvil.", off: "Para recibirlas en este móvil, activalas acá abajo.", denied: "El navegador bloquea las notificaciones de Herbalorium. Podés habilitarlas en sus ajustes.", nope: "Este navegador no recibe notificaciones. Agregá la app a la pantalla de inicio y abrila desde ahí." }[s];
     on.textContent = s === "on" ? (cta ? "Desactivar" : "Desactivar en este móvil") : "Activar en este móvil";
-    if (cta && s === "on") st.textContent = "✓ Activadas en este móvil.";
+    if (cta && s === "on") st.style.display = "none"; // activadas: alcanza con el botón «Desactivar»
     on.disabled = s === "nope" || s === "denied";
   };
   if (on2) on2.onclick = () => on.onclick();
