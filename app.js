@@ -340,7 +340,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = TERT_LIVE ? "1.11.0" : "1.9.1", APP_DATE = TERT_LIVE ? "2026-11-14" : "2026-11-12";
+const APP_VERSION = "1.11.1", APP_DATE = "2026-11-15";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1586,14 +1586,14 @@ async function notifyOwner() {
   try { const r = await sb.functions.invoke("notify", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
 }
 // Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
-const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"], ["mentions", "Alguien te mencionó con @", false, "menciones"]];
-const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false } };
+const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"], ["comments", "Alguien comentó en tu lámina", false, "notas", "Tertulia"], ["mentions", "Alguien te mencionó con @", false, "menciones", "Tertulia"], ["replies", "Alguien respondió a tu comentario", false, "notas", "Tertulia"]];
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false }, comments: { push: true, mail: false }, replies: { push: true, mail: false } };
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elegí qué querés que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
   ${feat("avisoboton") ? `<div class="av-cta" id="avcta" hidden><b>Este móvil todavía no recibe avisos</b><span>Tocá el botón y aceptá el permiso. Solo hace falta hacerlo una vez.</span><button class="btn primary" id="avon2">Activar en este móvil</button></div>` : ""}
   <table class="av-table"><thead><tr><th></th><th>Móvil</th><th>Mail</th></tr></thead><tbody>
-    ${NOTIF_KINDS.filter(([, , own, fl]) => (!own || amOwner) && (!fl || feat(fl))).map(([k, label]) => `<tr><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
+    ${NOTIF_KINDS.filter(([, , own, fl]) => (!own || amOwner) && (!fl || feat(fl))).map(([k, label, , , grp], i, arr) => `${grp && arr[i - 1]?.[4] !== grp ? `<tr class="av-grp"><th colspan="3">${grp}</th></tr>` : ""}<tr${grp ? ' class="av-sub"' : ""}><td>${label}${k === "plants" ? `<small>Por mail llega un resumen diario, solo si hubo láminas nuevas.</small>` : ""}</td>
       <td><input type="checkbox" data-k="${k}" data-ch="push"></td><td><input type="checkbox" data-k="${k}" data-ch="mail"></td></tr>`).join("")}
   </tbody></table>
   <p class="av-state muted" id="avstate">Revisando…</p>
@@ -3514,7 +3514,7 @@ async function hydrateThread(box, T, focusNum) {
     const { data: c, error: e } = await sb.from("expedition_comments").insert({ [T.key]: T.id, author_name: myName(), body, reply_to: replyTo }).select().single();
     if (e) { ev.currentTarget.disabled = false; return toast("No se pudo enviar: " + e.message); }
     T.onSend?.(c);
-    if (feat("menciones") && /@/.test(body)) notify({ kind: "mention", comment_id: c.id });
+    notify({ kind: "comment", comment_id: c.id }); // avisa a quien mencionaste, a quien respondiste y al dueño de la lámina
     hydrateThread(box, T, c?.num);
   });
   if (focusNum) setTimeout(() => jump(focusNum), 100);

@@ -1635,3 +1635,7 @@ body.has-fab #app { padding-bottom: 90px; }
 .tt-demo .bt-quote { font-size: 14.5px; }
 .tt-demo .bt-body { font-size: clamp(15.5px, 2.1vh, 17.5px); }
 .tz-intro .li-steps p { margin: clamp(6px, 1.2vh, 12px) 0; font-size: clamp(15.5px, 2.15vh, 18px); }
+/* Avisos: el apartado de la tertulia, separado y con sus opciones un poco hacia adentro */
+.av-table tr.av-grp th { width: auto; padding: 18px 4px 6px; text-align: left; font-size: 10.5px; letter-spacing: 1.6px; color: var(--gold); border-top: 1px solid rgb(var(--line) / .28); }
+.av-table tr.av-sub td:first-child { padding-left: 14px; }
+.av-table tr.av-grp + tr.av-sub td { border-top: 0; }
