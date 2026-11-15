@@ -332,15 +332,17 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { diseno: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
+// Variante en revisión (textos en español neutro y diseño pulido): la genera tools/variante.py y solo la carga quien tiene «diseno» encendido.
+const IS_VARIANT = false;
 const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.11.2", APP_DATE = "2026-11-15";
+const APP_VERSION = "1.11.3", APP_DATE = "2026-11-15";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {
@@ -351,6 +353,11 @@ async function loadPlants() {
   if (own.error && isNetErr(own.error)) { offline = true; return; }
   amOwner = own.error ? true : !!own.data;
   if (cfg.wasOwner !== amOwner) { cfg.wasOwner = amOwner; saveCfg(cfg); }
+  // Si a esta persona le toca la otra variante (la que está en revisión o la de siempre), se recarga una sola vez con la que corresponde.
+  if (feat("diseno") !== IS_VARIANT) {
+    try { if (feat("diseno")) localStorage.setItem("herb.ds", "1"); else localStorage.removeItem("herb.ds");
+      if (!sessionStorage.getItem("herb.dsSwap")) { sessionStorage.setItem("herb.dsSwap", "1"); location.reload(); return; } } catch {}
+  }
   if (amOwner) { const v = await sb.rpc("schema_version"); schemaBehind = v.error ? true : (v.data || 0) < SCHEMA_NEEDED; }
   // Miembro = cuenta aceptada por el dueño. Si la función no existe (herbario viejo), se asume aceptada.
   const mem = amOwner ? { data: true } : await sb.rpc("is_member");
@@ -1975,7 +1982,7 @@ async function hydrateMission() {
   try { m = await ensureMission(); }
   catch (e) {
     if (!$app.contains(box)) return;
-    box.innerHTML = `<p class="ms-hint">No se pudieron consultar las plantas de tu zona (${esc(e.message || "sin conexión")}). <button class="linkish" id="ms-retry">Reintentar</button></p>`;
+    box.innerHTML = `<p class="ms-hint">No se pudieron consultar las plantas de tu zona. Revisá tu conexión. <button class="linkish" id="ms-retry">Reintentar</button></p>`;
     box.querySelector("#ms-retry").onclick = () => { try { localStorage.removeItem(NEAR_KEY); } catch {} hydrateMission(); };
     return;
   }
@@ -3421,7 +3428,7 @@ const hydrateBitacora = (x, focusNum) => hydrateThread($app.querySelector("#bita
   empty: "Todavía nadie escribió. Contá qué viste, pedí ayuda o armá una salida con los demás.", closedEmpty: "Nadie escribió en esta expedición.",
   ph: "Escribí en la tertulia…", closed: "La tertulia quedó cerrada con la expedición.", missing: "La tertulia todavía no está disponible en este herbario." }, focusNum);
 // ---------- notas al margen de cada lámina: se abren en una hoja aparte para no alargar la página ----------
-let noteCounts = {}, noteLast = {}; // lámina → cuántas notas tiene y la última (para el marbete y el puntito de «nuevas»)
+let noteCounts = {}, noteLast = {}; // lámina → cuántas notas tiene y la última (para el número de la pluma y el puntito de «nuevas»)
 async function loadNoteCounts() {
   const { data, error } = await sb.from("expedition_comments").select("plant_id,num,body,author_name,deleted").not("plant_id", "is", null).order("num");
   noteCounts = {}; noteLast = {}; if (error) return;
@@ -3451,13 +3458,6 @@ function bindNotesFab(fab) {
   addEventListener("scroll", onScroll, { passive: true });
   requestAnimationFrame(() => fab.classList.add("in"));
 }
-// Marbete: el papelito escrito a mano que los botánicos dejaban prendido al pie de la lámina.
-const notesBtn = (p) => { const n = noteCounts[p.id] || 0, fresh = n > ((cfg.notesSeen || {})[p.id] || 0), last = noteLast[p.id];
-  const txt = last ? (last.body.length > 64 ? last.body.slice(0, 64).trim() + "…" : last.body) : "";
-  return `<button class="marbete${fresh ? " fresh" : ""}" id="notes" aria-label="Notas al margen"><span class="mb-pin"></span>
-    <span class="mb-k">Notas al margen${n ? ` · ${n}` : ""}</span>
-    ${last ? `<span class="mb-q">«${esc(txt)}»</span><span class="mb-a">— ${esc(last.author_name || "Alguien")}</span>` : `<span class="mb-q empty">Dejá la primera: dónde la viste, un uso, una duda…</span>`}
-    ${fresh ? `<span class="mb-new">Nuevas</span>` : ""}</button>`; };
 function openNotes(p) {
   const m = document.createElement("div");
   m.className = "modal";
@@ -3708,7 +3708,7 @@ function devPanelHTML() {
     + devGroup("Tertulia", "La presentación que se vería el sábado. Solo la ves vos.", devBtn('data-anim="tertulia"', "Presentación", "f-pen"))
     + devGroup("Herramientas", "Para ver la app como alguien nuevo o rehacer cosas de este móvil.",
       devBtn('id="resetmis"', "Misiones de cero", "i-compass") + devBtn('id="reillus"', "Volver a buscar láminas antiguas", "i-book"))
-    + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(document.querySelector('script[src*="app.js"]')?.src.split("v=")[1] || "?")}</p>`;
+    + `<p class="dev-n" style="text-align:center;margin-top:10px">Versión de la app: ${esc(window.__V || "?")}${IS_VARIANT ? " · variante en revisión" : ""}</p>`;
 }
 function bindAnimDemo() {
   $app.querySelectorAll("[data-anim]").forEach((b) => (b.onclick = () => animDemo(b.dataset.anim, b)));
@@ -3740,8 +3740,6 @@ function animDemo(k, b) {
 }
 
 // Simulador (solo el dueño de la base de pruebas): expediciones falsas para ver todas las pantallas sin molestar a nadie.
-const expSimHTML = () => false ? `<p class="set-label" style="margin-top:18px">Simulador de expediciones</p>
-  <div class="ex-sim">${[["start", "Arrancar una de prueba"], ["mine", "Sumar un aporte mío"], ["other", "Sumar un aporte de otro"], ["fill", "Completarla"], ["expire", "Hacerla vencer"], ["clear", "Borrar todo lo de prueba"]].map(([k, l]) => `<button class="btn ghost" data-sim="${k}">${l}</button>`).join("")}</div>` : "";
 function bindExpSim() {
   $app.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = async () => {
     b.disabled = true;
