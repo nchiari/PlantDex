@@ -515,3 +515,16 @@ $$;
 revoke all on function public.member_colors() from public, anon;
 grant execute on function public.member_colors() to authenticated;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 23 $$;
+
+-- v24: pistas de las expediciones en español neutro (tuteo y palabras que se entienden en España y en Latinoamérica).
+update public.expedition_templates set hint = 'Tienen un tronco grueso y son más altos que tú. También cuentan los de la calle y la plaza.' where key = 'arboles';
+update public.expedition_templates set hint = 'Espinas o pinchos en el tallo o en las hojas: rosales, cactus, zarzamoras. Mira sin tocar.' where key = 'pinchan';
+update public.expedition_templates set hint = 'Frota suavemente una hoja entre los dedos o huele la flor. Si deja aroma, cuenta.' where key = 'olor';
+update public.expedition_templates set hint = 'Cualquier planta con flores amarillas: en jardines, terrenos sin edificar o entre las baldosas.' where key = 'amarillas';
+update public.expedition_templates set hint = 'Flores blancas, grandes o pequeñas. Fíjate también en arbustos y árboles en flor.' where key = 'blancas';
+update public.expedition_templates set hint = 'Cualquier planta que encuentres al aire libre, a pocas calles de casa.' where key = 'barrio';
+update public.expedition_templates set hint = 'Plantas que todavía nadie asentó. Mira el herbario antes de salir.' where key = 'nuevas';
+update public.expedition_templates set hint = 'Después de la lluvia, en el césped, en troncos o al pie de los árboles. Mira, no toques.' where key = 'hongos';
+update public.expedition_templates set hint = 'Lilas, violetas, celestes y azules. Suelen ser más pequeñas: mira de cerca.' where key = 'violetas';
+update public.expedition_templates set hint = 'Busca al aire libre alguna planta que ya asentó otra persona y suma tu hallazgo a su lámina.' where key = 'doble';
+create or replace function public.schema_version() returns int language sql immutable as $$ select 24 $$;

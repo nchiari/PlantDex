@@ -100,7 +100,7 @@ Colores con significado fijo: **terracota `#b4532e`** = hallada (brújula); **az
 - **EB Garamond**: todo el texto para leer. Cursiva para nombres científicos, ayudas, fechas y citas.
 - **Cinzel Decorative**: solo la inicial de los medallones y la capitular de la lámina.
 
-Escala (variables en `tools/diseno.css`, se pasan a `style.css` al lanzar):
+Escala (variables al final de `style.css`, sección «Sistema de diseño»):
 
 | Variable | Tamaño | Uso |
 |---|---|---|
@@ -168,13 +168,6 @@ Cada color nuevo se define también para el modo oscuro. Lo que imita papel impr
 ## 5. Cómo se trabaja
 
 1. Lo nuevo sale primero en «prueba» (solo Nico) detrás de `FEATURES`. Las correcciones van directo para todos.
-2. **Variante en revisión** (`diseno: "prueba"`): mientras Nico revisa este sistema, su teléfono carga `app-ds.js` y `style-ds.css`, que se generan con `python3 tools/variante.py` a partir de `app.js` y `style.css`:
-   - `tools/neutro.py`: textos en español neutro (frases con contexto y palabras sueltas).
-   - `tools/diseno.py` y `tools/diseno.css`: cambios de marcado y estilos.
-   - **Después de cada cambio en `app.js` o `style.css` hay que volver a correr el script**, y avisar si dice que alguna frase ya no aplica.
-3. Al lanzar la variante para todos: `python3 tools/variante.py --lanzar`, cambiar `diseno` a `"todos"` y después borrar la lógica de la variante (`IS_VARIANT`, el cargador de `index.html` y `herb.ds`). Pasos que no se hacen solos:
-   - Desplegar `notify` con los textos en neutro (avisos y correos).
-   - Pasar a neutro las pistas de las plantillas de expediciones en `supabase/schema.sql` (por ejemplo, «vereda», «baldíos») con una versión nueva de la base.
-   - Emblema e íconos: pegar `tools/emblema.svg` en el sprite de `index.html` (reemplaza `#i-emblem`), copiar `tools/iconos/*.png` a `icons/` y `tools/iconos/icon.svg` a la raíz, y subir el `?v=` del manifiesto para que los teléfonos tomen el ícono nuevo.
-   - Actualizar la guía para armar un herbario propio.
+2. Para cambios grandes de diseño o de textos que conviene revisar en el teléfono antes de mostrarlos a todos, se puede repetir lo que se hizo en noviembre de 2026: una variante que solo carga el teléfono de Nico, generada a partir de `app.js` y `style.css` (ver el historial de git: `tools/variante.py`).
+3. Cuando cambian los íconos de la app, se guardan con **otro nombre de archivo** y se sube el `?v=` del manifiesto: así Chrome los actualiza solo en Android.
 4. Antes de publicar cualquier texto: revisar el glosario, el tuteo y que no nombre nada sin lanzar.

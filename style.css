@@ -1620,3 +1620,58 @@ body.has-fab #app { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
 .av-table tr.av-grp th { width: auto; padding: 18px 4px 6px; text-align: left; font-size: 10.5px; letter-spacing: 1.6px; color: var(--gold); border-top: 1px solid rgb(var(--line) / .28); }
 .av-table tr.av-sub td:first-child { padding-left: 14px; }
 .av-table tr.av-grp + tr.av-sub td { border-top: 0; }
+
+
+/* ===== Sistema de diseño (variante en revisión) ===== */
+/* Herbalorium · sistema de diseño (ver DESIGN.md). Se suma al final de style.css en la variante en revisión. */
+
+/* ---- 1. Tokens ---- */
+:root {
+  /* escala de texto: cinco tamaños para texto corrido y tres para las mayúsculas grabadas */
+  --fs-xs: 14px;   /* notas al pie, fechas, ayudas */
+  --fs-s: 15.5px;  /* texto secundario, listas compactas */
+  --fs-m: 17px;    /* texto corrido */
+  --fs-l: 19px;    /* entradas y párrafos destacados */
+  --fs-xl: 30px;   /* título de pantalla */
+  --caps-s: 10.5px; /* etiquetas en mayúsculas (lo más chico que se permite) */
+  --caps-m: 12px;   /* encabezados de sección */
+  --caps-l: 13px;   /* botones */
+  /* espacios: múltiplos de 4 */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 40px;
+  /* color de acciones que borran */
+  --danger: #8a3a2e;
+}
+:root[data-theme="dark"] { --danger: #e0a08f; }
+
+/* ---- 2. Etiquetas en mayúsculas: nunca menos de 10,5 px (antes había de 9 y 9,5) ---- */
+.fk, .use-l, .ptag, .fx dt, .ach-txt small, .fl-h, .ms-txt small, .av-table th, .me-txt small, .modal-box.people b small,
+.ex-chip, .ck small, .mp-k, .type, .safety .k, .months span, .ob-dots span, .tour-card small, .modal-box.news .news-date,
+.chip.who small, .modal-box.legend .lg-h, .fi-kicker, .vi-h, .chip.nova-chip small, .ex-meds span, .ex-hito .dt {
+  font-size: var(--caps-s);
+}
+.fx dt { letter-spacing: 1.2px; }
+.use-l { letter-spacing: .8px; }
+
+/* ---- 3. Botones: una sola altura y nunca en dos renglones ---- */
+.btn { min-height: 48px; padding: 12px 18px; font-size: var(--caps-l); letter-spacing: 1.8px; line-height: 1.2; }
+.row > .btn { white-space: nowrap; }
+.btn.ghost.danger, #del { color: var(--danger); }
+.av-quiet .btn.primary { min-height: 40px; }
+
+/* ---- 4. Títulos: en castellano, iguales a los del menú (el latín queda en la marca y en frases sueltas) ---- */
+
+/* ---- 5. Texto corrido: tamaños de la escala ---- */
+.muted { line-height: 1.5; }
+.finds table { font-size: var(--fs-s); }
+.ob-note { font-size: var(--fs-s); }
+.fx dd { font-size: var(--fs-m); }
+
+/* ---- 6. Menú de abajo: etiquetas legibles también en pantallas chicas ---- */
+nav.bottom button { font-size: 10px !important; }
+
+/* ---- 7. Zonas de toque: lo que se toca mide al menos 40 px ---- */
+.linkish { padding: 10px 0; }
+.modal-x, .ach-x { min-width: 40px; min-height: 40px; }
+
+/* ---- 8. Emblema: la nervadura de las hojas toma el color del fondo ---- */
+:root { --emb-vein: var(--parchment); }

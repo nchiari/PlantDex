@@ -1,4 +1,4 @@
-// Avisos de Herbalorium: notificación en el móvil y mail, según lo que cada persona eligió en Ajustes.
+// Avisos de Herbalorium: notificación en el teléfono y mail, según lo que cada persona eligió en Ajustes.
 // La llaman las apps (pedido para entrar, persona aceptada, lámina nueva, novedades, prueba) y, cada hora, una tarea
 // de la base ("cron") para la misión nueva de las 9 y el resumen diario de láminas por mail.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -12,14 +12,14 @@ const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&a
 
 // El mail con la estética del herbario: pergamino, filete dorado, emblema y un botón verde.
 // (Los mails no cargan fuentes propias: Georgia es la más parecida que tienen todos.)
-const letter = (title: string, inner: string, foot = "Recibís este mensaje porque lo elegiste en Ajustes → Avisos. Podés cambiarlo cuando quieras.", site = "https://herbalorium.pages.dev/") => {
+const letter = (title: string, inner: string, foot = "Recibes este mensaje porque lo elegiste en Ajustes → Avisos. Puedes cambiarlo cuando quieras.", site = "https://herbalorium.pages.dev/") => {
   const btn = (inner.match(/<a href="([^"]+)">([^<]+)<\/a>/) || []) as string[];
   const body = inner.replace(/<p><a href="[^"]+">[^<]+<\/a><\/p>/, "");
   return `<!doctype html><html><body style="margin:0;padding:0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#f7f1e1;border:1px solid #c9a24a;outline:4px solid #f7f1e1;outline-offset:-6px">
 <tr><td align="center" style="padding:30px 28px 6px">
-  <img src="${site}icons/icon-192.png" width="64" height="64" alt="" style="display:block;border:0;border-radius:50%">
+  <img src="${site}icons/icono-192.png" width="64" height="64" alt="" style="display:block;border:0;border-radius:50%">
   <div style="margin-top:12px;font:700 22px/1.2 Georgia,'Times New Roman',serif;letter-spacing:4px;color:#1f3426;text-transform:uppercase">Herbalorium</div>
   <div style="margin-top:2px;font:italic 15px Georgia,serif;color:#5d6b4f">Herbarium vivum</div>
   <div style="margin:18px auto 0;width:60px;border-top:1px solid #c9a24a"></div>
@@ -159,19 +159,19 @@ Deno.serve(async (req) => {
     if (!m || m.status !== "pending" || m.notified_at || !owner) return json({ ok: true, skipped: true });
     await db.from("members").update({ notified_at: new Date().toISOString() }).eq("user_id", me.id);
     const who2 = m.name || m.email || "Alguien";
-    return json({ ok: true, ...(await send([owner.id], "requests", `${who2} quiere entrar al herbario`, `${m.email || ""}${m.invited_by ? ` · invitado por ${m.invited_by}` : ""}. Podés aceptarlo desde Ajustes.`, site + "#settings")) });
+    return json({ ok: true, ...(await send([owner.id], "requests", `${who2} quiere entrar al herbario`, `${m.email || ""}${m.invited_by ? ` · invitado por ${m.invited_by}` : ""}. Puedes aceptarlo desde Ajustes.`, site + "#settings")) });
   }
   if (kind === "member") { // el dueño aceptó a alguien: a los demás miembros
     if (me.id !== owner?.id || !body.user_id || !accepted.has(body.user_id)) return json({ error: "no corresponde" }, 403);
     const n = nameOf(body.user_id);
-    // A la persona aceptada: siempre un mail (todavía no eligió avisos) y, si ya activó el móvil, también ahí.
-    const welcome = `${nameOf(me.id)} aceptó tu pedido. Ya podés ver todas las láminas y sumar las tuyas.`;
-    const welcomed = await mail(body.user_id, "Ya formás parte del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`, "Recibís este mensaje porque pediste entrar a este herbario. En Ajustes → Avisos podés elegir qué más querés recibir.");
-    await push(body.user_id, "Ya formás parte del herbario", welcome, site + "#list", "members");
+    // A la persona aceptada: siempre un mail (todavía no eligió avisos) y, si ya activó el teléfono, también ahí.
+    const welcome = `${nameOf(me.id)} aceptó tu pedido. Ya puedes ver todas las láminas y sumar las tuyas.`;
+    const welcomed = await mail(body.user_id, "Ya formas parte del herbario", `<p>${esc(welcome)}</p><p><a href="${site}#list">Abrir el herbario</a></p>`, "Recibes este mensaje porque pediste entrar a este herbario. En Ajustes → Avisos puedes elegir qué más quieres recibir.");
+    await push(body.user_id, "Ya formas parte del herbario", welcome, site + "#list", "members");
     const to = [...accepted].filter((u) => u !== body.user_id && u !== me.id);
-    return json({ ok: true, welcomed, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede cargar láminas.`, site + "#list")) });
+    return json({ ok: true, welcomed, ...(await send(to, "members", `${n} se sumó al herbario`, `Desde ahora ${n} también puede asentar láminas.`, site + "#list")) });
   }
-  if (kind === "plant") { // lámina nueva: al móvil de los demás (el mail va en el resumen diario)
+  if (kind === "plant") { // lámina nueva: al teléfono de los demás (el mail va en el resumen diario)
     const { data: p } = await db.from("plants").select("id,common_name,author_name,user_id,created_at").eq("id", body.plant_id).maybeSingle();
     if (!p || p.user_id !== me.id || Date.now() - new Date(p.created_at).getTime() > 600e3) return json({ error: "no corresponde" }, 403);
     const to = [...accepted].filter((u) => u !== me.id);
@@ -182,9 +182,9 @@ Deno.serve(async (req) => {
     const v = Number(body.v) || 0, items: string[] = Array.isArray(body.items) ? body.items.slice(0, 8).map(String) : [];
     if (!v || !items.length) return json({ error: "faltan datos" }, 400);
     const plain = (t: string) => t.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    const first = plain(items[0]), short = first.length > 140 ? first.slice(0, 137) + "…" : first;
-    const html = items.map((t) => `<p>${t.replace(/<(?!\/?b>)[^>]+>/g, "")}</p>`).join("") + `<p><a href="${site}">Abrir Herbalorium</a></p>`;
-    const title = items.length > 1 ? "Novedades en Herbalorium" : "Novedad en Herbalorium";
+    const first = plain(items[0]), short = body.short ? String(body.short) : first.length > 140 ? first.slice(0, 137) + "…" : first;
+    const html = items.map((t) => `<p>${t.replace(/<(?!\/?b>)[^>]+>/g, "")}</p>`).join("") + `<p><a href="${site}">Abrir el herbario</a></p>`;
+    const title = body.title ? String(body.title) : items.length > 1 ? "Novedades en Herbalorium" : "Novedad en Herbalorium";
     if (body.test) return json({ ok: true, test: true, ...(await send([me.id], "news", title, short, site, html)) });
     const sent = Number(sec.news_sent || 0);
     const mark = () => db.from("app_secrets").upsert({ key: "news_sent", value: String(v) });
