@@ -235,7 +235,7 @@ function showSplash() {
   splashAt = Date.now();
   const el = document.createElement("div");
   el.className = "splash";
-  el.innerHTML = `<img class="sp-emb" src="icons/icon-512.png" alt="">
+  el.innerHTML = `<img class="sp-emb" src="tools/iconos/icon-512.png" alt="">
     <div class="sp-txt"><h1>Herbalorium</h1><p class="sp-sub">Herbarium vivum</p><span class="sp-rule"></span><p class="sp-load">Abriendo el herbario…</p></div>`;
   document.body.appendChild(el);
   // El emblema arranca centrado (como lo deja el teléfono) y sube lo justo para dejar lugar al título.
@@ -383,7 +383,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.11.3", APP_DATE = "2026-11-15";
+const APP_VERSION = "1.11.4", APP_DATE = "2026-11-16";
 const SCHEMA_NEEDED = 23;
 let schemaBehind = false;
 async function loadPlants() {

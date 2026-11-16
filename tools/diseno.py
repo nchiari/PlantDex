@@ -4,6 +4,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Cambios de marcado en app.js (además de los textos de neutro.py).
 APP_EDITS = [
+  # Portada al abrir: el ícono nuevo.
+  ('<img class="sp-emb" src="icons/icon-512.png" alt="">', '<img class="sp-emb" src="tools/iconos/icon-512.png" alt="">'),
   # Títulos de pantalla en castellano, iguales al menú de abajo.
   ('<div class="entry-head"><h2>Herbarium</h2>', '<div class="entry-head"><h2>Herbario</h2>'),
   ('<h2>Kalendarium</h2>', '<h2>Calendario</h2>'),
