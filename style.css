@@ -1675,3 +1675,4 @@ nav.bottom button { font-size: 10px !important; }
 
 /* ---- 8. Emblema: la nervadura de las hojas toma el color del fondo ---- */
 :root { --emb-vein: var(--parchment); }
+.place-src { margin: 6px 0 0; font-size: var(--fs-xs, 14px); font-style: italic; } .place-src:empty { display: none; }

@@ -340,7 +340,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.12.0", APP_DATE = "2026-11-16";
+const APP_VERSION = "1.12.1", APP_DATE = "2026-11-18";
 const SCHEMA_NEEDED = 24;
 let schemaBehind = false;
 async function loadPlants() {
@@ -2608,7 +2608,7 @@ function renderNew() {
       <div class="preview" id="prev"></div>
     </div>
     ${draft.data.common_name ? `<div class="resume"><span>Tienes una ficha a medio hacer: <b>${esc(draft.data.common_name)}</b></span><button class="btn primary" id="resume">Seguir</button></div>` : ""}
-    <label>Dónde estás</label><input id="place" placeholder="se detecta solo con el GPS, o escríbelo" value="${esc(draft.data.location_name || "")}">
+    <label>Dónde la encontraste</label><input id="place" placeholder="se completa con la ubicación de la foto, o escríbelo" value="${esc(draft.data.location_name || "")}"><p class="place-src muted" id="placesrc"></p>
     <label>Pista (opcional)</label><input id="hint" placeholder="ej: a orillas de un río, huele a anís" value="${esc(draft.hint || "")}">
     <div class="tabs">
       <button data-m="chat" class="${m === "chat" ? "on" : ""}">Con mi chat</button>
@@ -2629,7 +2629,8 @@ function renderNew() {
     prev.insertAdjacentHTML("afterend", `<p class="muted photos-full">Ya tienes las 4 fotos. Para cambiar una, bórrala con la ×.</p>`);
   }
   $app.querySelector("#hint").oninput = (e) => (draft.hint = e.target.value);
-  $app.querySelector("#place").oninput = (e) => { draft.data.location_name = e.target.value; draft.data.locSource = "manual"; saveDraft(); };
+  $app.querySelector("#place").oninput = (e) => { draft.data.location_name = e.target.value; draft.data.locSource = "manual"; saveDraft(); paintPlaceSrc(); };
+  paintPlaceSrc();
   $app.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { draft.mode = b.dataset.m; renderNew(); }));
 
   const box = $app.querySelector("#mode");
@@ -2707,15 +2708,33 @@ async function setPlace(lat, lng, source) {
     d.location_name = name; saveDraft();
     const el = document.getElementById("place"); if (el) el.value = name;
   }
+  paintPlaceSrc();
+}
+// Fotos sacadas otro día que no traen ubicación (Android suele quitársela a las fotos que se eligen desde una página web):
+// ahí la ubicación actual del teléfono sería la de tu casa, no la del hallazgo, así que no se usa.
+const photosOldNoGps = () => { const fs = draft?.files || [], today = localISODate(new Date());
+  return fs.length > 0 && !fs.some((f) => f.gps) && fs.some((f) => f.taken && f.taken < today); };
+function paintPlaceSrc() {
+  const el = document.getElementById("placesrc"), d = draft?.data; if (!el || !d) return;
+  el.textContent = d.locSource === "photo" ? "Ubicación tomada de la foto."
+    : d.locSource === "device" ? "Es tu ubicación actual. Cámbiala si la encontraste en otro lugar."
+    : d.locSource !== "manual" && photosOldNoGps() ? "Las fotos no traen ubicación: escribe dónde la encontraste." : "";
 }
 // Si alguna foto trae GPS, el lugar del hallazgo es el de la foto más antigua con coordenadas.
 function usePhotoLocation() {
   const withGps = (draft?.files || []).filter((f) => f.gps).sort((a, b) => String(a.taken).localeCompare(String(b.taken)));
-  if (withGps.length) setPlace(withGps[0].gps[0], withGps[0].gps[1], "photo");
+  if (withGps.length) return setPlace(withGps[0].gps[0], withGps[0].gps[1], "photo");
+  const d = draft?.data;
+  if (d && d.locSource === "device" && photosOldNoGps()) { // la ubicación actual no sirve para fotos de otro día
+    d.lat = null; d.lng = null; d.location_name = ""; d.locSource = null; saveDraft();
+    const el = document.getElementById("place"); if (el) el.value = "";
+  }
+  paintPlaceSrc();
 }
 function getLocation() {
   if (draft.data.lat || !navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition((pos) => setPlace(pos.coords.latitude, pos.coords.longitude, "device"), () => {}, { timeout: 8000 });
+  if (photosOldNoGps()) return paintPlaceSrc();
+  navigator.geolocation.getCurrentPosition((pos) => { if (!photosOldNoGps()) setPlace(pos.coords.latitude, pos.coords.longitude, "device"); }, () => {}, { timeout: 8000 });
 }
 
 function placeCtx() {
