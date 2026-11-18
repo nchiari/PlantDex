@@ -89,9 +89,29 @@ Deno.serve(async (req) => {
     return { push: p, mail: m };
   };
 
+  // Pedidos para entrar que todavía no se avisaron al dueño. Se avisa apenas la persona pide el enlace,
+  // aunque todavía no haya abierto la app (antes el aviso esperaba a que entrara con la sesión iniciada).
+  const pendingPing = async () => {
+    if (!owner) return 0;
+    const todo = (mem || []).filter((m) => m.status === "pending" && !m.notified_at);
+    for (const m of todo) {
+      const { data: mine } = await db.from("members").update({ notified_at: new Date().toISOString() }).eq("user_id", m.user_id).is("notified_at", null).select("user_id");
+      if (!mine?.length) continue; // otra llamada ya lo avisó
+      const who2 = m.name || m.email || "Alguien";
+      await send([owner.id], "requests", `${who2} quiere entrar al herbario`, `${m.email || ""}${m.invited_by ? ` · invitado por ${m.invited_by}` : ""}. Puedes aceptarlo desde Ajustes.`, site + "#settings");
+    }
+    return todo.length;
+  };
+  // Lo dispara la base al crearse un pedido (si tiene pg_net), con la misma clave que la tarea de cada hora.
+  if (kind === "pending") {
+    if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
+    return json({ ok: true, requests: await pendingPing() });
+  }
+
   // ---------- tarea de cada hora: misión nueva (9 de la mañana) y resumen diario de láminas ----------
   if (kind === "cron") {
     if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
+    const requests = await pendingPing(); // por si el aviso inmediato no salió
     let missions = 0, digests = 0, newsPinged = 0;
     let sched: { v: number; date: string; title: string; short: string; html: string } | null = null;
     try { sched = sec.news_sched ? JSON.parse(sec.news_sched) : null; } catch { sched = null; }
@@ -128,7 +148,7 @@ Deno.serve(async (req) => {
       }
     }
     if (sched && newsPinged) await db.from("app_secrets").upsert({ key: "news_sent_" + sched.v, value: [...schedSent].join(",") });
-    return json({ ok: true, missions, digests, newsPinged });
+    return json({ ok: true, missions, digests, newsPinged, requests });
   }
 
   // ---------- mail único a todo el herbario (lo dispara la base, con la misma clave que la tarea de cada hora) ----------

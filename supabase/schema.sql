@@ -528,3 +528,23 @@ update public.expedition_templates set hint = 'Después de la lluvia, en el cés
 update public.expedition_templates set hint = 'Lilas, violetas, celestes y azules. Suelen ser más pequeñas: mira de cerca.' where key = 'violetas';
 update public.expedition_templates set hint = 'Busca al aire libre alguna planta que ya asentó otra persona y suma tu hallazgo a su lámina.' where key = 'doble';
 create or replace function public.schema_version() returns int language sql immutable as $$ select 24 $$;
+
+-- v25: aviso inmediato al dueño cuando alguien pide entrar (al crearse el pedido, aunque todavía no haya abierto la app).
+-- Usa la misma dirección y clave que la tarea de cada hora «herbalorium-avisos». Si la base no tiene pg_cron o pg_net,
+-- no hace nada y el aviso sale igual en la tarea de cada hora.
+create or replace function public.on_member_pending() returns trigger language plpgsql security definer set search_path = '' as $$
+declare u text; k text;
+begin
+  if new.status <> 'pending' or new.notified_at is not null then return new; end if;
+  if not exists (select 1 from pg_extension where extname = 'pg_net') or not exists (select 1 from pg_extension where extname = 'pg_cron') then return new; end if;
+  execute $q$ select substring(command from 'url := ''([^'']+)''') from cron.job where jobname = 'herbalorium-avisos' $q$ into u;
+  select value into k from public.app_secrets where key = 'cron';
+  if u is null or k is null then return new; end if;
+  execute 'select net.http_post(url := $1, headers := jsonb_build_object(''content-type'', ''application/json'', ''x-cron'', $2), body := ''{"kind":"pending"}''::jsonb)' using u, k;
+  return new;
+exception when others then return new; -- un aviso que falla nunca frena el pedido
+end $$;
+revoke all on function public.on_member_pending() from public, anon, authenticated;
+drop trigger if exists member_pending_notify on public.members;
+create trigger member_pending_notify after insert on public.members for each row execute function public.on_member_pending();
+create or replace function public.schema_version() returns int language sql immutable as $$ select 25 $$;
