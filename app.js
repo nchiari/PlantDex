@@ -332,7 +332,7 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { rejson: "todos", mascotas: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { rejson: "todos", mascotas: "prueba", revision: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -340,7 +340,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.12.4", APP_DATE = "2026-11-20";
+const APP_VERSION = "1.12.5", APP_DATE = "2026-11-20";
 const SCHEMA_NEEDED = 25;
 let schemaBehind = false;
 async function loadPlants() {
@@ -2908,42 +2908,87 @@ function renderForm(existing) {
   d.flower_months ||= []; d.fruit_months ||= [];
   const opt = (map, cur, idx) => Object.keys(map).map((k) => `<option value="${k}" ${(cur || "desconocido") === k ? "selected" : ""}>${map[k][idx]}</option>`).join("");
   const ta = (id, label) => `<label>${label}</label><textarea id="${id}">${esc(d[id] || "")}</textarea>`;
+  // Piezas del formulario (los mismos campos en los dos diseños, así guardar funciona igual).
+  const F = {
+    photos: existing ? `<label>Fotos</label><div class="preview" id="edphotos"></div>
+      <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : "",
+    name: `<label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">`,
+    other: `<label>Otros nombres</label><input id="other_names" placeholder="España: … · Latinoamérica: … · Inglés: …" value="${esc(d.other_names || "")}">`,
+    origin: `<label>Origen (corto)</label><input id="origin" placeholder="ej: Mediterráneo" value="${esc(d.origin || "")}">
+    <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">`,
+    sci: `<div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
+    <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>`,
+    setting: feat("cultivo") ? `<label>¿Dónde la conociste?</label>
+    <div class="seg" id="setting">${[["hallada", "Hallada", "Al aire libre: campo, calle, parque"], ["cultivada", "Cultivada", "En casa: maceta, huerta, jardín"]].map(([k, l, sub]) => `<button type="button" data-set="${k}" class="${(d.setting || "hallada") === k ? "on" : ""}"><b>${l}</b><small>${sub}</small></button>`).join("")}</div>
+    <p class="muted seg-note" id="setnote" ${(d.setting || "hallada") === "cultivada" ? "" : "hidden"}>Las cultivadas no guardan el lugar: así nadie del herbario ve dónde vives.</p>` : "",
+    types: `<label>Tipos</label>
+    <div class="chips" id="types">${TYPES.map((t) => `<span class="chip ${d.types?.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>`,
+    pets: feat("mascotas") ? `<label>¿Es tóxica para mascotas?</label><select id="dog_safety">${[["desconocido", "No se sabe"], ["seguro", "No"], ["toxico", "Sí"]].map(([k, l]) => `<option value="${k}" ${(/^tox/.test(d.dog_safety || "") ? "toxico" : d.dog_safety === "seguro" ? "seguro" : "desconocido") === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <label>Para mascotas: qué partes y qué síntomas</label><textarea id="dog_notes">${esc(d.dog_notes || "")}</textarea>` : "",
+    edible: `<div class="row"><div><label>¿Es comestible?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
+</div>`,
+    months: `<label>Floración: toca los meses</label>${monthsBar(d.flower_months, [], "flm")}
+    <label>Fruto o cosecha</label>${monthsBar([], d.fruit_months, "frm")}`,
+    iucn: `<label>Estado de conservación (UICN)</label>
+    ${d.iucn
+      ? `<div style="margin-top:6px">${iucnPill(d.iucn)}</div>`
+      : `<select id="iucn"><option value="">Sin dato</option>${Object.entries(IUCN).map(([k, [l]]) => `<option value="${k}">${k} · ${l}</option>`).join("")}</select>`}`,
+    place: `<div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
+    <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>`,
+    exp: !existing && feat("expediciones") && expCur() ? `<div class="ex-suma" id="exsuma"></div>` : "",
+    rejson: existing && feat("rejson") ? `<details class="rejson"><summary>Actualizar con una ficha nueva de la IA</summary>
+      <p class="muted">Si le pediste a tu IA una ficha nueva para esta planta, pega aquí su respuesta y los textos de la lámina se completan solos. Las fotos, el lugar, la fecha y tus notas no cambian.</p>
+      <textarea id="rejson" placeholder='{ "common_name": "…" }'></textarea>
+      <div class="row" style="margin-top:12px"><button class="btn" id="rjpaste">Pegar</button><button class="btn primary" id="rjuse">Actualizar la ficha</button></div></details>` : "",
+    save: `<button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button>`,
+  };
+  const TEXTS = [["description", "Descripción"], ["edibility_notes", "Comestibilidad"], ["medicinal_notes", "Usos medicinales"], ["uses", "Otros usos"], ["history", "Historia"], ["curiosity", "Dato curioso"], ["notes", "Mis notas"]];
+  if (feat("revision")) {
+    // Revisión en tres partes: una tarjeta que resume lo que entendió la IA, lo que conviene revisar
+    // y, plegado, el resto. Los textos largos se abren de a uno, solo si quieres cambiarlos.
+    const cover = existing ? photoOf(existing) || coverOf(existing) : draft.files?.[0]?.url;
+    const hm = HUMAN[d.edible_human || "desconocido"] || HUMAN.desconocido;
+    const seal = (cls, t) => `<span class="rv-seal ${cls}">${t}</span>`;
+    const seals = [(d.kind || "") && seal("", esc(String(d.kind)[0].toUpperCase() + String(d.kind).slice(1))),
+      d.types?.includes("toxica") ? seal("bad", "Tóxica") : hm[1] ? seal(hm[1], hm[0]) : "",
+      feat("mascotas") && /^tox/.test(d.dog_safety || "") ? seal("pet", "Tóxica para mascotas") : "",
+      d.iucn ? seal("", "UICN · " + esc(d.iucn)) : ""].filter(Boolean).join("");
+    const plain = (t) => String(t || "").replace(/\*\*/g, "").trim();
+    const textRow = ([id, label]) => `<details class="rv-text" data-for="${id}"><summary><span class="rv-tl">${label}</span><span class="rv-pv">${esc(plain(d[id]).slice(0, 110)) || "<i>Vacío</i>"}</span></summary><textarea id="${id}">${esc(d[id] || "")}</textarea></details>`;
+    $app.innerHTML = `
+    <button class="back" id="bk">← Volver</button>
+    <h2>${existing ? "Corregir lámina" : "Revisa la lámina"}</h2>
+    ${existing ? "" : `<p class="muted rv-lead">La IA ya completó la ficha. Revisa lo esencial y asiéntala; el resto puedes cambiarlo cuando quieras.</p>`}
+    <div class="rv-card">${cover ? `<span class="rv-ph" style="background-image:url('${cover}')"></span>` : ""}
+      <div class="rv-id"><b>${esc(d.common_name || "Sin nombre")}</b><i>${esc(d.scientific_name || "")}</i>${d.family ? `<small>${esc(d.family)}</small>` : ""}<div class="rv-seals">${seals}</div></div></div>
+    ${F.photos}
+    <h3>Revisa esto</h3>
+    ${F.name}${F.sci}${F.setting}${F.place}
+    ${F.exp}
+    <details class="rv-sec"><summary>Clasificación</summary>${F.types}${F.edible}${F.pets}${F.months}${F.iucn}${F.other}${F.origin}</details>
+    <h3>Textos de la lámina</h3>
+    <div class="rv-texts">${TEXTS.map(textRow).join("")}</div>
+    ${F.rejson}
+    <div class="rv-bar">${F.save}</div>`;
+    $app.querySelectorAll(".rv-text").forEach((x) => x.addEventListener("toggle", () => { const t = x.querySelector("textarea"); if (x.open && t) { t.style.height = "auto"; t.style.height = t.scrollHeight + 4 + "px"; } }));
+  } else {
   $app.innerHTML = `
     <button class="back" id="bk">← Volver</button>
     <h2>${existing ? "Corregir lámina" : "Redactar la lámina"}</h2>
-    ${existing ? `<label>Fotos</label><div class="preview" id="edphotos"></div>
-      <div class="row"><button class="btn" id="addcam">Sacar foto</button><button class="btn" id="addgal">Agregar de la galería</button></div>` : ""}
-    <label>Nombre común *</label><input id="common_name" value="${esc(d.common_name || "")}">
-    <label>Otros nombres</label><input id="other_names" placeholder="España: … · Latinoamérica: … · Inglés: …" value="${esc(d.other_names || "")}">
-    <label>Origen (corto)</label><input id="origin" placeholder="ej: Mediterráneo" value="${esc(d.origin || "")}">
-    <label>Origen y distribución</label><input id="native_range" value="${esc(d.native_range || "")}">
-    <div class="row"><div><label>Nombre científico</label><input id="scientific_name" value="${esc(d.scientific_name || "")}"></div>
-    <div><label>Familia</label><input id="family" value="${esc(d.family || "")}"></div></div>
-    ${feat("cultivo") ? `<label>¿Dónde la conociste?</label>
-    <div class="seg" id="setting">${[["hallada", "Hallada", "Al aire libre: campo, calle, parque"], ["cultivada", "Cultivada", "En casa: maceta, huerta, jardín"]].map(([k, l, sub]) => `<button type="button" data-set="${k}" class="${(d.setting || "hallada") === k ? "on" : ""}"><b>${l}</b><small>${sub}</small></button>`).join("")}</div>
-    <p class="muted seg-note" id="setnote" ${(d.setting || "hallada") === "cultivada" ? "" : "hidden"}>Las cultivadas no guardan el lugar: así nadie del herbario ve dónde vives.</p>` : ""}
-    <label>Tipos</label>
-    <div class="chips" id="types">${TYPES.map((t) => `<span class="chip ${d.types?.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>
-    ${feat("mascotas") ? `<label>¿Es tóxica para mascotas?</label><select id="dog_safety">${[["desconocido", "No se sabe"], ["seguro", "No"], ["toxico", "Sí"]].map(([k, l]) => `<option value="${k}" ${(/^tox/.test(d.dog_safety || "") ? "toxico" : d.dog_safety === "seguro" ? "seguro" : "desconocido") === k ? "selected" : ""}>${l}</option>`).join("")}</select>
-    <label>Para mascotas: qué partes y qué síntomas</label><textarea id="dog_notes">${esc(d.dog_notes || "")}</textarea>` : ""}
-    <div class="row"><div><label>¿Es comestible?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
-</div>
-    <label>Floración: toca los meses</label>${monthsBar(d.flower_months, [], "flm")}
-    <label>Fruto o cosecha</label>${monthsBar([], d.fruit_months, "frm")}
-    <label>Estado de conservación (UICN)</label>
-    ${d.iucn
-      ? `<div style="margin-top:6px">${iucnPill(d.iucn)}</div>`
-      : `<select id="iucn"><option value="">Sin dato</option>${Object.entries(IUCN).map(([k, [l]]) => `<option value="${k}">${k} · ${l}</option>`).join("")}</select>`}
-    ${ta("description", "Descripción")}${ta("edibility_notes", "Comestibilidad")}
-    ${ta("medicinal_notes", "Usos medicinales")}${ta("uses", "Otros usos")}${ta("history", "Historia")}${ta("curiosity", "Dato curioso")}${ta("notes", "Mis notas")}
-    <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
-    <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>
-    ${!existing && feat("expediciones") && expCur() ? `<div class="ex-suma" id="exsuma"></div>` : ""}
-    ${existing && feat("rejson") ? `<details class="rejson"><summary>Actualizar con una ficha nueva de la IA</summary>
-      <p class="muted">Si le pediste a tu IA una ficha nueva para esta planta, pega aquí su respuesta y los textos de la lámina se completan solos. Las fotos, el lugar, la fecha y tus notas no cambian.</p>
-      <textarea id="rejson" placeholder='{ "common_name": "…" }'></textarea>
-      <div class="row" style="margin-top:12px"><button class="btn" id="rjpaste">Pegar</button><button class="btn primary" id="rjuse">Actualizar la ficha</button></div></details>` : ""}
-    <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
+    ${F.photos}
+    ${F.name}${F.other}${F.origin}${F.sci}${F.setting}
+    ${F.types}
+    ${F.pets}
+    ${F.edible}
+    ${F.months}
+    ${F.iucn}
+    ${TEXTS.map(([id, l]) => ta(id, l)).join("")}
+    ${F.place}
+    ${F.exp}
+    ${F.rejson}
+    <div class="row" style="margin-top:22px">${F.save}</div>`;
+  }
+  scrollTo(0, 0); // la ficha siempre se abre desde arriba
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
   // Ficha nueva de la IA sobre una lámina ya asentada: reemplaza los textos y deja lo que es del hallazgo.
   $app.querySelector("#rjpaste")?.addEventListener("click", async () => {
