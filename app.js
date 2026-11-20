@@ -332,7 +332,9 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { rejson: "todos", mascotas: "prueba", revision: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+// Tóxicas para mascotas y la nueva pantalla para revisar la lámina: para todos el sábado 21 a las 9 (hora de cada teléfono).
+const MASC_LIVE = Date.now() >= new Date("2026-11-21T09:00").getTime();
+const FEATURES = { rejson: "todos", mascotas: MASC_LIVE ? "todos" : "prueba", revision: MASC_LIVE ? "todos" : "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -340,7 +342,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.12.5", APP_DATE = "2026-11-20";
+const APP_VERSION = MASC_LIVE ? "1.13.0" : "1.12.5", APP_DATE = MASC_LIVE ? "2026-11-21" : "2026-11-20";
 const SCHEMA_NEEDED = 25;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1149,6 +1151,12 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece solo desde ese momento en la hora de cada teléfono.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
+  { v: 13, date: "2026-11-21", at: "09:00", feat: "mascotas", items: [
+    "<b>Tóxicas para mascotas 🐶🐱</b> Algunas plantas son inofensivas para las personas pero peligrosas para perros y gatos. Ahora la IA también lo revisa: en la lámina, toca «Tóxica» y verás un recuadro aparte que explica qué partes les hacen daño y qué síntomas dan. En las láminas que ya están, puedes sumarlo desde Editar, con una ficha nueva de la IA.",
+    "<b>Revisar la lámina es más fácil.</b> Cuando la IA completa la ficha, ves un resumen con la foto y solo lo esencial para revisar. Los textos largos quedan plegados y se abren si quieres cambiarlos.",
+  ], tour: [
+    ["plantpet", ".use.u-toxica", "Tóxica para mascotas 🐶🐱", "Toca «Tóxica»: lo que es peligroso para perros y gatos aparece en un recuadro aparte, en ámbar."],
+  ] },
   { v: 12, date: "2026-11-16", title: "Novedad en Herbalorium: algunos retoques", short: "Pulimos detalles de la app y el emblema tiene un dibujo nuevo.", items: [
     "<b>Algunos retoques.</b> Pulimos detalles en toda la app: textos más claros y escritos en un español que se lee igual de bien en España y en Latinoamérica, títulos en castellano y botones más parejos.",
     "<b>Emblema nuevo.</b> El medallón de Herbalorium tiene ahora un dibujo más fino. El ícono de tu pantalla de inicio se actualiza solo en los próximos días.",
@@ -1212,7 +1220,7 @@ const NEWS_ALL = [
 ];
 // Una novedad con «feat» sale solo si esa función está encendida para quien abre la app (en prueba, solo para el dueño).
 let NEWS = NEWS_ALL.filter((n) => newsLive(n) && !n.feat);
-const refreshNews = () => (NEWS = NEWS_ALL.filter((n) => newsLive(n) && (!n.feat || feat(n.feat))));
+const refreshNews = () => (NEWS = NEWS_ALL.filter((n) => (newsLive(n) || (n.feat && FEATURES[n.feat] === "prueba" && feat(n.feat))) && (!n.feat || feat(n.feat)))); // en prueba, el dueño la ve antes
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
 // Después de una novedad: si este teléfono todavía no recibe avisos, se ofrece activarlos ahí mismo (una vez por novedad).
@@ -1506,8 +1514,9 @@ function startTour(custom, onEnd) {
     if (busy) return; busy = true;
     card.classList.add("out");
     const [view, sels, t, d] = steps[i];
-    const target = view === "plant" ? (plants[0] ? "plant/" + plants[0].id : "") : view;
-    const here = view === "plant" ? location.hash.slice(1) === target : currentView() === view;
+    const pp = view === "plantpet" ? plants.find(petToxic) || plants[0] : plants[0];
+    const target = view === "plant" || view === "plantpet" ? (pp ? "plant/" + pp.id : "") : view;
+    const here = view === "plant" || view === "plantpet" ? location.hash.slice(1) === target : currentView() === view;
     if (target && !here) go(target);
     let el = null, sel = "";
     if (target) for (const s1 of sels.split("||")) { el = await waitFor(s1, here || sel ? 700 : 2500); sel = s1; if (el) break; } // en la misma pantalla no hace falta esperar tanto
