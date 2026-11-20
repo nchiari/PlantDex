@@ -1676,3 +1676,7 @@ nav.bottom button { font-size: 10px !important; }
 /* ---- 8. Emblema: la nervadura de las hojas toma el color del fondo ---- */
 :root { --emb-vein: var(--parchment); }
 .place-src { margin: 6px 0 0; font-size: var(--fs-xs, 14px); font-style: italic; } .place-src:empty { display: none; }
+/* Corregir lámina: actualizar con una ficha nueva de la IA */
+.rejson { margin-top: 32px; padding-top: 8px; border-top: 1px solid rgb(var(--line) / .2); }
+.rejson summary { cursor: pointer; padding: 12px 0; font: 600 var(--caps-m, 12px) var(--caps); letter-spacing: 1.6px; text-transform: uppercase; color: var(--leaf); }
+.rejson textarea { min-height: 120px; }

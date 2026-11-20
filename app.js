@@ -332,7 +332,7 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { rejson: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -2926,8 +2926,27 @@ function renderForm(existing) {
     <div class="row"><div><label>Lugar</label><input id="location_name" placeholder="ej: Taconera, Pamplona, España" value="${esc(d.location_name || "")}"></div>
     <div><label>Fecha</label><input id="found_at" type="date" value="${esc(d.found_at || oldestPhotoDate() || localISODate(new Date()))}"></div></div>
     ${!existing && feat("expediciones") && expCur() ? `<div class="ex-suma" id="exsuma"></div>` : ""}
+    ${existing && feat("rejson") ? `<details class="rejson"><summary>Actualizar con una ficha nueva de la IA</summary>
+      <p class="muted">Si le pediste a tu IA una ficha nueva para esta planta, pega aquí su respuesta y los textos de la lámina se completan solos. Las fotos, el lugar, la fecha y tus notas no cambian.</p>
+      <textarea id="rejson" placeholder='{ "common_name": "…" }'></textarea>
+      <div class="row" style="margin-top:12px"><button class="btn" id="rjpaste">Pegar</button><button class="btn primary" id="rjuse">Actualizar la ficha</button></div></details>` : ""}
     <div class="row" style="margin-top:22px"><button class="btn red" id="save">${existing ? "Guardar cambios" : "Asentar en el herbario"}</button></div>`;
   $app.querySelector("#bk").onclick = () => (existing ? (location.hash = "plant/" + existing.id) : renderNew());
+  // Ficha nueva de la IA sobre una lámina ya asentada: reemplaza los textos y deja lo que es del hallazgo.
+  $app.querySelector("#rjpaste")?.addEventListener("click", async () => {
+    try { const t = await navigator.clipboard.readText(); if (!t.trim()) return toast("El portapapeles está vacío."); $app.querySelector("#rejson").value = t; }
+    catch { $app.querySelector("#rejson").focus(); toast("No se pudo leer el portapapeles. Mantén pulsado el recuadro y elige «Pegar»."); }
+  });
+  $app.querySelector("#rjuse")?.addEventListener("click", () => {
+    let n;
+    try { n = normalizeAI(v("rejson")); } catch (e) { return toast(e.noJson ? "La respuesta no trae una ficha. Pídele a tu IA el bloque para Herbalorium." : "No se pudo interpretar la respuesta: " + e.message); }
+    const keep = ["id", "user_id", "number", "created_at", "author_name", "photos", "lat", "lng", "location_name", "found_at", "setting", "notes"];
+    for (const k of keep) delete n[k];
+    if (n.notes === undefined && !d.notes) delete n.notes;
+    draft.data = { ...d, ...n };
+    renderForm(existing); scrollTo(0, 0);
+    toast("Ficha actualizada. Revísala y toca «Guardar cambios».");
+  });
   $app.querySelectorAll("#types .chip").forEach((c) => (c.onclick = () => c.classList.toggle("on")));
   $app.querySelectorAll("#setting button").forEach((b) => (b.onclick = () => {
     $app.querySelectorAll("#setting button").forEach((x) => x.classList.toggle("on", x === b));
