@@ -2147,7 +2147,7 @@ function row(p) {
   return `<li data-id="${p.id}">
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
     <span class="ix-txt"><b>${esc(p.common_name)}${novaTag(p)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
-    <span class="ix-seals">${petToxic(p) ? `<span class="ix-pet" title="Tóxica para mascotas"><svg><use href="#f-paw"/></svg></span>` : ""}${authorSeal(p)}${cultSeal(p)}</span>
+    <span class="ix-seals">${authorSeal(p)}${cultSeal(p)}</span>
   </li>`;
 }
 
@@ -2223,7 +2223,7 @@ function openLegend() {
     <ul>${cons("LC", "Preocupación menor")}${cons("NT", "Casi amenazada")}${cons("VU", "Vulnerable")}${cons("EN", "En peligro o peor")}${cons(null, "Sin dato")}</ul>
     <button class="linkish" id="lg-iucn">Ver todas las categorías</button>
     <p class="lg-h">Para qué sirve</p>
-    <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}${feat("mascotas") ? chip("u-mascota", "f-paw", "Tóxica para mascotas") : ""}</ul>
+    <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}</ul>
     <p class="lg-h">Nueva</p>
     <ul><li><span class="lg-nova"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>La subió otra persona y todavía no la abriste.</li></ul></div>`;
   const close = () => m.remove();
@@ -2274,15 +2274,15 @@ const petToxic = (p) => feat("mascotas") && /^tox/.test(p.dog_safety || "");
 const petPanel = (p) => petToxic(p) ? `<div class="pet-warn"><span class="pet-ic"><svg><use href="#f-paw"/></svg></span><div><b>Tóxica para mascotas</b><p>${p.dog_notes ? rich(p.dog_notes) : "Puede ser peligrosa para perros, gatos u otros animales de compañía."}</p></div></div>` : "";
 const cardStrip = (p) => {
   const uses = usesOf(p);
-  if (markOf(p)[2] === "tox" && !uses.includes("toxica")) uses.push("toxica");
+  if ((markOf(p)[2] === "tox" || petToxic(p)) && !uses.includes("toxica")) uses.push("toxica");
   const list = USE_ORDER.filter((u) => uses.includes(u));
-  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}${petToxic(p) ? `<span class="pchip u-mascota" title="Tóxica para mascotas"><svg><use href="#f-paw"/></svg></span>` : ""}</div>`;
+  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>`;
 };
 // Panel de la ficha: 4 botones de uso; al tocar uno, explica qué parte se usa y cómo.
 function partsPanel(p) {
-  if (!usesOf(p).length) return "";
+  if (!usesOf(p).length && !petToxic(p)) return "";
   return `<div class="parts-box"><h3>Para qué sirve</h3>
-    <div class="uses">${USE_ORDER.map((u) => { const on = !!p.parts[u];
+    <div class="uses">${USE_ORDER.map((u) => { const on = !!p.parts[u] || (u === "toxica" && petToxic(p));
       return `<button class="use ${on ? "on" : "off"} u-${u}" data-use="${u}" ${on ? "" : "disabled"}>
         <span class="use-ic"><svg><use href="#${useIcon(u)}"/></svg></span><span class="use-l">${USES[u]}</span></button>`; }).join("")}</div>
     <div class="part-note" id="partnote"></div></div>`;
@@ -2367,7 +2367,7 @@ async function renderDetail(id) {
       return `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">${i === lastOwn ? slots : ""}`).join("")}${lastOwn < 0 ? slots : ""}</div>`;
     })()}
     <div class="row fig-actions" id="figact"></div>
-    ${partsPanel(p)}${petPanel(p)}
+    ${partsPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     ${factSheet(p)}
     <div class="folds">
@@ -2410,14 +2410,15 @@ async function renderDetail(id) {
     setTimeout(() => document.addEventListener("click", off), 0); setTimeout(off, 3500);
   };
   const showUse = (u) => {
-    const it = p.parts?.[u], note = $app.querySelector("#partnote"); if (!it || !note) return;
+    const it = p.parts?.[u], note = $app.querySelector("#partnote"), pet = u === "toxica" && petToxic(p); if ((!it && !pet) || !note) return;
     $app.querySelectorAll(".use").forEach((b) => b.classList.toggle("sel", b.dataset.use === u));
-    const parts = PARTS.filter(([k]) => it.partes.includes(k));
-    note.className = "part-note u-" + u;
-    note.innerHTML = `<div class="note-head"><b>${USES[u]}</b>${parts.map(([k, l]) => `<span class="ptag"><svg><use href="#p-${k}"/></svg>${l}</span>`).join("")}</div>${rich(it.nota)}`;
+    const parts = it ? PARTS.filter(([k]) => it.partes.includes(k)) : [];
+    // En «Tóxica», lo que es para mascotas va en un recuadro aparte, en ámbar, para no confundirlo con lo que es para personas.
+    note.className = "part-note u-" + u + (pet && !it ? " pet-only" : "");
+    note.innerHTML = (it ? `<div class="note-head"><b>${USES[u]}</b>${parts.map(([k, l]) => `<span class="ptag"><svg><use href="#p-${k}"/></svg>${l}</span>`).join("")}</div>${rich(it.nota)}` : "") + (pet ? petPanel(p) : "");
   };
   $app.querySelectorAll(".use.on").forEach((b) => (b.onclick = () => showUse(b.dataset.use)));
-  if (usesOf(p).length) showUse(usesOf(p)[0]);
+  if (usesOf(p).length) showUse(usesOf(p)[0]); else if (petToxic(p)) showUse("toxica");
   const canReillu = !ill && cfg.illustrations && p.scientific_name;
   const bindReillu = () => $app.querySelector("#reillu")?.addEventListener("click", async (ev) => {
     ev.currentTarget.disabled = true; ev.currentTarget.textContent = "Buscando…";

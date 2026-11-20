@@ -1692,3 +1692,6 @@ nav.bottom button { font-size: 10px !important; }
 .pet-warn p { margin: 0; font-size: var(--fs-m, 17px); line-height: 1.5; color: var(--ink); }
 .ix-pet { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--u-mascota); background: var(--pet-wash); border: 1px solid var(--u-mascota); }
 .ix-pet svg { width: 15px; height: 15px; }
+.part-note .pet-warn { margin-top: 16px; }
+.part-note.pet-only { padding: 0; background: none; border: 0; }
+.part-note.pet-only .pet-warn { margin-top: 0; }
