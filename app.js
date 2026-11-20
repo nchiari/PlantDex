@@ -342,7 +342,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = MASC_LIVE ? "1.13.0" : "1.12.5", APP_DATE = MASC_LIVE ? "2026-11-21" : "2026-11-20";
+const APP_VERSION = MASC_LIVE ? "1.13.0" : "1.12.6", APP_DATE = MASC_LIVE ? "2026-11-21" : "2026-11-20";
 const SCHEMA_NEEDED = 25;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1238,9 +1238,9 @@ async function askPush() {
   m.onclick = (e) => { if (e.target === m) close(); };
   m.querySelector('[data-a="0"]').onclick = close;
   m.querySelector('[data-a="1"]').onclick = async (e) => {
-    e.currentTarget.disabled = true;
-    let ok = false; try { ok = await enablePush(); } catch {}
-    close(); if (ok) toast("Los avisos quedaron activados en este teléfono.");
+    close(); // la ventana se cierra al tocar, sin esperar al permiso del teléfono
+    let ok = false; try { ok = await enablePush(); } catch { toast("No se pudieron activar los avisos. Prueba de nuevo desde Ajustes → Avisos."); return; }
+    if (ok) toast("Los avisos quedaron activados en este teléfono.");
   };
   document.body.appendChild(m);
 }
@@ -1590,7 +1590,8 @@ async function enablePush() {
   const perm = await Notification.requestPermission();
   if (perm !== "granted") { toast("Sin permiso no es posible enviarte avisos. Puedes activarlo en los ajustes del navegador."); return false; }
   const reg = await navigator.serviceWorker.register("sw.js");
-  await navigator.serviceWorker.ready;
+  // Recién instalada, la app a veces tarda en tener listo el trabajador en segundo plano: se espera hasta 10 segundos.
+  await Promise.race([navigator.serviceWorker.ready, new Promise((_, ko) => setTimeout(() => ko(new Error("tiempo")), 10000))]);
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) }));
   const j = sub.toJSON();
   const { error } = await sb.from("push_subs").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
@@ -1647,7 +1648,7 @@ async function bindAvisos() {
     on.disabled = s === "nope" || s === "denied";
   };
   if (on2) on2.onclick = () => on.onclick();
-  on.onclick = async () => { on.disabled = true; if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este teléfono"); } else if (await enablePush()) { await savePrefs(); toast("Los avisos quedaron activados en este teléfono."); } paint(); };
+  on.onclick = async () => { on.disabled = true; try { if ((await pushState()) === "on") { await disablePush(); toast("Notificaciones desactivadas en este teléfono"); } else if (await enablePush()) { await savePrefs(); toast("Los avisos quedaron activados en este teléfono."); } } catch { toast("No se pudieron cambiar los avisos. Cierra la app, vuelve a abrirla y prueba de nuevo."); } paint(); };
   if (test) test.onclick = async () => {
     const what = NOTIF_KINDS.map(([k]) => k).find((k) => notifPrefs[k]?.push || notifPrefs[k]?.mail);
     if (!what) return toast("Marca al menos una casilla.");
