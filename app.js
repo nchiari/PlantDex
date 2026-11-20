@@ -332,7 +332,7 @@ const nameDup = () => memberNames.filter((x) => normName(x) === normName(user?.u
 const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 // Las tertulias (con menciones) salen para todos el sábado 14 a las 9; hasta entonces, solo para el dueño de la base de pruebas.
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
-const FEATURES = { rejson: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+const FEATURES = { rejson: "todos", mascotas: "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -340,7 +340,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.12.3", APP_DATE = "2026-11-20";
+const APP_VERSION = "1.12.4", APP_DATE = "2026-11-20";
 const SCHEMA_NEEDED = 25;
 let schemaBehind = false;
 async function loadPlants() {
@@ -605,7 +605,8 @@ El JSON tiene que ser válido y con esta forma exacta:
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elige de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
- "parts": {usos de la planta. Incluye SOLO los que apliquen, con estas claves: comer, medicina, toxica, otro (madera, aceite, tintes, aroma, jardín…). Cada uno: {"partes": [de: hoja, flor, fruto, semilla, raiz, tallo], "nota": "qué parte se usa y cómo, o por qué es peligrosa; 1-2 frases claras"}},
+${feat("mascotas") ? ` "pets": {"toxic": true si es tóxica para perros, gatos u otros animales de compañía (aunque para las personas no lo sea), false si no lo es, null si no se sabe, "note": "si es tóxica para mascotas: qué partes, qué animales y qué síntomas da, en 1-2 frases claras; vacío (\"\") si no lo es"},
+` : ""} "parts": {usos de la planta. Incluye SOLO los que apliquen, con estas claves: comer, medicina, toxica, otro (madera, aceite, tintes, aroma, jardín…). Cada uno: {"partes": [de: hoja, flor, fruto, semilla, raiz, tallo], "nota": "qué parte se usa y cómo, o por qué es peligrosa; 1-2 frases claras"}},
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empieza por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y termina con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
  "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
  "native_range": "de dónde es originaria y por dónde se extendió por el mundo; si es invasora en alguna región, dilo",
@@ -621,7 +622,8 @@ El JSON tiene que ser válido y con esta forma exacta:
  "iucn": "estado de conservación GLOBAL de la especie en la Lista Roja de la UICN: LC | NT | VU | EN | CR | EW | EX | DD | NE (NE si no fue evaluada; no inventes)"${feat("dudas") ? `,
  "doubt": "vacío (\"\") si estás seguro. Si te quedó alguna duda: con qué otra especie se puede confundir y en qué fijarse para diferenciarlas, en 1-2 frases"` : ""}
 }
-Ante la duda sé conservador con la comestibilidad: usa "desconocido".
+Ante la duda sé conservador con la comestibilidad: usa "desconocido".${feat("mascotas") ? `
+La toxicidad para personas va en types ("toxica"), edible_human y parts; la toxicidad para mascotas va SOLO en pets. Si es tóxica para mascotas pero no para personas, NO pongas "toxica" en types ni en parts. Revisa siempre la toxicidad para perros y gatos, aunque la planta sea inofensiva para las personas.` : ""}
 En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marca con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
 
 // Marcas de citas que algunas IA dejan pegadas al copiar: Gemini [span_0](start_span), [cite: 1], [cite_start];
@@ -658,6 +660,11 @@ function normalizeAI(raw) {
   out.iucn = normIucn(out.iucn);
   out.setting = /cultiv/i.test(out.setting || "") ? "cultivada" : out.setting ? "hallada" : undefined;
   out.traits = normTraits(out.traits);
+  if (out.pets && typeof out.pets === "object") { // toxicidad para mascotas → columnas dog_safety / dog_notes
+    out.dog_safety = out.pets.toxic === true ? "toxico" : out.pets.toxic === false ? "seguro" : "desconocido";
+    out.dog_notes = out.pets.toxic === true && out.pets.note ? String(out.pets.note).trim() : null;
+  }
+  delete out.pets;
   fixNames(out);
   if (out.doubt && String(out.doubt).trim()) out.notes = [out.notes, `Puede confundirse con otra especie. ${String(out.doubt).trim()}`].filter(Boolean).join("\n\n");
   delete out.doubt;
@@ -2140,7 +2147,7 @@ function row(p) {
   return `<li data-id="${p.id}">
     <span class="ix-ph ${ill ? "illu" : ""}" data-sci="${esc(p.scientific_name || "")}" style="${img ? `background-image:url('${img}')` : ""}"></span>
     <span class="ix-txt"><b>${esc(p.common_name)}${novaTag(p)}</b><i>${esc(p.scientific_name || "")}${p.family ? " · " + esc(p.family) : ""}</i></span>
-    <span class="ix-seals">${authorSeal(p)}${cultSeal(p)}</span>
+    <span class="ix-seals">${petToxic(p) ? `<span class="ix-pet" title="Tóxica para mascotas"><svg><use href="#f-paw"/></svg></span>` : ""}${authorSeal(p)}${cultSeal(p)}</span>
   </li>`;
 }
 
@@ -2216,7 +2223,7 @@ function openLegend() {
     <ul>${cons("LC", "Preocupación menor")}${cons("NT", "Casi amenazada")}${cons("VU", "Vulnerable")}${cons("EN", "En peligro o peor")}${cons(null, "Sin dato")}</ul>
     <button class="linkish" id="lg-iucn">Ver todas las categorías</button>
     <p class="lg-h">Para qué sirve</p>
-    <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}</ul>
+    <ul>${USE_ORDER.map((u) => chip("u-" + u, useIcon(u), USES[u])).join("")}${feat("mascotas") ? chip("u-mascota", "f-paw", "Tóxica para mascotas") : ""}</ul>
     <p class="lg-h">Nueva</p>
     <ul><li><span class="lg-nova"><svg><use href="#i-seal-gold"/></svg><b>Nova</b></span>La subió otra persona y todavía no la abriste.</li></ul></div>`;
   const close = () => m.remove();
@@ -2262,11 +2269,14 @@ function ensureUses(p) {
 const usesOf = (p) => (ensureUses(p), USE_ORDER.filter((u) => p.parts?.[u]));
 // Tira compacta para la carta: los usos que tiene la planta.
 // Fila de la tarjeta, debajo del nombre: conservación y usos. Si es tóxica, la calavera está siempre, aunque falten los usos.
+// Tóxica para mascotas (perros, gatos): se marca aparte, con la huella, porque para las personas puede no serlo.
+const petToxic = (p) => feat("mascotas") && /^tox/.test(p.dog_safety || "");
+const petPanel = (p) => petToxic(p) ? `<div class="pet-warn"><span class="pet-ic"><svg><use href="#f-paw"/></svg></span><div><b>Tóxica para mascotas</b><p>${p.dog_notes ? rich(p.dog_notes) : "Puede ser peligrosa para perros, gatos u otros animales de compañía."}</p></div></div>` : "";
 const cardStrip = (p) => {
   const uses = usesOf(p);
   if (markOf(p)[2] === "tox" && !uses.includes("toxica")) uses.push("toxica");
   const list = USE_ORDER.filter((u) => uses.includes(u));
-  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}</div>`;
+  return `<div class="pstrip">${consBadge(p.iucn, "cons pc-cons")}${list.map((u) => `<span class="pchip u-${u}" title="${USES[u]}"><svg><use href="#${useIcon(u)}"/></svg></span>`).join("")}${petToxic(p) ? `<span class="pchip u-mascota" title="Tóxica para mascotas"><svg><use href="#f-paw"/></svg></span>` : ""}</div>`;
 };
 // Panel de la ficha: 4 botones de uso; al tocar uno, explica qué parte se usa y cómo.
 function partsPanel(p) {
@@ -2357,7 +2367,7 @@ async function renderDetail(id) {
       return `<div class="thumbs">${figs.map((f, i) => `<img src="${f.src}" data-i="${i}" class="${f.illu ? "illu" : ""} ${i === 0 ? "on" : ""}">${i === lastOwn ? slots : ""}`).join("")}${lastOwn < 0 ? slots : ""}</div>`;
     })()}
     <div class="row fig-actions" id="figact"></div>
-    ${partsPanel(p)}
+    ${partsPanel(p)}${petPanel(p)}
     ${p.description ? `<div class="field-note dropcap lead-desc">${rich(p.description)}</div>` : ""}
     ${factSheet(p)}
     <div class="folds">
@@ -2913,6 +2923,8 @@ function renderForm(existing) {
     <p class="muted seg-note" id="setnote" ${(d.setting || "hallada") === "cultivada" ? "" : "hidden"}>Las cultivadas no guardan el lugar: así nadie del herbario ve dónde vives.</p>` : ""}
     <label>Tipos</label>
     <div class="chips" id="types">${TYPES.map((t) => `<span class="chip ${d.types?.includes(t) ? "on" : ""}" data-t="${t}">${TYPE_LABEL[t]}</span>`).join("")}</div>
+    ${feat("mascotas") ? `<label>¿Es tóxica para mascotas?</label><select id="dog_safety">${[["desconocido", "No se sabe"], ["seguro", "No"], ["toxico", "Sí"]].map(([k, l]) => `<option value="${k}" ${(/^tox/.test(d.dog_safety || "") ? "toxico" : d.dog_safety === "seguro" ? "seguro" : "desconocido") === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <label>Para mascotas: qué partes y qué síntomas</label><textarea id="dog_notes">${esc(d.dog_notes || "")}</textarea>` : ""}
     <div class="row"><div><label>¿Es comestible?</label><select id="edible_human">${opt(HUMAN, d.edible_human, 0)}</select></div>
 </div>
     <label>Floración: toca los meses</label>${monthsBar(d.flower_months, [], "flm")}
@@ -2988,6 +3000,7 @@ function renderForm(existing) {
     row.iucn = d.iucn || (document.getElementById("iucn") ? v("iucn") || null : null);
     row.types = [...$app.querySelectorAll("#types .chip.on")].map((c) => c.dataset.t);
     if (d.traits) row.traits = d.traits;
+    if (feat("mascotas") && document.getElementById("dog_safety")) { row.dog_safety = v("dog_safety") || null; row.dog_notes = row.dog_safety === "toxico" ? v("dog_notes") || null : null; }
     if (feat("cultivo")) {
       row.setting = $app.querySelector("#setting .on")?.dataset.set || "hallada";
       if (row.setting === "cultivada") { row.lat = null; row.lng = null; row.location_name = null; } // sin dirección de casa

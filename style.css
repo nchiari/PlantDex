@@ -1680,3 +1680,15 @@ nav.bottom button { font-size: 10px !important; }
 .rejson { margin-top: 32px; padding-top: 8px; border-top: 1px solid rgb(var(--line) / .2); }
 .rejson summary { cursor: pointer; padding: 12px 0; font: 600 var(--caps-m, 12px) var(--caps); letter-spacing: 1.6px; text-transform: uppercase; color: var(--leaf); }
 .rejson textarea { min-height: 120px; }
+/* Tóxica para mascotas: huella en ámbar, distinta de la calavera (personas) y de los colores de hallada y cultivada */
+:root { --u-mascota: #9a5a14; --pet-wash: #f6e9d2; }
+:root[data-theme="dark"] { --u-mascota: #e7b26a; --pet-wash: #2e2416; }
+.u-mascota { color: var(--u-mascota); }
+.pchip.u-mascota { background: var(--pet-wash); }
+.pet-warn { display: flex; gap: 14px; align-items: flex-start; margin-top: 24px; padding: 16px 18px; background: var(--pet-wash); border-left: 3px solid var(--u-mascota); }
+.pet-ic { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--u-mascota); border: 1.5px solid var(--u-mascota); }
+.pet-ic svg { width: 22px; height: 22px; }
+.pet-warn b { display: block; font: 600 var(--caps-m, 12px) var(--caps); letter-spacing: 1.5px; text-transform: uppercase; color: var(--u-mascota); margin-bottom: 4px; }
+.pet-warn p { margin: 0; font-size: var(--fs-m, 17px); line-height: 1.5; color: var(--ink); }
+.ix-pet { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--u-mascota); background: var(--pet-wash); border: 1px solid var(--u-mascota); }
+.ix-pet svg { width: 15px; height: 15px; }
