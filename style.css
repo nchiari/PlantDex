@@ -703,6 +703,7 @@ body.onboarding .page { padding-top: calc(28px + env(safe-area-inset-top)); padd
   padding: 8px 12px; border: 1px solid rgb(var(--line) / .33); border-radius: 99px; margin-bottom: 4px; }
 .filt svg { width: 15px; height: 15px; }
 .filt.open, .filt.has { color: var(--ink); border-color: var(--ink); }
+.filt.has { background: rgb(var(--line) / .08); } /* con filtros puestos, el botón queda marcado; el número dorado es solo para las láminas nuevas */
 .filt b { font: 700 10px var(--caps); background: var(--gold); color: var(--deep, #1d2a1a); border-radius: 99px; min-width: 17px; height: 17px; display: grid; place-items: center; letter-spacing: 0; }
 .filters { margin: 10px 0 6px; padding: 12px 14px 8px; border: 1px solid rgb(var(--line) / .18); background: rgb(var(--line) / .04); }
 .filters .chips { margin: 6px 0 10px; }

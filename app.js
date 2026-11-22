@@ -342,7 +342,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = MASC_LIVE ? "1.13.0" : "1.12.6", APP_DATE = MASC_LIVE ? "2026-11-21" : "2026-11-20";
+const APP_VERSION = "1.13.1", APP_DATE = "2026-11-22";
 const SCHEMA_NEEDED = 25;
 let schemaBehind = false;
 async function loadPlants() {
@@ -1774,10 +1774,10 @@ function renderList() {
   const list = plants.filter((p) =>
     (!filter.nova || isNova(p)) &&
     (!filter.setting || (p.setting || "hallada") === filter.setting) &&
-    filter.types.every((t) => p.types?.includes(t)) &&
+    filter.types.every((t) => p.types?.includes(t) || (t === "toxica" && petToxic(p))) && // «Tóxica» incluye las tóxicas para mascotas, igual que el botón de la lámina
     (!filter.who.length || foundBy(p).some((w) => filter.who.includes(w))) &&
     (!q || [p.common_name, p.other_names, p.scientific_name, p.family, p.location_name].join(" ").toLowerCase().includes(q)));
-  const used = TYPES.filter((t) => plants.some((p) => p.types?.includes(t)));
+  const used = TYPES.filter((t) => plants.some((p) => p.types?.includes(t) || (t === "toxica" && petToxic(p))));
   // Personas que encontraron algo: quien subió la lámina y quien sumó un hallazgo, con cuántas láminas tiene cada una.
   const counts = plants.reduce((acc, p) => { foundBy(p).forEach((w) => (acc[w] = (acc[w] || 0) + 1)); return acc; }, {});
   if (feat("miembros")) memberNames.forEach((n) => (counts[n] ??= 0)); // quien todavía no cargó nada aparece con 0
@@ -1795,7 +1795,7 @@ function renderList() {
       <button data-v="list" class="${cfg.view === "list" ? "on" : ""}">Índice</button>
     </div>` : ""}
     <div class="search"><input id="q" placeholder="Buscar en el herbario…" value="${esc(filter.q)}">
-      ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${active ? `<b>${active}</b>` : ""}${feat("contador") && novas && !filter.nova ? `<span class="nova-count" title="${novas} ${novas === 1 ? "lámina nueva" : "láminas nuevas"}">${novas}</span>` : ""}</button>` : ""}</div>
+      ${plants.length ? `<button class="filt ${filter.open ? "open" : ""} ${active ? "has" : ""}" id="filt" aria-expanded="${filter.open}"><svg><use href="#i-sieve"/></svg>Filtrar${feat("contador") && novas && !filter.nova ? `<span class="nova-count" title="${novas} ${novas === 1 ? "lámina nueva" : "láminas nuevas"}">${novas}</span>` : ""}</button>` : ""}</div>
     ${filter.open ? `<div class="filters">
         ${feat("nuevas") ? `<p class="fl-h">Novedades</p><div class="chips"><span class="chip nova-chip ${filter.nova ? "on" : ""}" data-nova>Nuevas <small>${novas}</small></span></div>` : ""}
         ${feat("cultivo") && plants.some((p) => p.setting === "cultivada") ? `<p class="fl-h">Dónde</p><div class="chips">${[["hallada", "Halladas"], ["cultivada", "Cultivadas"]].map(([k, l]) => `<span class="chip ${filter.setting === k ? "on" : ""}" data-setting="${k}">${l}</span>`).join("")}</div>` : ""}
