@@ -1230,7 +1230,7 @@ const NEWS_ALL = [
 ];
 // Una novedad con «feat» sale solo si esa función está encendida para quien abre la app (en prueba, solo para el dueño).
 let NEWS = NEWS_ALL.filter((n) => newsLive(n) && !n.feat);
-const refreshNews = () => (NEWS = NEWS_ALL.filter((n) => (newsLive(n) || (n.feat && FEATURES[n.feat] === "prueba" && feat(n.feat))) && (!n.feat || feat(n.feat)))); // en prueba, el dueño la ve antes
+const refreshNews = () => (NEWS = NEWS_ALL.filter((n) => (newsLive(n) || (n.preview && n.feat && FEATURES[n.feat] === "prueba" && feat(n.feat))) && (!n.feat || feat(n.feat)))); // con «preview», el dueño la ve antes mientras está en prueba
 // Quien creó su cuenta después de la última novedad ya conoce la app así: no se le muestra.
 const newsSeen = () => Math.max(cfg.newsSeen || 0, user?.user_metadata?.news_seen || 0, (user?.created_at || "").slice(0, 10) >= NEWS[0].date ? NEWS[0].v : 0);
 // Después de una novedad: si este teléfono todavía no recibe avisos, se ofrece activarlos ahí mismo (una vez por novedad).
