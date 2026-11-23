@@ -6,7 +6,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
-const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false }, comments: { push: true, mail: false }, replies: { push: true, mail: false } };
+const DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false }, comments: { push: true, mail: false }, replies: { push: true, mail: false }, expeditions: { push: true, mail: false } };
 type Kind = keyof typeof DEFAULT;
 const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
@@ -102,6 +102,35 @@ Deno.serve(async (req) => {
     }
     return todo.length;
   };
+  // Expediciones (las reales, no las de prueba): avisa cuando arranca, cuando se cumple y cuando quedan 2 días.
+  // Cada aviso sale una sola vez: se marca en la expedición antes de mandarlo.
+  const expPing = async () => {
+    const { data: xs } = await db.from("expeditions").select("id,title,hint,goal,status,starts_at,ends_at,reminded_at,started_notified_at,done_notified_at").eq("demo", false);
+    if (!xs?.length) return 0; // sin expediciones (o base sin la versión 26)
+    const to = [...accepted], url = site + "#exp", now = Date.now();
+    const mark = async (id: string, col: string) => { const { data } = await db.from("expeditions").update({ [col]: new Date().toISOString() }).eq("id", id).is(col, null).select("id"); return !!data?.length; };
+    let n = 0;
+    for (const x of xs) {
+      if (x.status === "active" && !x.started_notified_at && now - new Date(x.starts_at).getTime() < 12 * 36e5 && await mark(x.id, "started_notified_at")) {
+        await send(to, "expeditions", `Arrancó una expedición: ${x.title}`, `Entre todos, ${x.goal} plantas antes del domingo de la semana que viene. ${x.hint || ""}`.trim(), url); n++;
+      }
+      if (x.status === "done" && !x.done_notified_at && await mark(x.id, "done_notified_at")) {
+        await send(to, "expeditions", `Expedición cumplida: ${x.title}`, `Entre todos llegaron a ${x.goal} plantas. Quienes aportaron ganan su sello.`, url); n++;
+      }
+      const left = new Date(x.ends_at).getTime() - now;
+      const hour = +new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(new Date());
+      if (x.status === "active" && !x.reminded_at && left > 0 && left < 64 * 36e5 && hour >= 9 && hour < 21 && await mark(x.id, "reminded_at")) {
+        const { count } = await db.from("expedition_entries").select("plant_id", { count: "exact", head: true }).eq("expedition_id", x.id);
+        await send(to, "expeditions", `Quedan 2 días: ${x.title}`, `Van ${count || 0} de ${x.goal}. Todavía se puede llegar entre todos.`, url); n++;
+      }
+    }
+    return n;
+  };
+  if (kind === "exp") { // lo dispara la base cuando una expedición arranca o se cumple
+    if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
+    return json({ ok: true, expeditions: await expPing() });
+  }
+
   // Lo dispara la base al crearse un pedido (si tiene pg_net), con la misma clave que la tarea de cada hora.
   if (kind === "pending") {
     if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
@@ -112,8 +141,9 @@ Deno.serve(async (req) => {
   if (kind === "cron") {
     if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
     const requests = await pendingPing(); // por si el aviso inmediato no salió
+    const expeditions = await expPing();
     let missions = 0, digests = 0, newsPinged = 0;
-    let sched: { v: number; date: string; title: string; short: string; html: string } | null = null;
+    let sched: { v: number; date: string; title: string; short: string; html: string; mailOnly?: boolean } | null = null;
     try { sched = sec.news_sched ? JSON.parse(sec.news_sched) : null; } catch { sched = null; }
     const schedSent = new Set<string>(sched ? String(sec["news_sent_" + sched.v] || "").split(",").filter(Boolean) : []);
     for (const uid of accepted) {
@@ -132,7 +162,8 @@ Deno.serve(async (req) => {
       }
       // Novedad programada (app_secrets «news_sched»): a las 9 de cada uno, desde su fecha, a quien todavía no la vio ni recibió el aviso.
       if (sched && today >= sched.date && !schedSent.has(uid) && (users.find((u) => u.id === uid)?.user_metadata?.news_seen || 0) < sched.v) {
-        await send([uid], "news", sched.title, sched.short, site, sched.html);
+        if (sched.mailOnly) { if (prefs.news.mail) await mail(uid, sched.title, sched.html); } // el aviso al teléfono ya lo da otro (por ejemplo, el de la expedición)
+        else await send([uid], "news", sched.title, sched.short, site, sched.html);
         schedSent.add(uid); newsPinged++;
       }
       // Resumen de láminas por mail: solo si alguien más sumó alguna desde el último resumen.
@@ -148,7 +179,7 @@ Deno.serve(async (req) => {
       }
     }
     if (sched && newsPinged) await db.from("app_secrets").upsert({ key: "news_sent_" + sched.v, value: [...schedSent].join(",") });
-    return json({ ok: true, missions, digests, newsPinged, requests });
+    return json({ ok: true, missions, digests, newsPinged, requests, expeditions });
   }
 
   // ---------- mail único a todo el herbario (lo dispara la base, con la misma clave que la tarea de cada hora) ----------

@@ -280,6 +280,7 @@ function route() {
   else if (cfg.demoNews) { delete cfg.demoNews; saveCfg(cfg); setTimeout(() => openNews(true, DEMO_NEWS), 900); }
   // Lanzamiento de las tertulias: primero la carta y después la novedad con su recorrido (solo para quien ya usaba la app).
   else if (feat("notas") && !cfg.tertuliaIntroSeen && newsSeen() < 11 && (user.created_at || "").slice(0, 10) < "2026-11-14" && !route.ttAsked) { route.ttAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-intro") && openTertuliaIntro(), 900); }
+  else if (feat("expediciones") && !cfg.expIntroSeen && expCur() && !expCur().demo && !route.letterAsked) { route.letterAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-intro") && openExpIntro(expCur()), 900); }
   else if (newsSeen() < NEWS[0].v) setTimeout(() => !document.querySelector(".tour, .modal") && openNews(), 900);
   else if (feat("expediciones") && expOverlay()) {}
   else if (feat("instalar") && !cfg.installSeen && !isInstalled() && !route.installAsked) { route.installAsked = true; setTimeout(() => !document.querySelector(".tour, .modal, .ex-ov, .ex-intro") && openInstall(true), 1200); }
@@ -334,7 +335,10 @@ const COLORS_LIVE = Date.now() >= new Date("2026-11-12T09:00").getTime();
 const TERT_LIVE = Date.now() >= new Date("2026-11-14T09:00").getTime();
 // Tóxicas para mascotas y la nueva pantalla para revisar la lámina: para todos el sábado 21 a las 9 (hora de cada teléfono).
 const MASC_LIVE = Date.now() >= new Date("2026-11-21T09:00").getTime();
-const FEATURES = { rejson: "todos", mascotas: MASC_LIVE ? "todos" : "prueba", revision: MASC_LIVE ? "todos" : "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: "no", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
+// Expediciones: la primera arranca el sábado 28 a las 9 de España (la abre la base). Hasta entonces, todos ven la cuenta regresiva.
+const EXP_START = new Date("2026-11-28T09:00:00+01:00").getTime();
+const EXP_LIVE = Date.now() >= EXP_START;
+const FEATURES = { rejson: "todos", mascotas: MASC_LIVE ? "todos" : "prueba", revision: MASC_LIVE ? "todos" : "prueba", sello: "todos", misiones: "todos", dudas: "todos", laminas: "todos", fotos: "todos", nuevas: "todos", tutoavisos: "todos", avisoboton: "todos", quienes: "todos", desde: "todos", cultivo: "todos", fichapar: "todos", sellocult: "todos", avisonews: "todos", expediciones: EXP_LIVE ? "todos" : "prueba", animaciones: "todos", portada: "todos", instalar: "todos", notas: TERT_LIVE ? "todos" : "prueba", menciones: TERT_LIVE ? "todos" : "prueba", autor: "todos", colores: COLORS_LIVE ? "todos" : "prueba", carga: "todos", reemplazar: "todos", cargando: "todos", contador: "todos", aire: "todos", deslizar: "todos", miembros: "todos", botones: "todos", avisos: "todos", ajustes2: "todos" };
 const MAX_PHOTOS = 4; // fotos propias por lámina (la lámina antigua no cuenta)
 // Las pruebas son solo del herbario de desarrollo (el de Nico): el dueño de otro herbario no las ve.
 const DEV_BASE = "ssrbytherfljgxfgvhlc";
@@ -342,8 +346,8 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = "1.13.1", APP_DATE = "2026-11-22";
-const SCHEMA_NEEDED = 25;
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.2", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
   // Dueño = primer usuario de esta nube. Si la función no existe (herbario viejo), se asume dueño para no ocultarle nada.
@@ -1151,6 +1155,12 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece solo desde ese momento en la hora de cada teléfono.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
+  { v: 14, date: "2026-11-28", at: "09:00", feat: "expediciones", items: [
+    "<b>Expediciones del herbario.</b> Cada dos semanas, una búsqueda en común: una meta que se cumple entre todos, sin competir. La primera es «Primeras láminas»: asentar entre todos 10 plantas, las que sean. Quienes aportan ganan su sello.",
+    "<b>Su propia tertulia.</b> Cada expedición tiene una charla para contar qué vieron, pedir ayuda o armar una salida juntos.",
+  ], tour: [
+    ["list", ".ex-card[data-exp]", "La expedición en curso", "Arriba del herbario ves la expedición: cuántas plantas faltan y cuánto tiempo queda. Tócala para ver los detalles y su tertulia."],
+  ] },
   { v: 13, date: "2026-11-21", at: "09:00", feat: "mascotas", items: [
     "<b>Tóxicas para mascotas 🐶🐱</b> Algunas plantas son inofensivas para las personas pero peligrosas para perros y gatos. Ahora la IA también lo revisa: en la lámina, toca «Tóxica» y verás un recuadro aparte que explica qué partes les hacen daño y qué síntomas dan. En las láminas que ya están, puedes sumarlo desde Editar, con una ficha nueva de la IA.",
     "<b>Revisar la lámina es más fácil.</b> Cuando la IA completa la ficha, ves un resumen con la foto y solo lo esencial para revisar. Los textos largos quedan plegados y se abren si quieres cambiarlos.",
@@ -1486,7 +1496,7 @@ function startTour(custom, onEnd) {
     // Con las tertulias encendidas, la ficha también presenta la pluma (no se nombra antes de que salgan).
     if (t[2] === "La ficha" && feat("notas")) t[3] += " Abajo a la derecha, la pluma abre su tertulia: la charla del herbario sobre esa planta.";
     if (!feat("misiones")) return t;
-    if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración."];
+    if (t[2] === "Logros") return [t[0], t[1], t[2], "Más de 60 logros que se desbloquean a medida que tu herbario crece, incluidos los de exploración." + (feat("expediciones") ? " Aquí también ves la expedición del herbario: una meta en común, entre todos." : "")];
     if (t[2] === "Ajustes") return [t[0], t[1], t[2], feat("tutoavisos") ? "Tu nombre y tu medallón, tu zona para las misiones, el tema e invitar a otras personas." : "Tu nombre y tu medallón, tu zona para las misiones, qué avisos quieres recibir, el tema e invitar a otras personas."];
     return t;
   });
@@ -1609,8 +1619,8 @@ async function notifyOwner() {
   try { const r = await sb.functions.invoke("notify", { body: { kind: "request", site: SITE_URL() } }); if (!r.error) { cfg.reqNotified = user.id; saveCfg(cfg); } } catch {}
 }
 // Qué avisos quiere cada persona y por dónde (se guarda en su cuenta, en notif_prefs).
-const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"], ["comments", "Alguien comentó en tu lámina", false, "notas", "Tertulia"], ["mentions", "Alguien te mencionó con @", false, "menciones", "Tertulia"], ["replies", "Alguien respondió a tu comentario", false, "notas", "Tertulia"]];
-const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false }, comments: { push: true, mail: false }, replies: { push: true, mail: false } };
+const NOTIF_KINDS = [["requests", "Alguien pide entrar al herbario", true], ["members", "Alguien nuevo se sumó al herbario"], ["plants", "Otra persona sumó una lámina"], ["missions", "Te llegó una misión nueva (a las 9)"], ["news", "Novedades de la app", false, "avisonews"], ["expeditions", "Arrancó, se cumplió o termina una expedición", false, "expediciones"], ["comments", "Alguien comentó en tu lámina", false, "notas", "Tertulia"], ["mentions", "Alguien te mencionó con @", false, "menciones", "Tertulia"], ["replies", "Alguien respondió a tu comentario", false, "notas", "Tertulia"]];
+const NOTIF_DEFAULT = { requests: { push: true, mail: false }, members: { push: true, mail: false }, plants: { push: true, mail: false }, missions: { push: true, mail: false }, news: { push: true, mail: true }, mentions: { push: true, mail: false }, comments: { push: true, mail: false }, replies: { push: true, mail: false }, expeditions: { push: true, mail: false } };
 let notifPrefs = null;
 const avisosBox = () => `<div class="share-box avisos"><h3>Avisos</h3>
   <p class="muted" style="margin-top:0">Elige qué quieres que te avise el herbario y por dónde. Sin ninguna casilla marcada, no te llega nada.</p>
@@ -1830,7 +1840,7 @@ function renderList() {
     $app.querySelectorAll(".card").forEach((c) => { if (c.querySelector(".nova-seal") && !shone.has(c.dataset.id)) { c.querySelector(".nova-seal").classList.add("shine"); shone.add(c.dataset.id); } });
     cfg.novaShone = [...shone].slice(-200); saveCfg(cfg);
   }
-  if (feat("expediciones")) { teaserHook(); expListHook(); }
+  if (feat("expediciones")) { teaserHook(); expListHook(); } else if (!EXP_LIVE) teaserHook(); // la cuenta regresiva la ve todo el mundo
   $app.querySelector("#start")?.addEventListener("click", openSheet);
 }
 
@@ -3677,7 +3687,7 @@ function bindMentions(ta) {
 // ---------- lanzamiento de las expediciones: una semana de intriga y una carta que se abre sola ----------
 // La fecha de lanzamiento la decide el dueño; mientras tanto, la tarjeta del inicio cuenta los días sin decir qué es.
 function teaserHook() {
-  const at = cfg.expTeaser; if (!at || Date.now() > at) return;
+  const at = cfg.expTeaser || (!EXP_LIVE && !expCur() ? EXP_START : 0); if (!at || Date.now() > at) return;
   const box = $app.querySelector(".grid, ol.index"); if (!box) return;
   const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5);
   box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg class="tz-letter" viewBox="0 0 64 44"><rect x="1" y="1" width="62" height="42" rx="4" fill="#e6d6a6" stroke="#b39a52" stroke-width="1.2"/><path d="M1 3 L32 25 L63 3" fill="none" stroke="#b39a52" stroke-width="1.4"/><path d="M1 42 L25 22 M63 42 L39 22" stroke="#c7b178" stroke-width="1" fill="none"/></svg><svg class="tz-seal"><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
@@ -3731,7 +3741,10 @@ function openExpIntro(first) {
       b.style.cssText = `--dx:${Math.cos(a * Math.PI / 180) * d}px;--dy:${Math.sin(a * Math.PI / 180) * d}px;--r:${Math.random() * 360}deg;animation-delay:${Math.random() * 0.15}s`; burst.appendChild(b); } }, 4300);
     setTimeout(() => unfoldLetter(ov, coverHTML), 3000);
   };
-  ov.querySelector(".li-go").onclick = () => { cfg.expIntroSeen = 1; saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400); };
+  ov.querySelector(".li-go").onclick = () => {
+    cfg.expIntroSeen = 1; if (first?.id) cfg.expSeen = { ...(cfg.expSeen || {}), [first.id]: "new" }; // la carta ya presenta esta expedición: no hace falta el cartel de «Nueva»
+    saveCfg(cfg); ov.classList.add("out"); setTimeout(() => { ov.remove(); go("exp"); }, 400);
+  };
 }
 
 // Presentación de la tertulia: la misma carta de las expediciones, pero sin sobre: cubre la pantalla y se lee de una.

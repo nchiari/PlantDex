@@ -548,3 +548,26 @@ revoke all on function public.on_member_pending() from public, anon, authenticat
 drop trigger if exists member_pending_notify on public.members;
 create trigger member_pending_notify after insert on public.members for each row execute function public.on_member_pending();
 create or replace function public.schema_version() returns int language sql immutable as $$ select 25 $$;
+
+-- v26: avisos de las expediciones (arrancó, se cumplió, quedan 2 días). Cada aviso se marca en la expedición para salir una sola vez.
+alter table public.expeditions add column if not exists started_notified_at timestamptz;
+alter table public.expeditions add column if not exists done_notified_at timestamptz;
+-- Al arrancar o cumplirse una expedición real, la base llama a la función de avisos (misma dirección y clave que la tarea de cada hora).
+-- Sin pg_cron o pg_net no hace nada: los avisos salen igual en la tarea de cada hora.
+create or replace function public.on_expedition_notify() returns trigger language plpgsql security definer set search_path = '' as $$
+declare u text; k text;
+begin
+  if new.demo then return new; end if;
+  if tg_op = 'UPDATE' and new.status is not distinct from old.status then return new; end if;
+  if not exists (select 1 from pg_extension where extname = 'pg_net') or not exists (select 1 from pg_extension where extname = 'pg_cron') then return new; end if;
+  execute $q$ select substring(command from 'url := ''([^'']+)''') from cron.job where jobname = 'herbalorium-avisos' $q$ into u;
+  select value into k from public.app_secrets where key = 'cron';
+  if u is null or k is null then return new; end if;
+  execute 'select net.http_post(url := $1, headers := jsonb_build_object(''content-type'', ''application/json'', ''x-cron'', $2), body := ''{"kind":"exp"}''::jsonb)' using u, k;
+  return new;
+exception when others then return new; -- un aviso que falla nunca frena la expedición
+end $$;
+revoke all on function public.on_expedition_notify() from public, anon, authenticated;
+drop trigger if exists expedition_notify on public.expeditions;
+create trigger expedition_notify after insert or update of status on public.expeditions for each row execute function public.on_expedition_notify();
+create or replace function public.schema_version() returns int language sql immutable as $$ select 26 $$;
