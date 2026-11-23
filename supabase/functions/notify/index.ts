@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
   }
 
   // ---------- mail único a todo el herbario (lo dispara la base, con la misma clave que la tarea de cada hora) ----------
-  // body: { subject, html } — en el html, {nombre} se cambia por el nombre de cada persona. No mira las casillas.
+  // body: { subject, html, push? } — en el html, {nombre} se cambia por el nombre de cada persona. No mira las casillas.
   if (kind === "broadcast") {
     if (!sec.cron || req.headers.get("x-cron") !== sec.cron) return json({ error: "no autorizado" }, 401);
     if (!body.subject || !body.html) return json({ error: "faltan datos" }, 400);
@@ -191,6 +191,7 @@ Deno.serve(async (req) => {
     for (const uid of accepted) {
       const n = nameOf(uid);
       (await mail(uid, String(body.subject), String(body.html).replaceAll("{nombre}", esc(n)), body.foot ? String(body.foot) : undefined) ? sent : failed).push(n);
+      if (body.push) await push(uid, String(body.subject), String(body.push), site, "news"); // con «push», también al teléfono
     }
     return json({ ok: true, sent, failed });
   }
