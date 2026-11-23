@@ -346,7 +346,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.2", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.3", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
 const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
@@ -592,6 +592,8 @@ const foundWhen = () => { const f = draft?.data?.found_at; return f ? new Date(f
 const buildPrompt = (hint = "", place = "") => `Eres un botánico divulgador, de esos que hacen que cualquiera se interese por las plantas. Identifica la planta, hongo o fruto de las fotos.
 Lugar del hallazgo: ${place || "desconocido"}.${foundWhen() ? ` Fecha del hallazgo: ${foundWhen()}.` : ""} Úsalo SOLO para ayudarte a identificarla (qué crece ahí y qué está en flor o en fruto en esa época) y para saber en qué hemisferio está (meses de flor y fruto). Los textos NO deben mencionar las fotos, el ejemplar fotografiado ni el lugar del hallazgo: habla de la especie en general.
 
+IMPORTANTE: la ficha es para un herbario compartido que leen muchas personas. No uses nada de lo que sepas de mí por conversaciones anteriores, memoria o instrucciones personalizadas (mi nombre, mis mascotas, mi casa, mis gustos): escribe todo en general, sin nombres propios de personas ni de animales y sin hablarme a mí.
+
 TONO: cercano, claro y con ganas de contar. Frases cortas, vocabulario de todos los días, nada de jerga técnica (si usas un término botánico, explícalo en tres palabras). Ni solemne ni chistoso: como un buen documental o un amigo que sabe mucho. Español neutro.
 
 ${feat("dudas") ? `¿PREGUNTAR O RESPONDER? Por defecto, responde directamente con la ficha. La gran mayoría de las veces tu primera idea es la correcta: confía en ella.
@@ -611,7 +613,7 @@ El JSON tiene que ser válido y con esta forma exacta:
  "kind": "árbol | arbusto | hierba | trepadora | hongo | otro",
  "types": [elige de: ${TYPES.join(", ")}],
  "edible_human": "si | parcial | no | desconocido",
-${feat("mascotas") ? ` "pets": {"toxic": true si es tóxica para perros, gatos u otros animales de compañía (aunque para las personas no lo sea), false si no lo es, null si no se sabe, "note": "si es tóxica para mascotas: qué partes, qué animales y qué síntomas da, en 1-2 frases claras; vacío (\"\") si no lo es"},
+${feat("mascotas") ? ` "pets": {"toxic": true si es tóxica para perros, gatos u otros animales de compañía (aunque para las personas no lo sea), false si no lo es, null si no se sabe, "note": "si es tóxica para mascotas: qué partes, qué animales (perros, gatos…, en general, sin nombres) y qué síntomas da, en 1-2 frases claras; vacío (\"\") si no lo es"},
 ` : ""} "parts": {usos de la planta. Incluye SOLO los que apliquen, con estas claves: comer, medicina, toxica, otro (madera, aceite, tintes, aroma, jardín…). Cada uno: {"partes": [de: hoja, flor, fruto, semilla, raiz, tallo], "nota": "qué parte se usa y cómo, o por qué es peligrosa; 1-2 frases claras"}},
  "description": "2-3 frases para alguien que no sabe nada de botánica. Empieza por lo que la hace conocida o cercana (dónde la vio todo el mundo, para qué se usa, por qué es famosa) y termina con cómo reconocerla de un vistazo. Ej.: 'Es la decoración navideña por excelencia…'",
  "origin": "región de origen en 1-4 palabras, ej. 'Mediterráneo', 'Norteamérica', 'Asia oriental'",
