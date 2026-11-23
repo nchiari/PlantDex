@@ -570,4 +570,11 @@ end $$;
 revoke all on function public.on_expedition_notify() from public, anon, authenticated;
 drop trigger if exists expedition_notify on public.expeditions;
 create trigger expedition_notify after insert or update of status on public.expeditions for each row execute function public.on_expedition_notify();
+-- La expedición arranca en punto: la tarea de cada hora pasa del minuto 7 al minuto 0 (solo si la base tiene pg_cron).
+do $$ begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') and exists (select 1 from cron.job where jobname = 'herbalorium-expediciones') then
+    perform cron.unschedule('herbalorium-expediciones');
+    perform cron.schedule('herbalorium-expediciones', '0 * * * *', 'select public.expedition_tick()');
+  end if;
+end $$;
 create or replace function public.schema_version() returns int language sql immutable as $$ select 26 $$;

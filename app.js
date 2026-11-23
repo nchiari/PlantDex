@@ -3692,7 +3692,7 @@ function teaserHook() {
   const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5);
   box.insertAdjacentHTML("beforebegin", `<button class="ex-card teaser" data-teaser><span class="tz-env"><svg class="tz-letter" viewBox="0 0 64 44"><rect x="1" y="1" width="62" height="42" rx="4" fill="#e6d6a6" stroke="#b39a52" stroke-width="1.2"/><path d="M1 3 L32 25 L63 3" fill="none" stroke="#b39a52" stroke-width="1.4"/><path d="M1 42 L25 22 M63 42 L39 22" stroke="#c7b178" stroke-width="1" fill="none"/></svg><svg class="tz-seal"><use href="#i-seal-gold"/></svg></span><span class="ex-grow">
     <span class="ex-chip gold">Muy pronto</span><b class="ex-t">Algo se está preparando en el herbario…</b>
-    <span class="tz-count">${d > 0 ? `Faltan <b>${d}</b> ${d === 1 ? "día" : "días"} y <b>${h}</b> h` : `Faltan <b>${h}</b> h`} · sábado a las 9</span></span></button>`);
+    <span class="tz-count">${d > 0 ? `Faltan <b>${d}</b> ${d === 1 ? "día" : "días"} y <b>${h}</b> h` : `Faltan <b>${h}</b> h`} · ${new Date(at).toLocaleDateString("es-ES", { weekday: "long" })} a las ${new Date(at).toLocaleTimeString("es-ES", { hour: "numeric", minute: "2-digit" }).replace(/:00$/, "")}</span></span></button>`); // en la hora de cada teléfono
   $app.querySelector("[data-teaser]").onclick = () => toast("Muy pronto vas a saber de qué se trata…");
 }
 function openExpIntro(first) {
