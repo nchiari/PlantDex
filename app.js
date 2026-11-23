@@ -1155,12 +1155,6 @@ function openWhyAI() {
 // Una novedad con «at» (hora local, ej. "09:00") aparece solo desde ese momento en la hora de cada teléfono.
 const newsLive = (n) => !n.at || Date.now() >= new Date(`${n.date}T${n.at}`).getTime();
 const NEWS_ALL = [
-  { v: 14, date: "2026-11-28", at: "09:00", feat: "expediciones", items: [
-    "<b>Expediciones del herbario.</b> Cada dos semanas, una búsqueda en común: una meta que se cumple entre todos, sin competir. La primera es «Primeras láminas»: asentar entre todos 10 plantas, las que sean. Quienes aportan ganan su sello.",
-    "<b>Su propia tertulia.</b> Cada expedición tiene una charla para contar qué vieron, pedir ayuda o armar una salida juntos.",
-  ], tour: [
-    ["list", ".ex-card[data-exp]", "La expedición en curso", "Arriba del herbario ves la expedición: cuántas plantas faltan y cuánto tiempo queda. Tócala para ver los detalles y su tertulia."],
-  ] },
   { v: 13, date: "2026-11-21", at: "09:00", feat: "mascotas", items: [
     "<b>Tóxicas para mascotas 🐶🐱</b> Algunas plantas son inofensivas para las personas pero peligrosas para perros y gatos. Ahora la IA también lo revisa: en la lámina, toca «Tóxica» y verás un recuadro aparte que explica qué partes les hacen daño y qué síntomas dan. En las láminas que ya están, puedes sumarlo desde Editar, con una ficha nueva de la IA.",
     "<b>Revisar la lámina es más fácil.</b> Cuando la IA completa la ficha, ves un resumen con la foto y solo lo esencial para revisar. Los textos largos quedan plegados y se abren si quieres cambiarlos.",
