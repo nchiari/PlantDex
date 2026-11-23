@@ -1708,7 +1708,7 @@ nav.bottom button { font-size: 10px !important; }
 .rv-seal { font: 600 var(--caps-s, 10.5px) var(--caps); letter-spacing: 1.2px; text-transform: uppercase; padding: 4px 10px; border-radius: 99px; border: 1px solid rgb(var(--line) / .3); color: var(--ink-soft); background: var(--parchment); }
 .rv-seal.ok { color: var(--u-comer); border-color: currentColor; }
 .rv-seal.warn { color: var(--warn); border-color: currentColor; }
-.rv-seal.bad { color: var(--parchment); background: var(--deep); border-color: var(--gold); }
+.rv-seal.bad { color: var(--gold-soft); background: var(--deep); border-color: var(--gold); } /* tóxica: dorado sobre verde oscuro, legible en claro y en oscuro */
 .rv-seal.pet { color: var(--u-mascota, #9a5a14); border-color: currentColor; background: var(--pet-wash, transparent); }
 .rv-sec { margin-top: 28px; border-top: 1px solid rgb(var(--line) / .2); border-bottom: 1px solid rgb(var(--line) / .2); }
 .rv-sec > summary { cursor: pointer; padding: 16px 2px; font: 600 var(--caps-m, 12px) var(--caps); letter-spacing: 1.6px; text-transform: uppercase; color: var(--leaf); }

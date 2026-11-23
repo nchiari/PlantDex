@@ -346,7 +346,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.4", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.5", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
 const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
