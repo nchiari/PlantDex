@@ -346,7 +346,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.3", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.4", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
 const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
@@ -632,7 +632,8 @@ ${feat("mascotas") ? ` "pets": {"toxic": true si es tóxica para perros, gatos u
 }
 Ante la duda sé conservador con la comestibilidad: usa "desconocido".${feat("mascotas") ? `
 La toxicidad para personas va en types ("toxica"), edible_human y parts; la toxicidad para mascotas va SOLO en pets. Si es tóxica para mascotas pero no para personas, NO pongas "toxica" en types ni en parts. Revisa siempre la toxicidad para perros y gatos, aunque la planta sea inofensiva para las personas.` : ""}
-En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marca con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
+En description, native_range, edibility_notes, medicinal_notes, uses, history y curiosity marca con **doble asterisco** entre 2 y 4 palabras o frases clave por campo (partes que se comen, advertencias, usos principales, fechas, personajes o lugares históricos). No marques frases enteras.
+Antes de responder, revisa TODOS los campos: ninguno puede nombrar a personas, mascotas, lugares ni costumbres de quien te escribe (sale de tu memoria o de conversaciones anteriores, no de las fotos). Todo va en general, sobre la especie.${hint ? `\nPista del usuario para identificarla: ${hint}` : ""}`;
 
 // Marcas de citas que algunas IA dejan pegadas al copiar: Gemini [span_0](start_span), [cite: 1], [cite_start];
 // ChatGPT 【4†fuente】 o "turn0search0"; y llamadas numéricas tipo [1] o [2, 3].
