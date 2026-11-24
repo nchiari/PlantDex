@@ -346,7 +346,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.6", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.7", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
 const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
@@ -3265,8 +3265,9 @@ const ACH = [
 ];
 // Logros del herbario, entre todos: uno cada 50 láminas desde las 150. Se muestran los ganados y el próximo.
 const HERB_NAMES = { 150: "Herbario en flor", 200: "Jardín botánico", 250: "Biblioteca verde", 300: "Gran florilegio", 350: "Flora del herbario", 400: "Enciclopedia viva" };
-const herbAch = () => { const top = Math.max(150, Math.floor(plants.length / 50) * 50 + 50), out = [];
-  for (let n = 150; n <= top; n += 50) out.push([`h${n}`, "Entre todos", "i-laurel", HERB_NAMES[n] || `Herbario de ${n}`, `Entre todos, ${n} láminas en el herbario`, n >= 250 ? 3 : 2, "herbTotal", n]);
+const herbAch = () => { // los gana cada persona del herbario a la vez, sin importar quién subió las láminas
+  const top = Math.max(150, Math.floor(plants.length / 50) * 50 + 50), out = [];
+  for (let n = 150; n <= top; n += 50) out.push([`h${n}`, "Entre todos", "i-laurel", HERB_NAMES[n] || `Herbario de ${n}`, `Logro compartido: entre todos llegamos a ${n} láminas en el herbario`, n >= 250 ? 3 : 2, "herbTotal", n]);
   return out; };
 // Los logros de exploración existen solo si las misiones están activas para esta persona.
 const achList = () => [...ACH.filter((a) => a[1] !== "Exploración" || feat("misiones")), ...herbAch()];
@@ -3293,7 +3294,7 @@ function showNextAch() {
   const el = document.createElement("div");
   el.className = `ach-toast tier-${a[5]}`;
   el.innerHTML = `<span class="ach-medal"><svg><use href="#${a[2]}"/></svg></span>
-    <span class="ach-txt"><small>Logro desbloqueado</small><b>${esc(a[3])}</b><i>${esc(a[4])}</i></span>
+    <span class="ach-txt"><small>${a[1] === "Entre todos" ? "Logro de todo el herbario" : "Logro desbloqueado"}</small><b>${esc(a[3])}</b><i>${esc(a[4])}</i></span>
     <button class="ach-x" aria-label="Cerrar">×</button>`;
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add("show"));
