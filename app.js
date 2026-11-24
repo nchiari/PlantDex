@@ -346,7 +346,7 @@ const isDevBase = () => (cfg.sbUrl || "").includes(DEV_BASE);
 const feat = (k) => FEATURES[k] === "todos" || (FEATURES[k] === "prueba" && !!user && amOwner && isDevBase());
 // Versión de la base que necesita esta app (la última "-- vN" de supabase/schema.sql).
 // Versión de la app (MAYOR.MENOR.ARREGLO): la MENOR sube con cada novedad publicada; el ARREGLO, con cada cambio chico o arreglo.
-const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.5", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
+const APP_VERSION = EXP_LIVE ? "1.14.0" : "1.13.6", APP_DATE = EXP_LIVE ? "2026-11-28" : "2026-11-23";
 const SCHEMA_NEEDED = 26;
 let schemaBehind = false;
 async function loadPlants() {
@@ -3186,6 +3186,7 @@ function achStats() {
     places: set((p) => p.location_name?.split(",")[0]?.trim()).size, countries: set(country).size,
     hemis: set((p) => (p.lat == null ? null : p.lat >= 0 ? "N" : "S")).size, geo: c((p) => p.lat != null),
     origins: set((p) => p.origin).size, letters: set((p) => plain(p.common_name).charAt(0)).size,
+    herbTotal: plants.length, // láminas de todo el herbario (logros que se ganan entre todos)
     photos, maxPhotos: Math.max(0, ...P.map((p) => p.photos?.length || 0)), notes: c((p) => (p.notes || "").trim().length > 10),
   };
 }
@@ -3262,8 +3263,13 @@ const ACH = [
   ["x6", "Exploración", "i-compass", "A la primera", "Cumple una misión el mismo día que te llegó", 2, "missionSameDay", 1],
   ["x7", "Exploración", "i-compass", "Cuatro estaciones", "Cumple misiones en las 4 estaciones del año", 3, "missionSeasons", 4],
 ];
+// Logros del herbario, entre todos: uno cada 50 láminas desde las 150. Se muestran los ganados y el próximo.
+const HERB_NAMES = { 150: "Herbario en flor", 200: "Jardín botánico", 250: "Biblioteca verde", 300: "Gran florilegio", 350: "Flora del herbario", 400: "Enciclopedia viva" };
+const herbAch = () => { const top = Math.max(150, Math.floor(plants.length / 50) * 50 + 50), out = [];
+  for (let n = 150; n <= top; n += 50) out.push([`h${n}`, "Entre todos", "i-laurel", HERB_NAMES[n] || `Herbario de ${n}`, `Entre todos, ${n} láminas en el herbario`, n >= 250 ? 3 : 2, "herbTotal", n]);
+  return out; };
 // Los logros de exploración existen solo si las misiones están activas para esta persona.
-const achList = () => ACH.filter((a) => a[1] !== "Exploración" || feat("misiones"));
+const achList = () => [...ACH.filter((a) => a[1] !== "Exploración" || feat("misiones")), ...herbAch()];
 const ACH_KEY = "plantdex.ach";
 const achUnlocked = (S = achStats()) => achList().filter((a) => S[a[6]] >= a[7]).map((a) => a[0]);
 
@@ -3275,7 +3281,7 @@ function checkAchievements() {
   try { seen = JSON.parse(localStorage.getItem(ACH_KEY)); } catch {}
   const fresh = seen ? now.filter((id) => !seen.includes(id)) : [];
   try { localStorage.setItem(ACH_KEY, JSON.stringify(now)); } catch {}
-  fresh.forEach((id) => achQueue.push(ACH.find((a) => a[0] === id)));
+  const all = achList(); fresh.forEach((id) => achQueue.push(all.find((a) => a[0] === id)));
   if (fresh.length && !achShowing) showNextAch();
 }
 const achQueue = []; let achShowing = false;
